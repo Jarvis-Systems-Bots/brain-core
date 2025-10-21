@@ -6,7 +6,7 @@ $thisAutoload = __DIR__ . '/../vendor/autoload.php';
 if (file_exists($thisAutoload)) {
     require $thisAutoload;
 } else {
-    $otherAutoload = __DIR__ . '/../../autoload.php';
+    $otherAutoload = __DIR__ . '/../../../autoload.php';
     if (file_exists($otherAutoload)) {
         require $otherAutoload;
     } else {
