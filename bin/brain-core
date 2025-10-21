@@ -38,7 +38,7 @@ $events = new Dispatcher($container);
 
 $app = new Application($container, $events, \BrainCore\Support\Brain::version());
 
-$app->add(new \BrainCore\Console\Commands\InitCommand());
+$app->add(new \BrainCore\Console\Commands\BuildCommand());
 
 $status = $app->run();
 
