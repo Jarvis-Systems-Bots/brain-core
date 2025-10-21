@@ -1,0 +1,33 @@
+{
+  "name": "bfg/jarvis-brain-core",
+  "description": "The Brain Core for Agent Management",
+  "keywords": ["jarvis", "brain", "core"],
+  "type": "library",
+  "version": "v0.0.1",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Xsaven",
+      "email": "xsaven@gmail.com",
+      "role": "Developer/Maintainer"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "BrainCore\\": "src/"
+    }
+  },
+  "bin": [
+    "bin/brain-core"
+  ],
+  "require": {
+    "php": "^8.2",
+    "illuminate/console": "^12.0",
+    "illuminate/database": "^12.0",
+    "illuminate/config": "^12.0",
+    "composer/composer": "^2.8",
+    "symfony/var-dumper": "^7.3",
+    "yosymfony/toml": "^1.0",
+    "bfg/dto": "^1.9"
+  }
+}
