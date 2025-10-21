@@ -1,5 +1,5 @@
 {
-  "name": "bfg/jarvis-brain-core",
+  "name": "jarvis/brain-core",
   "description": "The Brain Core for Agent Management",
   "keywords": ["jarvis", "brain", "core"],
   "type": "library",
