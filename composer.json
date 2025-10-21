@@ -15,7 +15,10 @@
   "autoload": {
     "psr-4": {
       "BrainCore\\": "src/"
-    }
+    },
+    "files": [
+      "helpers.php"
+    ]
   },
   "bin": [
     "bin/brain-core"
