@@ -17,7 +17,6 @@ class CompileCommand extends Command
     public function handle(): int
     {
         $dto = Brain::from();
-        $dto->ironRules->rule('test')->id('12')->why('because')->onViolation('do something')->critical();
         dd($dto->toJson(JSON_PRETTY_PRINT));
 
         //$a = Brain::run();

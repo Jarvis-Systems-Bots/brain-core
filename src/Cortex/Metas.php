@@ -6,16 +6,15 @@ namespace BrainCore\Cortex;
 
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
-use BrainCore\Blueprints\IronRule;
+use BrainCore\Blueprints\Meta;
 
 /**
  * Strict prohibitions/requirements with consequences for violation.
  */
-class IronRules extends Dto
+class Metas extends Dto
 {
     /**
-     * @param  string  $element
-     * @param  \Bfg\Dto\Collections\DtoCollection<int, IronRule>  $child
+     * @param  \Bfg\Dto\Collections\DtoCollection<int, Meta>  $child
      */
     public function __construct(
         protected string $element,
@@ -30,23 +29,23 @@ class IronRules extends Dto
      */
     protected static function defaultElement(): string
     {
-        return 'iron_rules';
+        return 'meta';
     }
 
     /**
-     * Add Rule
+     * Add Meta
      *
-     * @param  string  $text
-     * @return \BrainCore\Blueprints\IronRule
+     * @param  non-empty-string  $name
+     * @return \BrainCore\Blueprints\Meta
      */
-    public function rule(string $text): IronRule {
+    public function meta(string $name): Meta {
 
         $this->child->add(
-            $rule = IronRule::fromEmpty()
+            $meta = Meta::fromAssoc([
+                'element' => $name,
+            ])
         );
 
-        $rule->text($text);
-
-        return $rule;
+        return $meta;
     }
 }

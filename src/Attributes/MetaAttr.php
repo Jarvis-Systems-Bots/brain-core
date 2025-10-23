@@ -7,7 +7,7 @@ namespace BrainCore\Attributes;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
-class Meta
+class MetaAttr
 {
     /**
      * @param  non-empty-string|list<string>  $text
@@ -16,5 +16,12 @@ class Meta
         public string $name,
         public string|array $text,
     ) {
+    }
+
+    public function getText(): string
+    {
+        return is_array($this->text)
+            ? implode(PHP_EOL, $this->text)
+            : $this->text;
     }
 }

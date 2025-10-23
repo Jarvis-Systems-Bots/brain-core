@@ -4,25 +4,47 @@ declare(strict_types=1);
 
 namespace BrainCore\Blueprints;
 
+use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Blueprints\IronRule\OnViolation;
+use BrainCore\Blueprints\IronRule\Text;
+use BrainCore\Blueprints\IronRule\Why;
 use BrainCore\Enums\IronRuleSeverityEnum;
 
 class IronRule extends Dto
 {
     /**
+     * @param  string  $element
      * @param  string|null  $id
      * @param  \BrainCore\Enums\IronRuleSeverityEnum  $severity
-     * @param  string|null  $text
-     * @param  string|null  $why
-     * @param  string|null  $onViolation
+     * @param  \Bfg\Dto\Collections\DtoCollection<int, Dto>  $child
      */
     public function __construct(
-        public string|null $id = null,
-        public IronRuleSeverityEnum $severity = IronRuleSeverityEnum::UNSPECIFIED,
-        public string|null $text = null,
-        public string|null $why = null,
-        public string|null $onViolation = null,
+        protected string $element,
+        protected string|null $id,
+        protected IronRuleSeverityEnum $severity,
+        protected DtoCollection $child,
     ) {
+    }
+
+    /**
+     * Set default element
+     *
+     * @return non-empty-string
+     */
+    protected static function defaultElement(): string
+    {
+        return 'rule';
+    }
+
+    /**
+     * Get default severity
+     *
+     * @return \BrainCore\Enums\IronRuleSeverityEnum
+     */
+    protected static function defaultSeverity(): IronRuleSeverityEnum
+    {
+        return IronRuleSeverityEnum::UNSPECIFIED;
     }
 
     /**
@@ -57,14 +79,29 @@ class IronRule extends Dto
     }
 
     /**
+     * @param  non-empty-string  $text
+     * @return $this
+     */
+    public function text(string $text): static
+    {
+        $this->child->add(
+            Text::fromAssoc(compact('text'))
+        );
+
+        return $this;
+    }
+
+    /**
      * Set Why
      *
-     * @param  non-empty-string  $why
+     * @param  non-empty-string  $text
      * @return static
      */
-    public function why(string $why): static
+    public function why(string $text): static
     {
-        $this->why = $why;
+        $this->child->add(
+            Why::fromAssoc(compact('text'))
+        );
 
         return $this;
     }
@@ -72,12 +109,14 @@ class IronRule extends Dto
     /**
      * Set On Violation
      *
-     * @param  non-empty-string  $onViolation
+     * @param  non-empty-string  $text
      * @return static
      */
-    public function onViolation(string $onViolation): static
+    public function onViolation(string $text): static
     {
-        $this->onViolation = $onViolation;
+        $this->child->add(
+            OnViolation::fromAssoc(compact('text'))
+        );
 
         return $this;
     }
