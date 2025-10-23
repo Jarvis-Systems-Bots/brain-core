@@ -1,0 +1,53 @@
+<system>
+
+    <meta>
+        <id></id> <!-- Unique Brain identifier -->
+        <version></version> <!-- Brain version -->
+        <created></created> <!-- Creation timestamp -->
+        <updated></updated> <!-- Last update timestamp -->
+    </meta>
+
+    <purpose></purpose>
+
+    <iron_rules>
+        <rule id="" severity="">
+            <text></text>
+            <why></why>
+            <on_violation></on_violation>
+        </rule>
+        <!-- ... -->
+    </iron_rules>
+
+    <guidelines>
+        <guideline id="">
+            <text></text>
+            <example></example>
+        </guideline>
+        <!-- ... -->
+    </guidelines>
+
+    <style>
+        <language></language>
+        <tone></tone>
+        <brevity></brevity>
+        <formatting></formatting>
+        <forbidden_phrases>
+            <phrase></phrase>
+            <!-- ... -->
+        </forbidden_phrases>
+    </style>
+
+    <response_contract>
+        <sections order="strict">
+            <section name="" required="true" brief=""></section>
+            <!-- ... -->
+        </sections>
+        <code_blocks policy=""></code_blocks>
+        <patches policy=""></patches>
+    </response_contract>
+
+    <determinism>
+        <ordering>stable</ordering>
+        <randomness>off</randomness>
+    </determinism>
+</system>

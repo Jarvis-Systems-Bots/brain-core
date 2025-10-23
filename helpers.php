@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use Symfony\Component\Process\PhpExecutableFinder;
+use Illuminate\Support\Facades\Date;
+use Carbon\CarbonInterface;
 
 if (!function_exists("config")) {
     /**
@@ -184,5 +185,18 @@ if (! function_exists('to_array_values')) {
         return array_values(
             to_array($value, $default)
         );
+    }
+}
+
+if (! function_exists('now')) {
+    /**
+     * Create a new Carbon instance for the current time.
+     *
+     * @param  \UnitEnum|\DateTimeZone|string|null  $tz
+     * @return \Illuminate\Support\Carbon
+     */
+    function now(UnitEnum|DateTimeZone|string $tz = null): CarbonInterface
+    {
+        return Date::now(enum_value($tz));
     }
 }

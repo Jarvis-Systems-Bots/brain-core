@@ -1,8 +1,7 @@
 #!/usr/bin/env php
 <?php
 
-$thisAutoload = __DIR__ . '/../vendor/autoload.php';
-
+$thisAutoload = __DIR__ . '/../../vendor/autoload.php';
 if (file_exists($thisAutoload)) {
     require $thisAutoload;
 } else {
@@ -10,6 +9,7 @@ if (file_exists($thisAutoload)) {
     if (file_exists($otherAutoload)) {
         require $otherAutoload;
     } else {
+
         fwrite(STDERR, "You must set up the project dependencies using Composer.\n");
         exit(1);
     }
@@ -38,7 +38,7 @@ $events = new Dispatcher($container);
 
 $app = new Application($container, $events, \BrainCore\Support\Brain::version());
 
-$app->add(new \BrainCore\Console\Commands\BuildCommand());
+$app->add(new \BrainCore\Console\Commands\CompileCommand());
 
 $status = $app->run();
 
