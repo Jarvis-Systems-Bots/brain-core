@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace BrainCore\Enums\Cortex;
+namespace BrainCore\Enums;
 
-enum IronRulesSeverityEnum: string
+enum IronRuleSeverityEnum: string
 {
     case UNSPECIFIED = 'unspecified';
     case CRITICAL = 'critical';
