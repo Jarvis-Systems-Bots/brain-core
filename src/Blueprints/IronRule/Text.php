@@ -4,20 +4,10 @@ declare(strict_types=1);
 
 namespace BrainCore\Blueprints\IronRule;
 
-use Bfg\Dto\Dto;
+use BrainCore\Architectures\BlueprintArchitecture;
 
-class Text extends Dto
+class Text extends BlueprintArchitecture
 {
-    /**
-     * @param  non-empty-string  $element
-     * @param  string|null  $text
-     */
-    public function __construct(
-        protected string $element,
-        protected string|null $text = null,
-    ) {
-    }
-
     /**
      * Set default element
      *

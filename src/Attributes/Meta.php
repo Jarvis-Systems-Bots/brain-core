@@ -6,26 +6,19 @@ namespace BrainCore\Attributes;
 
 use Attribute;
 
-/**
- * Fixes the single goal of the profile.
- */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
-class PurposeAttr
+class Meta
 {
     /**
      * @param  non-empty-string|list<string>  $text
      */
     public function __construct(
+        public string $name,
         public string|array $text,
     ) {
     }
 
-    /**
-     * Get the purpose text.
-     *
-     * @return non-empty-string
-     */
-    public function getPurpose(): string
+    public function getText(): string
     {
         return is_array($this->text)
             ? implode(PHP_EOL, $this->text)

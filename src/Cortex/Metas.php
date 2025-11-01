@@ -4,24 +4,14 @@ declare(strict_types=1);
 
 namespace BrainCore\Cortex;
 
-use Bfg\Dto\Collections\DtoCollection;
-use Bfg\Dto\Dto;
+use BrainCore\Architectures\CortexArchitecture;
 use BrainCore\Blueprints\Meta;
 
 /**
  * Strict prohibitions/requirements with consequences for violation.
  */
-class Metas extends Dto
+class Metas extends CortexArchitecture
 {
-    /**
-     * @param  \Bfg\Dto\Collections\DtoCollection<int, Meta>  $child
-     */
-    public function __construct(
-        protected string $element,
-        protected DtoCollection $child,
-    ) {
-    }
-
     /**
      * Set default element
      *

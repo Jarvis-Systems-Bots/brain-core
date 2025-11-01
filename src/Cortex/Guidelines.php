@@ -4,28 +4,32 @@ declare(strict_types=1);
 
 namespace BrainCore\Cortex;
 
-use Bfg\Dto\Collections\DtoCollection;
-use BrainCore\Blueprints\IronRule;
+use BrainCore\Architectures\CortexArchitecture;
+use BrainCore\Blueprints\Guideline;
 
 /**
  * Soft standards — planning, minimal changes.
  */
-class Guidelines extends DtoCollection
+class Guidelines extends CortexArchitecture
 {
     /**
-     * Add Rule
+     * Set default element
      *
-     * @param  string  $text
-     * @return \BrainCore\Blueprints\IronRule
+     * @return non-empty-string
      */
-    public function rule(string $text): IronRule {
+    protected static function defaultElement(): string
+    {
+        return 'guidelines';
+    }
 
-        $this->add(
-            $rule = IronRule::fromAssoc(
-                compact('text')
-            )
-        );
-
-        return $rule;
+    /**
+     * Add guideline
+     *
+     * @param  non-empty-string|null  $id
+     * @return \BrainCore\Blueprints\Guideline
+     */
+    public function guideline(string|null $id = null): Guideline
+    {
+        return $this->findOrCreateOfChild(Guideline::class, $id);
     }
 }

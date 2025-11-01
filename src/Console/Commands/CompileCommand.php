@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace BrainCore\Console\Commands;
 
-use BrainCore\Cortex\IronRules;
+use BrainCore\Merger;
+use BrainCore\XmlBuilder;
 use BrainNode\Brain;
 use Illuminate\Console\Command;
 
@@ -16,8 +17,10 @@ class CompileCommand extends Command
 
     public function handle(): int
     {
-        $dto = Brain::from();
-        dd($dto->toJson(JSON_PRETTY_PRINT));
+        $dto = Brain::fromEmpty();
+        $structure = Merger::from($dto)->handle();
+        $xml = XmlBuilder::from($structure)->build();
+        dd($xml);
 
         //$a = Brain::run();
 

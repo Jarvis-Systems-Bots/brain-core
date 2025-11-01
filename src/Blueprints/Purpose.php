@@ -4,20 +4,10 @@ declare(strict_types=1);
 
 namespace BrainCore\Blueprints;
 
-use Bfg\Dto\Dto;
+use BrainCore\Architectures\BlueprintArchitecture;
 
-class Purpose extends Dto
+class Purpose extends BlueprintArchitecture
 {
-    /**
-     * @param  non-empty-string  $element
-     * @param  string|null  $text
-     */
-    public function __construct(
-        protected string $element,
-        protected string|null $text = null,
-    ) {
-    }
-
     /**
      * Set default element
      *

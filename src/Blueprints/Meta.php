@@ -4,20 +4,10 @@ declare(strict_types=1);
 
 namespace BrainCore\Blueprints;
 
-use Bfg\Dto\Dto;
+use BrainCore\Architectures\BlueprintArchitecture;
 
-class Meta extends Dto
+class Meta extends BlueprintArchitecture
 {
-    /**
-     * @param  non-empty-string  $element
-     * @param  string|null  $text
-     */
-    public function __construct(
-        protected string $element,
-        protected string|null $text = null,
-    ) {
-    }
-
     /**
      * Set default element
      *
@@ -26,17 +16,5 @@ class Meta extends Dto
     protected static function defaultElement(): string
     {
         return 'meta';
-    }
-
-    /**
-     * Set Text
-     *
-     * @param  non-empty-string  $text
-     * @return $this
-     */
-    public function text(string $text): static
-    {
-        $this->text = $text;
-        return $this;
     }
 }

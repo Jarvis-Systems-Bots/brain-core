@@ -4,26 +4,21 @@ declare(strict_types=1);
 
 namespace BrainCore\Blueprints;
 
-use Bfg\Dto\Collections\DtoCollection;
-use Bfg\Dto\Dto;
+use BrainCore\Architectures\BlueprintArchitecture;
 use BrainCore\Blueprints\IronRule\OnViolation;
 use BrainCore\Blueprints\IronRule\Text;
 use BrainCore\Blueprints\IronRule\Why;
 use BrainCore\Enums\IronRuleSeverityEnum;
 
-class IronRule extends Dto
+class IronRule extends BlueprintArchitecture
 {
     /**
-     * @param  string  $element
-     * @param  string|null  $id
+     * @param  non-empty-string|null  $id
      * @param  \BrainCore\Enums\IronRuleSeverityEnum  $severity
-     * @param  \Bfg\Dto\Collections\DtoCollection<int, Dto>  $child
      */
     public function __construct(
-        protected string $element,
         protected string|null $id,
         protected IronRuleSeverityEnum $severity,
-        protected DtoCollection $child,
     ) {
     }
 
@@ -45,19 +40,6 @@ class IronRule extends Dto
     protected static function defaultSeverity(): IronRuleSeverityEnum
     {
         return IronRuleSeverityEnum::UNSPECIFIED;
-    }
-
-    /**
-     * Set ID
-     *
-     * @param  non-empty-string  $id
-     * @return static
-     */
-    public function id(string $id): static
-    {
-        $this->id = $id;
-
-        return $this;
     }
 
     /**

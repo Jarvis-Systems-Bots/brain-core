@@ -4,25 +4,14 @@ declare(strict_types=1);
 
 namespace BrainCore\Cortex;
 
-use Bfg\Dto\Collections\DtoCollection;
-use Bfg\Dto\Dto;
+use BrainCore\Architectures\CortexArchitecture;
 use BrainCore\Blueprints\IronRule;
 
 /**
  * Strict prohibitions/requirements with consequences for violation.
  */
-class IronRules extends Dto
+class IronRules extends CortexArchitecture
 {
-    /**
-     * @param  string  $element
-     * @param  \Bfg\Dto\Collections\DtoCollection<int, IronRule>  $child
-     */
-    public function __construct(
-        protected string $element,
-        protected DtoCollection $child,
-    ) {
-    }
-
     /**
      * Set default element
      *
@@ -36,17 +25,11 @@ class IronRules extends Dto
     /**
      * Add Rule
      *
-     * @param  string  $text
+     * @param  non-empty-string|null  $id
      * @return \BrainCore\Blueprints\IronRule
      */
-    public function rule(string $text): IronRule {
-
-        $this->child->add(
-            $rule = IronRule::fromEmpty()
-        );
-
-        $rule->text($text);
-
-        return $rule;
+    public function rule(string|null $id = null): IronRule
+    {
+        return $this->findOrCreateOfChild(IronRule::class, $id);
     }
 }

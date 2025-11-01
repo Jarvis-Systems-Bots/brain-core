@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace BrainCore\Blueprints\IronRule;
+namespace BrainCore\Blueprints\Style;
 
 use BrainCore\Architectures\BlueprintArchitecture;
 
-class Why extends BlueprintArchitecture
+class Language extends BlueprintArchitecture
 {
     /**
      * Set default element
@@ -15,6 +15,6 @@ class Why extends BlueprintArchitecture
      */
     protected static function defaultElement(): string
     {
-        return 'why';
+        return 'language';
     }
 }

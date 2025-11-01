@@ -6,81 +6,67 @@ namespace BrainCore\Architectures;
 
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
-use BrainCore\Attributes\MetaAttr;
-use BrainCore\Attributes\PurposeAttr;
-use BrainCore\Blueprints\Purpose;
-use BrainCore\Cortex\IronRules;
-use BrainCore\Cortex\Metas;
+use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
 abstract class ArchetypeArchitecture extends Dto
 {
+    use FactoryHelpersTrait;
+
     /**
      * @param  string  $element
      * @param  \Bfg\Dto\Collections\DtoCollection<int, Dto>  $child
+     * @param  \Bfg\Dto\Collections\DtoCollection<int, ArchetypeArchitecture>  $includes
      */
     public function __construct(
         protected string $element,
         protected DtoCollection $child,
+        protected DtoCollection $includes,
     ) {
         static::on('created', function () {
-            $this->extractAttributes();
+            if (method_exists($this, 'extractAttributes')) {
+                $this->extractAttributes();
+            }
             $this->handle();
         });
     }
 
     /**
-     * Meta information about the architecture.
-     *
-     * @return \BrainCore\Cortex\Metas
-     */
-    public function metas(): Metas
-    {
-        $exists = $this->child->firstWhere(fn ($item) => $item instanceof Metas);
-        if ($exists instanceof Metas) {
-            return $exists;
-        }
-        $this->child->add(
-            $metas = Metas::fromEmpty()
-        );
-        return $metas;
-    }
-
-    /**
-     * Fixes the single goal of the profile.
-     *
-     * @param  non-empty-string  $text
+     * @param  ArchetypeArchitecture|class-string<ArchetypeArchitecture>  $class
      * @return static
      */
-    public function purpose(string $text): static
+    public function include(ArchetypeArchitecture|string $class): static
     {
-        $exists = $this->child->firstWhere(fn ($item) => $item instanceof Purpose);
-        if ($exists instanceof Purpose) {
-            $text = $exists->get('text') . PHP_EOL . $text;
-            $exists->set('text', $text);
-        } else {
-            $this->child->add(
-                Purpose::fromAssoc(compact('text'))
-            );
+        $classNamespace = is_object($class) ? get_class($class) : $class;
+
+        if (static::class === $classNamespace) {
+            return $this;
         }
+
+        if (is_string($class)) {
+            $class = $class::fromEmpty();
+        }
+
+         $this->includes->add($class);
+
         return $this;
     }
 
     /**
-     * Strict prohibitions/requirements with consequences for violation.
+     * Extract structured array.
      *
-     * @return \BrainCore\Cortex\IronRules
+     * @return array<string, mixed>
      */
-    public function ironRules(): IronRules
+    public function extract(): array
     {
-        $exists = $this->child->firstWhere(fn ($item) => $item instanceof IronRules);
-        if ($exists instanceof IronRules) {
-            return $exists;
-        }
-        $this->child->add(
-            $ironRules = IronRules::fromEmpty()
-        );
-        return $ironRules;
+        $array = $this->toArray();
     }
+
+    /**
+     * Default element name.
+     *
+     * @return non-empty-string
+     */
+    abstract protected static function defaultElement(): string;
 
     /**
      * Handle the architecture logic.
@@ -88,31 +74,4 @@ abstract class ArchetypeArchitecture extends Dto
      * @return void
      */
     abstract protected function handle(): void;
-
-    /**
-     * Extract class attributes.
-     *
-     * @return void
-     */
-    private function extractAttributes(): void
-    {
-        $reflection = static::reflection();
-        $metaAttributes = $reflection->getAttributes(MetaAttr::class);
-        $purposeAttributes = $reflection->getAttributes(PurposeAttr::class);
-
-        foreach ($metaAttributes as $attribute) {
-            /** @var MetaAttr $metaInstance */
-            $metaInstance = $attribute->newInstance();
-            $this->metas()->meta($metaInstance->name)
-                ->text($metaInstance->getText());
-        }
-
-        foreach ($purposeAttributes as $attribute) {
-            /** @var PurposeAttr $purposeInstance */
-            $purposeInstance = $attribute->newInstance();
-            $this->purpose(
-                $purposeInstance->getPurpose()
-            );
-        }
-    }
 }
