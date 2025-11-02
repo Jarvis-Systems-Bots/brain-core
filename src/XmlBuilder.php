@@ -19,12 +19,12 @@ class XmlBuilder
     /**
      * @param  array<string, mixed>  $structure
      */
-    public static function from(array $structure): static
+    public static function from(array $structure): string
     {
-        return new static($structure);
+        return (new static($structure))->build();
     }
 
-    public function build(): string
+    protected function build(): string
     {
         return $this->renderNode($this->structure, true);
     }

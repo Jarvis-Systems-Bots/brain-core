@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace BrainCore\Includes\Brain;
 
 use BrainCore\Archetypes\BrainArchetype;
-use BrainCore\Attributes\Meta;
 use BrainCore\Attributes\Purpose;
 
-#[Meta('id', 'brain-core')]
 #[Purpose("Coordinates the Brain ecosystem: strategic orchestration of agents, context management, task delegation, and result validation. Ensures policy consistency, precision, and stability across the entire system.")]
 class BrainCore extends BrainArchetype
 {

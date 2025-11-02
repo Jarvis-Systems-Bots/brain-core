@@ -20,18 +20,18 @@ class Merger
     /**
      * @return array<string, mixed>
      */
-    public function handle(): array
+    protected function handle(): array
     {
         return $this->mergeNode($this->structure);
     }
 
     /**
      * @param  \Bfg\Dto\Dto  $dto
-     * @return \BrainCore\Merger
+     * @return array<string, mixed>
      */
-    public static function from(Dto $dto): static
+    public static function from(Dto $dto): array
     {
-        return new static($dto->toArray());
+        return (new static($dto->toArray()))->handle();
     }
 
     /**
