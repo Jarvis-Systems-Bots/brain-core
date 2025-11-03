@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the unified standard for authoring, maintaining, and validating all inst
 Ensures clarity, predictability, and structural consistency across all instruction documents.
 PURPOSE
 )]
-class InstructionWritingStandards extends BrainArchetype
+class InstructionWritingStandards extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.

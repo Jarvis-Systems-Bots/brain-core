@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines Brain-level protocol for evaluating agent responses after execution or r
 Ensures logical consistency, structural validity, and policy alignment before acceptance or propagation.
 PURPOSE
 )]
-class AgentResponseValidation extends BrainArchetype
+class AgentResponseValidation extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -66,10 +66,5 @@ class AgentResponseValidation extends BrainArchetype
         $metrics->example('semantic-accuracy ≥ 0.9');
         $metrics->example('validation-pass-rate ≥ 0.95');
         $metrics->example('average-latency-ms ≤ 300');
-
-        $this->guideline('meta-controls-agent-response')
-            ->text('Strict XML protocol optimized for Brain post-execution validation and CI verification.')
-            ->example('Architect Agent supervises response evaluation policies and thresholds.')->key('governance')
-            ->example('All agent responses logged to agent_response_validation.log with scores and validation results.')->key('logging');
     }
 }

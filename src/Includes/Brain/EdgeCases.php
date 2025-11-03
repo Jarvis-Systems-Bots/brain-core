@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines Brain's unified policy for handling abnormal or boundary scenarios (edge
 Ensures graceful degradation, system stability, and predictable recovery under non-standard conditions.
 PURPOSE
 )]
-class EdgeCases extends BrainArchetype
+class EdgeCases extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -71,10 +71,5 @@ class EdgeCases extends BrainArchetype
         $integration->example('error recovery');
         $integration->example('correction protocol enforcement');
         $integration->example('quality gates');
-
-        $this->guideline('meta-controls-edge')
-            ->text('Structured format for automated CI testing and resilience simulation.')
-            ->example('All edge-case activations recorded in edge_case_audit.log with type, severity, and resolution time.')->key('logging')
-            ->example('Architect Agent reviews recurring edge-case patterns and updates policies quarterly.')->key('governance');
     }
 }

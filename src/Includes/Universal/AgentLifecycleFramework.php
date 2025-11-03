@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the standardized 4-phase lifecycle for all Cloud Code agents within the 
 Ensures consistent creation, validation, optimization, and maintenance cycles to maximize reliability and performance.
 PURPOSE
 )]
-class AgentLifecycleFramework extends BrainArchetype
+class AgentLifecycleFramework extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.

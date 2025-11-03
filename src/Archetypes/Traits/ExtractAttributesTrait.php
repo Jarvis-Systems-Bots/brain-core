@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace BrainCore\Archetypes\Traits;
 
+use BrainCore\Architectures\Traits\ExtractMetaAttributesTrait;
 use BrainCore\Attributes\Includes;
-use BrainCore\Attributes\Meta;
 use BrainCore\Attributes\Purpose;
 
 trait ExtractAttributesTrait
 {
+    use ExtractMetaAttributesTrait;
+
     /**
      * Extract class attributes.
      *
@@ -17,17 +19,11 @@ trait ExtractAttributesTrait
      */
     protected function extractAttributes(): void
     {
+        $this->extractMetaAttributes();
+
         $reflection = static::reflection();
-        $metaAttributes = $reflection->getAttributes(Meta::class);
         $purposeAttributes = $reflection->getAttributes(Purpose::class);
         $includesAttributes = $reflection->getAttributes(Includes::class);
-
-        foreach ($metaAttributes as $attribute) {
-            /** @var Meta $metaInstance */
-            $metaInstance = $attribute->newInstance();
-            $this->metas()->meta($metaInstance->name)
-                ->text($metaInstance->getText());
-        }
 
         foreach ($purposeAttributes as $attribute) {
             /** @var Purpose $purposeInstance */

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the standardized error detection, reaction, and fallback mechanisms for 
 Enables autonomous fault tolerance, graceful degradation, and continuous operational stability.
 PURPOSE
 )]
-class ErrorRecovery extends BrainArchetype
+class ErrorRecovery extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -81,7 +81,6 @@ class ErrorRecovery extends BrainArchetype
 
         $this->guideline('meta-controls-error-recovery')
             ->text('Fully operational, optimized for agent-level usage only.')
-            ->example('Compatible with agent lifecycle framework and quality gates.')->key('validation-schema')
-            ->example('All recovery events must append to agent_recovery.log with UTC timestamp.')->key('logging');
+            ->example('Compatible with agent lifecycle framework and quality gates.')->key('validation-schema');
     }
 }

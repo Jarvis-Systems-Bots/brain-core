@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines Brain-level validation protocol executed before any action or tool invoc
 Ensures contextual stability, policy compliance, and safety before delegating execution to agents or tools.
 PURPOSE
 )]
-class PreActionValidation extends BrainArchetype
+class PreActionValidation extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.

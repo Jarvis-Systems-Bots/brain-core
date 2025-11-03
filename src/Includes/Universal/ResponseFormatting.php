@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ CI Regex Validator for Response Formatting Structure.
 Ensures that all Cloud Code agent responses comply with the unified response format for consistency and quality control.
 PURPOSE
 )]
-class ResponseFormatting extends BrainArchetype
+class ResponseFormatting extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.

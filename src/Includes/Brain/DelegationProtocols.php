@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Establishes the delegation framework governing task assignment, authority transf
 Ensures hierarchical clarity, prevents recursive delegation, and maintains centralized control integrity.
 PURPOSE
 )]
-class DelegationProtocols extends BrainArchetype
+class DelegationProtocols extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -108,10 +108,5 @@ class DelegationProtocols extends BrainArchetype
 
         $integration = $this->guideline('integration-delegation-protocols');
         $integration->example('quality gates');
-
-        $this->guideline('meta-controls-delegation')
-            ->text('Strict structure with hierarchical logic for CI validation and runtime policy enforcement.')
-            ->example('Architect Agent maintains delegation matrix and approves structure changes.')->key('governance')
-            ->example('All delegation events logged in delegation_audit.log with source_id, target_id, and timestamp.')->key('logging');
     }
 }

@@ -5,24 +5,20 @@ declare(strict_types=1);
 namespace BrainCore\Archetypes;
 
 use BrainCore\Archetypes\Traits\MetasTrait;
-use BrainCore\Archetypes\Traits\StyleTrait;
 use BrainCore\Archetypes\Traits\PurposeTrait;
 use BrainCore\Archetypes\Traits\ResponseTrait;
 use BrainCore\Archetypes\Traits\IronRulesTrait;
 use BrainCore\Archetypes\Traits\GuidelinesTrait;
-use BrainCore\Archetypes\Traits\DeterminismTrait;
 use BrainCore\Architectures\ArchetypeArchitecture;
 use BrainCore\Archetypes\Traits\ExtractAttributesTrait;
 
-abstract class BrainArchetype extends ArchetypeArchitecture
+abstract class CommandArchetype extends ArchetypeArchitecture
 {
     use MetasTrait;
-    use StyleTrait;
     use PurposeTrait;
     use ResponseTrait;
     use IronRulesTrait;
     use GuidelinesTrait;
-    use DeterminismTrait;
     use ExtractAttributesTrait;
 
     /**
@@ -32,6 +28,6 @@ abstract class BrainArchetype extends ArchetypeArchitecture
      */
     protected static function defaultElement(): string
     {
-        return 'system';
+        return 'command';
     }
 }

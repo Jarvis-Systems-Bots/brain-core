@@ -8,15 +8,19 @@ class Core
 {
     protected string|null $versionCache = null;
 
-    public function basePath(string $path = ''): string
+    public function basePath(string $path = '', bool $relative = false): string
     {
-        $cwd = getcwd();
+        if (! $relative) {
+            $cwd = getcwd();
 
-        if ($cwd === false) {
-            throw new \RuntimeException('Unable to get current working directory.');
+            if ($cwd === false) {
+                throw new \RuntimeException('Unable to get current working directory.');
+            }
+        } else {
+            $cwd = '';
         }
 
-        return $cwd . DS . ltrim($path, DS);
+        return $cwd . ($relative ? '' : DS) . ltrim($path, DS);
     }
 
     public function version(): string|null

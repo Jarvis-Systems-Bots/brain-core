@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines Brain's unified cognitive framework integrating all major reasoning, val
 Establishes global sequencing, coherence metrics, and cross-module synchronization rules for consistent cognition.
 PURPOSE
 )]
-class CognitiveArchitecture extends BrainArchetype
+class CognitiveArchitecture extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -68,10 +68,5 @@ class CognitiveArchitecture extends BrainArchetype
             ->example('coherence-index ≥ 0.9')
             ->example('cognitive-latency-ms ≤ 500')
             ->example('cross-phase-synchronization ≥ 0.95');
-
-        $this->guideline('meta-controls-cognitive')
-            ->text('Strict schema governing Brain cognitive flow orchestration and CI validation.')
-            ->example('Architect Agent maintains and evolves cognitive sequencing logic.')->key('governance')
-            ->example('All reasoning cycles and cross-phase metrics logged to cognitive_architecture.log.')->key('logging');
     }
 }

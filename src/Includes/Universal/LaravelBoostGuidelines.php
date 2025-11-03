@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Provides optional optimization and performance enhancement practices for Laravel
 Includes direct integration with MCP Laravel Boost toolchain for system inspection and optimization.
 PURPOSE
 )]
-class LaravelBoostGuidelines extends BrainArchetype
+class LaravelBoostGuidelines extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -61,7 +61,6 @@ class LaravelBoostGuidelines extends BrainArchetype
 
         $this->guideline('meta-controls-laravel')
             ->text('Optional module; CI does not require its presence but enforces checks if enabled.')
-            ->example('All Laravel optimization and validation events logged to laravel_boost.log when active.')->key('logging')
             ->example('Architect Agent manages activation, tool access, and compliance thresholds.')->key('governance');
     }
 }

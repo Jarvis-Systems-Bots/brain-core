@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the non-negotiable system-wide constraints and safety limits that govern
 Ensures system stability, predictable execution, and prevention of resource overflow or structural corruption.
 PURPOSE
 )]
-class CoreConstraints extends BrainArchetype
+class CoreConstraints extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -96,7 +96,6 @@ class CoreConstraints extends BrainArchetype
             ->example('All constraints auto-validated during quality gates execution.');
 
         $this->guideline('meta-controls-constraints')
-            ->text('Minimal token design, strictly declarative structure.')
-            ->example('All violations recorded in system_constraints.log with timestamp and scope.')->key('logging');
+            ->text('Minimal token design, strictly declarative structure.');
     }
 }

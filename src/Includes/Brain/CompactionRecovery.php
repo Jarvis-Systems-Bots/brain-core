@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -13,7 +13,7 @@ Ensures retention of critical reasoning data when context window approaches toke
 and guarantees faithful restoration of essential knowledge from vector memory after compaction.
 PURPOSE
 )]
-class CompactionRecovery extends BrainArchetype
+class CompactionRecovery extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -54,10 +54,5 @@ class CompactionRecovery extends BrainArchetype
 
         $this->guideline('criteria-importance-temporary')
             ->text('Peripheral or exploratory content; discardable after compaction.');
-
-        $this->guideline('meta-controls-compaction')
-            ->text('Strict declarative structure optimized for token-bound context management.')
-            ->example('Architect Agent defines relevance scoring thresholds and compaction frequency.')->key('governance')
-            ->example('All compaction/recovery cycles logged in compaction_recovery.log with performance metrics.')->key('logging');
     }
 }

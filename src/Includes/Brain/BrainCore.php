@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose("Coordinates the Brain ecosystem: strategic orchestration of agents, context management, task delegation, and result validation. Ensures policy consistency, precision, and stability across the entire system.")]
-class BrainCore extends BrainArchetype
+class BrainCore extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.

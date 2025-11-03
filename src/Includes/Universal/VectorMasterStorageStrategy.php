@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the centralized (master) vector memory architecture shared across all ag
 Ensures consistent storage, synchronization, conflict resolution, and governance for embeddings at scale.
 PURPOSE
 )]
-class VectorMasterStorageStrategy extends BrainArchetype
+class VectorMasterStorageStrategy extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -119,7 +119,6 @@ class VectorMasterStorageStrategy extends BrainArchetype
 
         $this->guideline('meta-controls-vector-storage')
             ->text('Strict, token-efficient structure; no prose; CI-parseable.')
-            ->example('All schema and policy changes require Architect approval.')->key('governance')
-            ->example('All master writes and conflict resolutions are auditable with UTC timestamp and agent_id.')->key('logging');
+            ->example('All schema and policy changes require Architect approval.')->key('governance');
     }
 }

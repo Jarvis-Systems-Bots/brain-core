@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the philosophical foundation of Brain's multi-agent intelligence model.
 Establishes guiding principles for distributed reasoning, shared memory, cooperation, and evolutionary adaptation.
 PURPOSE
 )]
-class CollectiveIntelligencePhilosophy extends BrainArchetype
+class CollectiveIntelligencePhilosophy extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -63,12 +63,5 @@ class CollectiveIntelligencePhilosophy extends BrainArchetype
             ->text('System learns from failures by rewriting its structural heuristics.')
             ->example('Evolution event recorded only after correction stability ≥ 0.9.')
             ->key('validation');
-
-        $this->guideline('meta-controls-philosophy')
-            ->text('Declarative structure defining philosophical framework for cognitive coordination.')
-            ->example('Architect Agent maintains and updates principles under Brain consensus vote.')
-            ->key('governance')
-            ->example('All philosophical revisions logged in collective_philosophy.log with principle_id and author signature.')
-            ->key('logging');
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Brain;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -13,7 +13,7 @@ Declares formal existence of Brain's delegation control layer for CI validation.
 Full procedural logic resides in delegation protocols.
 PURPOSE
 )]
-class AgentDelegation extends BrainArchetype
+class AgentDelegation extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.

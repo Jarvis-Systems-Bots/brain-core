@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace BrainCore\Includes\Universal;
 
-use BrainCore\Archetypes\BrainArchetype;
+use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 
 #[Purpose(<<<'PURPOSE'
@@ -12,7 +12,7 @@ Defines the multi-phase logical reasoning framework for agents in the Brain ecos
 Ensures structured, consistent, and verifiable cognitive processing across analysis, inference, evaluation, and decision phases.
 PURPOSE
 )]
-class SequentialReasoningCapability extends BrainArchetype
+class SequentialReasoningCapability extends IncludeArchetype
 {
     /**
      * Handle the architecture logic.
@@ -83,7 +83,6 @@ class SequentialReasoningCapability extends BrainArchetype
 
         $this->guideline('meta-controls-reasoning')
             ->text('Optimized for CI validation and low token usage; strictly declarative logic.')
-            ->example('Fully compatible with agent lifecycle framework, quality gates, and response formatting.')->key('integration')
-            ->example('All reasoning stages logged to sequential_reasoning.log with depth, confidence, and outcome status.')->key('logging');
+            ->example('Fully compatible with agent lifecycle framework, quality gates, and response formatting.')->key('integration');
     }
 }

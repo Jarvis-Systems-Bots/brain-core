@@ -5,46 +5,97 @@ declare(strict_types=1);
 namespace BrainCore\Console\Commands;
 
 use Bfg\Dto\Dto;
+use BrainCore\Architectures\ArchetypeArchitecture;
 use BrainCore\Merger;
 use BrainCore\Support\Brain;
+use BrainCore\TomlBuilder;
 use BrainCore\XmlBuilder;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use Symfony\Component\Yaml\Yaml;
 
 class GetFileCommand extends Command
 {
     protected $signature = 'get:file 
-        {file : The file to read}
+        {files : The file to read}
         {--json : Output in JSON format}
         {--xml : Output in XML format}
         {--yaml : Output in YAML format}
+        {--toml : Output in TOML format}
     ';
 
     protected $description = 'Compile the Brain configurations files';
 
     public function handle(): int
     {
-        /** @var Dto|int $class */
-        $class = $this->getClassPathByFile($this->argument('file'));
-
-        if (is_int($class)) {
-            return $class;
-        }
-
         $isXml = $this->option('xml');
         $isJson = $this->option('json');
         $isYaml = $this->option('yaml');
-        $dto = $class::fromEmpty();
-        $structure = Merger::from($dto);
+        $isToml = $this->option('toml');
+        $files = explode(" && ", $this->argument('files'));
+        $result = [];
 
-        if ($isXml) {
-            echo XmlBuilder::from($structure);
-        } else if ($isJson) {
-            echo json_encode($structure, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
-        } elseif ($isYaml) {
-            echo Yaml::dump($structure, 4, 2);
-        } else {
-            dump($structure);
+        foreach ($files as $file) {
+            /** @var Dto|int $class */
+            $class = $this->getClassPathByFile($file);
+
+            if (is_int($class)) {
+                continue;
+            }
+
+            $dto = $class::fromEmpty();
+            if ($dto instanceof ArchetypeArchitecture) {
+                $structure = Merger::from($dto);
+            } else {
+                $structure = $dto->toArray();
+            }
+
+            $classBasename = class_basename($class);
+            $defaultData = [
+                'id' => Str::snake($classBasename, '-'),
+                'file' => $file,
+                'class' => $class,
+                'meta' => $dto->getMeta(),
+                'namespace' => str_replace('\\' . $classBasename, '', $class),
+                'classBasename' => $classBasename,
+            ];
+
+            if ($isXml) {
+                $result[$file] = [
+                    ...$defaultData,
+                    'format' => 'xml',
+                    'structure' => XmlBuilder::from($structure),
+                ];
+            } else if ($isJson) {
+                $result[$file] = [
+                    ...$defaultData,
+                    'format' => 'json',
+                    'structure' => $structure,
+                ];
+            } elseif ($isYaml) {
+                $result[$file] = [
+                    ...$defaultData,
+                    'format' => 'yaml',
+                    'structure' => Yaml::dump($structure, 512, 2, Yaml::DUMP_OBJECT_AS_MAP),
+                ];
+            } elseif ($isToml) {
+                $result[$file] = [
+                    ...$defaultData,
+                    'format' => 'toml',
+                    'structure' => TomlBuilder::from($structure),
+                ];
+            } else {
+                dump([
+                    ...$defaultData,
+                    'format' => 'dump',
+                    'structure' => $structure,
+                ]);
+                $result = false;
+            }
+        }
+
+        if ($result) {
+            echo json_encode($result, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
         }
 
         return OK;
@@ -61,7 +112,6 @@ class GetFileCommand extends Command
         $file = Brain::basePath($file);
 
         if (!file_exists($file)) {
-            $this->components->error("File {$file} does not exist.");
             return ERROR;
         }
 
@@ -74,11 +124,9 @@ class GetFileCommand extends Command
             if (class_exists($class) && is_subclass_of($class,Dto::class)) {
                 return $class;
             } else {
-                $this->components->error("Class {$class} does not exist.");
                 return ERROR;
             }
         } else {
-            $this->components->error("Could not determine class name from file {$file}.");
             return ERROR;
         }
     }
