@@ -55,8 +55,14 @@ class BrainCore extends IncludeArchetype
             ->example('A proper response reflects structured reasoning, not mere output.');
 
         $this->guideline('directive')
-            ->text('Core directive: “Ultrathink. Delegate. Validate. Reflect.”')
+            ->text('Core directive: "Ultrathink. Delegate. Validate. Reflect."')
             ->example('The Brain thinks deeply, delegates precisely, validates rigorously, and synthesizes effectively.');
+
+        $this->guideline('cli-commands')
+            ->text('Brain CLI commands are standalone executables, never prefixed with php.')
+            ->example('Correct: brain compile, brain make:master, brain init')->key('correct')
+            ->example('Incorrect: php brain compile, php brain make:master')->key('incorrect')
+            ->example('brain is globally installed CLI tool with shebang, executable directly')->key('reason');
 
         $this->style()
             ->language('English')
