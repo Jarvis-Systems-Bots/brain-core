@@ -9,6 +9,8 @@ use Bfg\Dto\Dto;
 
 class Merger
 {
+    private static array $mergeCache = [];
+
     /**
      * @param  array<string, mixed>  $structure
      */
@@ -31,7 +33,17 @@ class Merger
      */
     public static function from(Dto $dto): array
     {
-        return (new static($dto->toArray()))->handle();
+        // Cache by class name
+        $cacheKey = get_class($dto);
+
+        if (isset(self::$mergeCache[$cacheKey])) {
+            return self::$mergeCache[$cacheKey];
+        }
+
+        $result = (new static($dto->toArray()))->handle();
+        self::$mergeCache[$cacheKey] = $result;
+
+        return $result;
     }
 
     /**

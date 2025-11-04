@@ -11,10 +11,20 @@ abstract class McpArchitecture extends Dto
 {
     use ExtractMetaAttributesTrait;
 
+    /**
+     * Track which classes have already registered their 'created' event listener.
+     * This prevents registering the same listener multiple times.
+     * @var array<string, bool>
+     */
+    private static array $eventListenersRegistered = [];
+
     public function __construct()
     {
-        static::on('created', function () {
-            $this->extractMetaAttributes();
-        });
+        if (!isset(self::$eventListenersRegistered[static::class])) {
+            static::on('created', function () {
+                $this->extractMetaAttributes();
+            });
+            self::$eventListenersRegistered[static::class] = true;
+        }
     }
 }

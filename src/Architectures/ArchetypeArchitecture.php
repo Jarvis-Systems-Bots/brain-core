@@ -13,6 +13,13 @@ abstract class ArchetypeArchitecture extends Dto
     use FactoryHelpersTrait;
 
     /**
+     * Track which classes have already registered their 'created' event listener.
+     * This prevents registering the same listener multiple times.
+     * @var array<string, bool>
+     */
+    private static array $eventListenersRegistered = [];
+
+    /**
      * @param  string  $element
      * @param  \Bfg\Dto\Collections\DtoCollection<int, Dto>  $child
      * @param  \Bfg\Dto\Collections\DtoCollection<int, ArchetypeArchitecture>  $includes
@@ -22,12 +29,15 @@ abstract class ArchetypeArchitecture extends Dto
         protected DtoCollection $child,
         protected DtoCollection $includes,
     ) {
-        static::on('created', function () {
-            if (method_exists($this, 'extractAttributes')) {
-                $this->extractAttributes();
-            }
-            $this->handle();
-        });
+        if (!isset(self::$eventListenersRegistered[static::class])) {
+            static::on('created', function () {
+                if (method_exists($this, 'extractAttributes')) {
+                    $this->extractAttributes();
+                }
+                $this->handle();
+            });
+            self::$eventListenersRegistered[static::class] = true;
+        }
     }
 
     /**

@@ -19,11 +19,34 @@ class VectorMasterStorageStrategy extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // Critical MCP-only access rule
+        $this->rule('mcp-only-access')->critical()
+            ->text('ALL memory operations MUST go through MCP tool mcp__vector-memory__*. NEVER access {{ PROJECT_DIRECTORY }}/memory/ directory directly. NEVER use Read/Write/Bash on memory/ folder. NEVER use SQLite commands directly. Physical location: {{ PROJECT_DIRECTORY }}/memory/ (SQLite database). Access policy: MCP-only (NEVER direct file access).')
+            ->why('Vector memory is exclusively managed by MCP server for data integrity, consistency, and proper embedding generation.')
+            ->onViolation('Immediately stop any direct file access and use correct MCP tool instead.');
+
+        // Available MCP tools
+        $this->guideline('mcp-tools-available')
+            ->text('Complete list of MCP vector memory tools that MUST be used.')
+            ->example('mcp__vector-memory__search_memories(query, limit, category) - Semantic search with vector embeddings')->key('search')
+            ->example('mcp__vector-memory__store_memory(content, category, tags) - Store new memory with auto-embedding')->key('store')
+            ->example('mcp__vector-memory__list_recent_memories(limit) - List recent memories chronologically')->key('list')
+            ->example('mcp__vector-memory__get_by_memory_id(memory_id) - Get specific memory by ID')->key('get')
+            ->example('mcp__vector-memory__delete_by_memory_id(memory_id) - Delete specific memory')->key('delete')
+            ->example('mcp__vector-memory__get_memory_stats() - Database statistics and health')->key('stats')
+            ->example('mcp__vector-memory__clear_old_memories(days_old, max_to_keep) - Cleanup old memories')->key('cleanup');
+
+        // Prohibited operations
+        $this->rule('prohibited-operations')->critical()
+            ->text('FORBIDDEN operations that violate MCP-only policy: Read({{ PROJECT_DIRECTORY }}/memory/*), Write({{ PROJECT_DIRECTORY }}/memory/*), Bash("sqlite3 {{ PROJECT_DIRECTORY }}/memory/*"), Bash("cat {{ PROJECT_DIRECTORY }}/memory/*"), Bash("ls {{ PROJECT_DIRECTORY }}/memory/"), any direct file system access to memory/ folder.')
+            ->why('Direct access bypasses MCP server, corrupts embeddings, breaks consistency, and violates architecture.')
+            ->onViolation('Block operation immediately. Use correct mcp__vector-memory__* tool instead.');
+
         $this->guideline('topology-master')
-            ->text('Central master node with exclusive write access.')
-            ->example('central-vector-db')->key('location')
-            ->example('exclusive')->key('write')
-            ->example('all')->key('read');
+            ->text('Central master node with exclusive write access via MCP.')
+            ->example('{{ PROJECT_DIRECTORY }}/memory/ (SQLite)')->key('location')
+            ->example('exclusive via MCP tools')->key('write')
+            ->example('all via MCP tools')->key('read');
 
         $this->guideline('topology-replica')
             ->text('Read-only replica nodes with caching enabled.')

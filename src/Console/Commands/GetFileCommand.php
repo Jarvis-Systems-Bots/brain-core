@@ -22,6 +22,7 @@ class GetFileCommand extends Command
         {--xml : Output in XML format}
         {--yaml : Output in YAML format}
         {--toml : Output in TOML format}
+        {--meta : Output only meta information}
     ';
 
     protected $description = 'Compile the Brain configurations files';
@@ -32,6 +33,7 @@ class GetFileCommand extends Command
         $isJson = $this->option('json');
         $isYaml = $this->option('yaml');
         $isToml = $this->option('toml');
+        $isMeta = $this->option('meta');
         $files = explode(" && ", $this->argument('files'));
         $result = [];
 
@@ -42,13 +44,14 @@ class GetFileCommand extends Command
             if (is_int($class)) {
                 continue;
             }
-
+//            $fromEmptyStart = microtime(true);
             $dto = $class::fromEmpty();
-            if ($dto instanceof ArchetypeArchitecture) {
-                $structure = Merger::from($dto);
-            } else {
-                $structure = $dto->toArray();
-            }
+//            $fromEmptyTime = round((microtime(true) - $fromEmptyStart) * 1000, 2);
+
+//            error_log(sprintf(
+//                "fromEmpty: %sms",
+//                $fromEmptyTime
+//            ));
 
             $classBasename = class_basename($class);
             $defaultData = [
@@ -60,37 +63,49 @@ class GetFileCommand extends Command
                 'classBasename' => $classBasename,
             ];
 
-            if ($isXml) {
-                $result[$file] = [
-                    ...$defaultData,
-                    'format' => 'xml',
-                    'structure' => XmlBuilder::from($structure),
-                ];
-            } else if ($isJson) {
-                $result[$file] = [
-                    ...$defaultData,
-                    'format' => 'json',
-                    'structure' => $structure,
-                ];
-            } elseif ($isYaml) {
-                $result[$file] = [
-                    ...$defaultData,
-                    'format' => 'yaml',
-                    'structure' => Yaml::dump($structure, 512, 2, Yaml::DUMP_OBJECT_AS_MAP),
-                ];
-            } elseif ($isToml) {
-                $result[$file] = [
-                    ...$defaultData,
-                    'format' => 'toml',
-                    'structure' => TomlBuilder::from($structure),
-                ];
+            if (! $isMeta) {
+                if ($dto instanceof ArchetypeArchitecture) {
+                    $structure = Merger::from($dto);
+                } else {
+                    $structure = $dto->toArray();
+                }
+                if ($isXml) {
+                    $result[$file] = [
+                        ...$defaultData,
+                        'format' => 'xml',
+                        'structure' => XmlBuilder::from($structure),
+                    ];
+                } else if ($isJson) {
+                    $result[$file] = [
+                        ...$defaultData,
+                        'format' => 'json',
+                        'structure' => $structure,
+                    ];
+                } elseif ($isYaml) {
+                    $result[$file] = [
+                        ...$defaultData,
+                        'format' => 'yaml',
+                        'structure' => Yaml::dump($structure, 512, 2, Yaml::DUMP_OBJECT_AS_MAP),
+                    ];
+                } elseif ($isToml) {
+                    $result[$file] = [
+                        ...$defaultData,
+                        'format' => 'toml',
+                        'structure' => TomlBuilder::from($structure),
+                    ];
+                } else {
+                    dump([
+                        ...$defaultData,
+                        'format' => 'dump',
+                        'structure' => $structure,
+                    ]);
+                    $result = false;
+                }
             } else {
-                dump([
+                $result[$file] = [
                     ...$defaultData,
-                    'format' => 'dump',
-                    'structure' => $structure,
-                ]);
-                $result = false;
+                    'format' => 'meta',
+                ];
             }
         }
 

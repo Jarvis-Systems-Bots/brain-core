@@ -82,6 +82,17 @@ class QualityGates extends IncludeArchetype
             ->example('remove secret and alert owner')->key('on-fail')
             ->example('log compliance success')->key('on-pass');
 
+        // === AGENT RESPONSE VALIDATION ===
+
+        $this->guideline('gate-agent-response')
+            ->text('Agent responses validated for semantic, structural, and policy alignment.')
+            ->example('Compare response embedding vs task query (cosine similarity). Cross-check contextual coherence.')->key('semantic')
+            ->example('Validate XML/JSON syntax and required keys. Verify result, reasoning, and confidence fields present.')->key('structural')
+            ->example('Compare output against safety filters, ethical guidelines, and quality thresholds.')->key('policy')
+            ->example('semantic-similarity≥0.9; schema-conformance=true; quality-score≥0.95; trust-index≥0.75')->key('metrics')
+            ->example('Request clarification, auto-repair format, or quarantine for review')->key('on-fail')
+            ->example('Update agent trust index and proceed')->key('on-pass');
+
         $this->guideline('global-validation-quality')
             ->example('All gates must return pass before deployment is allowed.')
             ->example('Failures automatically trigger rollback and CI notification.')

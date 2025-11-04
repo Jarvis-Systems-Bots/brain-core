@@ -8,6 +8,8 @@ use BackedEnum;
 
 class XmlBuilder
 {
+    private static array $buildCache = [];
+
     /**
      * @param  array<string, mixed>  $structure
      */
@@ -21,7 +23,17 @@ class XmlBuilder
      */
     public static function from(array $structure): string
     {
-        return (new static($structure))->build();
+        // Cache by structure hash for identical structures
+        $cacheKey = md5(serialize($structure));
+
+        if (isset(self::$buildCache[$cacheKey])) {
+            return self::$buildCache[$cacheKey];
+        }
+
+        $result = (new static($structure))->build();
+        self::$buildCache[$cacheKey] = $result;
+
+        return $result;
     }
 
     protected function build(): string

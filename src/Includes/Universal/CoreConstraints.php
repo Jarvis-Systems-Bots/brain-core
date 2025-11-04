@@ -90,6 +90,44 @@ class CoreConstraints extends IncludeArchetype
             ->example('Check vector timestamps against TTL schedule.')->key('validation')
             ->example('delete expired records automatically')->key('action');
 
+        // === MCP VECTOR MEMORY POLICY ===
+
+        $this->rule('mcp-only-access')->critical()
+            ->text('ALL memory operations MUST use MCP tools. NEVER access ./memory/ directory directly. Physical location: ./memory/ (SQLite database). Access policy: MCP-only (NEVER direct file access).')
+            ->why('Vector memory exclusively managed by MCP server for data integrity, consistency, and proper embedding generation.')
+            ->onViolation('Block operation immediately. Use correct mcp__vector-memory__* tool instead.');
+
+        $this->rule('prohibited-operations')->critical()
+            ->text('FORBIDDEN operations that violate MCP-only policy: Read(./memory/*), Write(./memory/*), Bash("sqlite3 ./memory/*"), Bash("cat ./memory/*"), Bash("ls ./memory/"), any direct file system access to memory/ folder.')
+            ->why('Direct access bypasses MCP server, corrupts embeddings, breaks consistency, and violates architecture.')
+            ->onViolation('Block operation immediately. Use correct mcp__vector-memory__* tool instead.');
+
+        $this->guideline('mcp-tools-available')
+            ->text('Complete list of MCP vector memory tools that MUST be used.')
+            ->example('mcp__vector-memory__search_memories(query, limit, category) - Semantic search with vector embeddings')->key('search')
+            ->example('mcp__vector-memory__store_memory(content, category, tags) - Store new memory with auto-embedding')->key('store')
+            ->example('mcp__vector-memory__list_recent_memories(limit) - List recent memories chronologically')->key('list')
+            ->example('mcp__vector-memory__get_by_memory_id(memory_id) - Get specific memory by ID')->key('get')
+            ->example('mcp__vector-memory__delete_by_memory_id(memory_id) - Delete specific memory')->key('delete')
+            ->example('mcp__vector-memory__get_memory_stats() - Database statistics and health')->key('stats')
+            ->example('mcp__vector-memory__clear_old_memories(days_old, max_to_keep) - Cleanup old memories')->key('cleanup');
+
+        // === CONTEXT COMPACTION & RECOVERY ===
+
+        $this->guideline('compaction-policy')
+            ->text('Preserve critical reasoning when context usage ≥ 90% of token limit.')
+            ->example('trigger: context token usage ≥ 90% OR manual compaction request')->key('trigger')
+            ->example('Rank information by relevance (0-1 scale). Preserve high-relevance (≥ 0.8) data as structured summary.')->key('logic')
+            ->example('Push summary to vector master storage. Discard transient low-relevance segments.')->key('action')
+            ->example('Post-compaction summary must capture ≥ 95% of key entities and relations.')->key('validation');
+
+        $this->guideline('recovery-policy')
+            ->text('Restore critical knowledge after context reinitialization.')
+            ->example('trigger: context reinitialization OR new reasoning session following compaction')->key('trigger')
+            ->example('Load recent summary from vector master storage via relevance retrieval.')->key('logic')
+            ->example('Reconstruct contextual skeleton (entities, intents, reasoning goals). Validate coherence by comparing with last compaction hash.')->key('action')
+            ->example('Restored knowledge overlap ≥ 0.9 with pre-compaction structure.')->key('validation');
+
         $this->guideline('global-validation-constraints')
             ->example('All constraint violations must trigger CI alert and block deployment.')
             ->example('Constraint updates require Architect approval via signed commit.')
