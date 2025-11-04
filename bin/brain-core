@@ -39,7 +39,7 @@ ConfigManager::boot($container);
 $events = new Dispatcher($container);
 
 $app = new Application($container, $events, \BrainCore\Support\Brain::version());
-
+$app->setName('Brain Core');
 $app->add(new \BrainCore\Console\Commands\GetFileCommand());
 
 $status = $app->run();
