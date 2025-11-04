@@ -20,6 +20,14 @@ abstract class ArchetypeArchitecture extends Dto
     private static array $eventListenersRegistered = [];
 
     /**
+     * Cache for compiled archetype instances to avoid redundant fromEmpty() calls.
+     * Key: fully qualified class name
+     * Value: compiled archetype instance
+     * @var array<string, ArchetypeArchitecture>
+     */
+    private static array $archetypeInstanceCache = [];
+
+    /**
      * @param  string  $element
      * @param  \Bfg\Dto\Collections\DtoCollection<int, Dto>  $child
      * @param  \Bfg\Dto\Collections\DtoCollection<int, ArchetypeArchitecture>  $includes
@@ -53,7 +61,11 @@ abstract class ArchetypeArchitecture extends Dto
         }
 
         if (is_string($class)) {
-            $class = $class::fromEmpty();
+            // Check cache first to avoid redundant fromEmpty() calls
+            if (!isset(self::$archetypeInstanceCache[$class])) {
+                self::$archetypeInstanceCache[$class] = $class::fromEmpty();
+            }
+            $class = self::$archetypeInstanceCache[$class];
         }
 
          $this->includes->add($class);

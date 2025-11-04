@@ -29,6 +29,8 @@ class GetFileCommand extends Command
 
     public function handle(): int
     {
+        $cmdStart = microtime(true);
+
         $isXml = $this->option('xml');
         $isJson = $this->option('json');
         $isYaml = $this->option('yaml');
@@ -37,43 +39,53 @@ class GetFileCommand extends Command
         $files = explode(" && ", $this->argument('files'));
         $result = [];
 
+        $timings = ['parse' => 0, 'fromEmpty' => 0, 'merger' => 0, 'builder' => 0, 'other' => 0];
+
         foreach ($files as $file) {
-            /** @var Dto|int $class */
+            $parseStart = microtime(true);
+            /** @var class-string<Dto>|int $class */
             $class = $this->getClassPathByFile($file);
+            $timings['parse'] += (microtime(true) - $parseStart) * 1000;
 
             if (is_int($class)) {
                 continue;
             }
-//            $fromEmptyStart = microtime(true);
+
+            $fromEmptyStart = microtime(true);
             $dto = $class::fromEmpty();
-//            $fromEmptyTime = round((microtime(true) - $fromEmptyStart) * 1000, 2);
+            $timings['fromEmpty'] += (microtime(true) - $fromEmptyStart) * 1000;
 
-//            error_log(sprintf(
-//                "fromEmpty: %sms",
-//                $fromEmptyTime
-//            ));
-
+            $otherStart = microtime(true);
             $classBasename = class_basename($class);
+            $timings['other'] += (microtime(true) - $otherStart) * 1000;
             $defaultData = [
                 'id' => Str::snake($classBasename, '-'),
                 'file' => $file,
                 'class' => $class,
                 'meta' => $dto->getMeta(),
-                'namespace' => str_replace('\\' . $classBasename, '', $class),
+                'namespace' => $namespace = str_replace('\\' . $classBasename, '', $class),
+                'namespaceType' => trim(str_replace(explode('\\', $class)[0], '', $namespace), '\\') ?: null,
                 'classBasename' => $classBasename,
             ];
 
             if (! $isMeta) {
+                $mergerStart = microtime(true);
                 if ($dto instanceof ArchetypeArchitecture) {
                     $structure = Merger::from($dto);
                 } else {
                     $structure = $dto->toArray();
                 }
+                $timings['merger'] += (microtime(true) - $mergerStart) * 1000;
+
                 if ($isXml) {
+                    $builderStart = microtime(true);
+                    $xmlOutput = XmlBuilder::from($structure);
+                    $timings['builder'] += (microtime(true) - $builderStart) * 1000;
+
                     $result[$file] = [
                         ...$defaultData,
                         'format' => 'xml',
-                        'structure' => XmlBuilder::from($structure),
+                        'structure' => $xmlOutput,
                     ];
                 } else if ($isJson) {
                     $result[$file] = [
@@ -109,8 +121,23 @@ class GetFileCommand extends Command
             }
         }
 
-        if ($result) {
-            echo json_encode($result, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        $cmdTime = (microtime(true) - $cmdStart) * 1000;
+
+        if (getenv('BRAIN_PROFILE') === '1') {
+            // Log profiling to stderr
+            error_log(sprintf(
+                "PROFILE: Total=%.2fms | Parse=%.2fms (%.1f%%) | fromEmpty=%.2fms (%.1f%%) | Merger=%.2fms (%.1f%%) | Builder=%.2fms (%.1f%%) | Other=%.2fms (%.1f%%)",
+                $cmdTime,
+                $timings['parse'], ($timings['parse'] / $cmdTime) * 100,
+                $timings['fromEmpty'], ($timings['fromEmpty'] / $cmdTime) * 100,
+                $timings['merger'], ($timings['merger'] / $cmdTime) * 100,
+                $timings['builder'], ($timings['builder'] / $cmdTime) * 100,
+                $timings['other'], ($timings['other'] / $cmdTime) * 100
+            ));
+        } else {
+            if ($result) {
+                echo json_encode($result, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+            }
         }
 
         return OK;

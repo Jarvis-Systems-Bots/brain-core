@@ -170,12 +170,16 @@ class Merger
      */
     protected function mergeChildren(array $current, array $incoming): array
     {
+        // Build index for fast lookup (O(1) instead of O(n))
+        $index = $this->buildChildrenIndex($current);
+
         foreach ($incoming as $incomingChild) {
             if (! is_array($incomingChild)) {
                 continue;
             }
 
-            $match = $this->findMatchingChildIndex($current, $incomingChild);
+            // Try fast lookup first using index
+            $match = $this->findMatchingChildIndexFast($index, $incomingChild);
 
             if ($match === null) {
                 $insertIndex = $this->resolveInsertionIndex($current, $incomingChild);
@@ -192,6 +196,82 @@ class Merger
         }
 
         return array_values($current);
+    }
+
+    /**
+     * Build hash index for fast child lookup.
+     *
+     * @param  array<int, array<string, mixed>>  $children
+     * @return array<string, int>
+     */
+    protected function buildChildrenIndex(array $children): array
+    {
+        $index = [];
+
+        foreach ($children as $i => $child) {
+            $element = $child['element'] ?? null;
+
+            if ($element === null) {
+                continue;
+            }
+
+            // Index by element + identifier
+            foreach (['id', 'name', 'order', 'key'] as $identifier) {
+                if (isset($child[$identifier]) && $this->isNonEmptyScalar($child[$identifier])) {
+                    $key = "{$element}:{$identifier}:{$child[$identifier]}";
+                    $index[$key] = $i;
+                    break; // Use first identifier found
+                }
+            }
+
+            // Index by element only (for nodes without identifiers but with children)
+            if ($this->hasChildren($child)) {
+                $key = "{$element}:__children__";
+                if (!isset($index[$key])) {
+                    $index[$key] = $i;
+                }
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * Find matching child index using hash index (O(1)).
+     *
+     * @param  array<string, int>  $index
+     * @param  array<string, mixed>  $incoming
+     * @return int|null
+     */
+    protected function findMatchingChildIndexFast(array $index, array $incoming): ?int
+    {
+        $element = $incoming['element'] ?? null;
+
+        if ($element === null) {
+            return null;
+        }
+
+        // Try to find by element + identifier
+        foreach (['id', 'name', 'order', 'key'] as $identifier) {
+            if (isset($incoming[$identifier]) && $this->isNonEmptyScalar($incoming[$identifier])) {
+                $key = "{$element}:{$identifier}:{$incoming[$identifier]}";
+                if (isset($index[$key])) {
+                    return $index[$key];
+                }
+                // If identifier exists but doesn't match, no merge possible
+                return null;
+            }
+        }
+
+        // Try to find by element only (for nodes with children)
+        if ($this->hasChildren($incoming)) {
+            $key = "{$element}:__children__";
+            if (isset($index[$key])) {
+                return $index[$key];
+            }
+        }
+
+        return null;
     }
 
     /**
