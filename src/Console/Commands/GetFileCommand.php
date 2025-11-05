@@ -36,18 +36,31 @@ class GetFileCommand extends Command
         $isYaml = $this->option('yaml');
         $isToml = $this->option('toml');
         $isMeta = $this->option('meta');
+        $format = ($isXml ? 'xml' : ($isJson ? 'json' : ($isYaml ? 'yaml' : ($isToml ? 'toml' : ($isMeta ? 'meta' : 'dump')))));
+        $dumpFormat = null;
         $files = explode(" && ", $this->argument('files'));
         $result = [];
 
         $timings = ['parse' => 0, 'fromEmpty' => 0, 'merger' => 0, 'builder' => 0, 'other' => 0];
 
         foreach ($files as $file) {
+            if (preg_match('/(.*)\:\:([a-z]+)/', $file, $matches)) {
+                $file = $matches[1];
+                if (! $isMeta) {
+                    $dumpFormat = $format;
+                    $format = $matches[2];
+                }
+            }
             $parseStart = microtime(true);
             /** @var class-string<Dto>|int $class */
             $class = $this->getClassPathByFile($file);
             $timings['parse'] += (microtime(true) - $parseStart) * 1000;
 
             if (is_int($class)) {
+                if ($dumpFormat) {
+                    $format = $dumpFormat;
+                    $dumpFormat = null;
+                }
                 continue;
             }
 
@@ -66,9 +79,10 @@ class GetFileCommand extends Command
                 'namespace' => $namespace = str_replace('\\' . $classBasename, '', $class),
                 'namespaceType' => trim(str_replace(explode('\\', $class)[0], '', $namespace), '\\') ?: null,
                 'classBasename' => $classBasename,
+                'format' => $format,
             ];
 
-            if (! $isMeta) {
+            if ($format !== 'meta') {
                 $mergerStart = microtime(true);
                 if ($dto instanceof ArchetypeArchitecture) {
                     $structure = Merger::from($dto);
@@ -77,47 +91,44 @@ class GetFileCommand extends Command
                 }
                 $timings['merger'] += (microtime(true) - $mergerStart) * 1000;
 
-                if ($isXml) {
+                if ($format === 'xml') {
                     $builderStart = microtime(true);
                     $xmlOutput = XmlBuilder::from($structure);
                     $timings['builder'] += (microtime(true) - $builderStart) * 1000;
 
                     $result[$file] = [
                         ...$defaultData,
-                        'format' => 'xml',
                         'structure' => $xmlOutput,
                     ];
-                } else if ($isJson) {
+                } else if ($format === 'json') {
                     $result[$file] = [
                         ...$defaultData,
-                        'format' => 'json',
                         'structure' => $structure,
                     ];
-                } elseif ($isYaml) {
+                } elseif ($format === 'yaml') {
                     $result[$file] = [
                         ...$defaultData,
-                        'format' => 'yaml',
                         'structure' => Yaml::dump($structure, 512, 2, Yaml::DUMP_OBJECT_AS_MAP),
                     ];
-                } elseif ($isToml) {
+                } elseif ($format === 'toml') {
                     $result[$file] = [
                         ...$defaultData,
-                        'format' => 'toml',
                         'structure' => TomlBuilder::from($structure),
                     ];
                 } else {
                     dump([
                         ...$defaultData,
-                        'format' => 'dump',
                         'structure' => $structure,
                     ]);
                     $result = false;
                 }
             } else {
-                $result[$file] = [
-                    ...$defaultData,
-                    'format' => 'meta',
-                ];
+                $result[$file] = $defaultData;
+            }
+
+            if ($dumpFormat) {
+                $format = $dumpFormat;
+                $dumpFormat = null;
             }
         }
 

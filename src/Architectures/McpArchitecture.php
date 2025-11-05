@@ -23,8 +23,14 @@ abstract class McpArchitecture extends Dto
         if (!isset(self::$eventListenersRegistered[static::class])) {
             static::on('created', function () {
                 $this->extractMetaAttributes();
+                $this->construct();
             });
             self::$eventListenersRegistered[static::class] = true;
         }
+    }
+
+    protected function construct(): void
+    {
+
     }
 }
