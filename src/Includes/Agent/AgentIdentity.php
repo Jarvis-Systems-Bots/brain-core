@@ -33,12 +33,6 @@ class AgentIdentity extends IncludeArchetype
             ->example('Declare tool access permissions')
             ->example('Specify architectural or domain expertise areas');
 
-        $this->guideline('operational-limits')
-            ->text('Establish resource and execution constraints per agent.')
-            ->example('max-response-tokens = 1200')->key('token-limit')
-            ->example('execution-time ≤ 45s')->key('time-limit')
-            ->example('memory-usage ≤ 512MB')->key('memory-limit');
-
         $this->guideline('ethics-constraints')
             ->text('Non-negotiable behavioral and integrity rules.')
             ->example('Never alter source truth without verification')
