@@ -56,7 +56,7 @@ class Merger
     {
         $node = $this->normalizeNode($node);
 
-        $node['child'] = array_map(fn (array $child): array => $this->mergeNode($child), $node['child']);
+        $node['child'] = array_map(fn (array $child): array => $this->mergeNode($child), (array) $node['child']);
 
         $includes = array_map(fn (array $include): array => $this->mergeNode($include), $node['includes']);
 

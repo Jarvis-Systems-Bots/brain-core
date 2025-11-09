@@ -6,6 +6,7 @@ namespace BrainCore\Architectures;
 
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Architectures\Traits\CompilationHelpersTrait;
 use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
 /**
@@ -16,6 +17,7 @@ use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 abstract class CortexArchitecture extends Dto
 {
     use FactoryHelpersTrait;
+    use CompilationHelpersTrait;
 
     protected static array $extends = [
         'id' => ['string', 'null'],

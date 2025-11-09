@@ -9,6 +9,8 @@ use BrainCore\Blueprints\Guideline\Example\Phase;
 
 class Example extends BlueprintArchitecture
 {
+    private int $count = 1;
+
     /**
      * @param  non-empty-string|null  $key
      */
@@ -29,28 +31,40 @@ class Example extends BlueprintArchitecture
     }
 
     /**
-     * @param  non-empty-string  $name
-     * @param  non-empty-string  $text
-     * @return static
+     * @param  non-empty-string|array|null  $name
+     * @param  non-empty-string|array|null  $text
+     * @return Phase
      */
-    public function phase(string $name, string $text): static
+    public function phase(string|array|null $name = null, string|array|null $text = null): Phase
     {
+        if ($name && ! $text) {
+            $text = $name;
+            $name = null;
+        }
+        if (! $name) {
+            $name = (string) $this->count++;
+        }
+
         $this->child->add(
-            Phase::fromAssoc(
+            $phase = Phase::fromAssoc(
                 compact('name', 'text')
             )
         );
 
-        return $this;
+        $phase->setMeta([
+            'parentDto' => $this,
+        ]);
+
+        return $phase;
     }
 
     /**
      * Set Other Next Example
      *
-     * @param  non-empty-string|null  $text
+     * @param  non-empty-string|array|null  $text
      * @return Example
      */
-    public function example(string|null $text = null): static
+    public function example(string|array|null $text = null): static
     {
         /** @var \BrainCore\Blueprints\Guideline|null $parent */
         $parent = $this->getMeta('parentDto');

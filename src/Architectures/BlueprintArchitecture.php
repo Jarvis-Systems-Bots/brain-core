@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace BrainCore\Architectures;
 
+use Bfg\Dto\Attributes\DtoMutateFrom;
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Architectures\Traits\CompilationHelpersTrait;
 use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
 /**
@@ -17,10 +19,12 @@ use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 abstract class BlueprintArchitecture extends Dto
 {
     use FactoryHelpersTrait;
+    use CompilationHelpersTrait;
 
     /**
      * @var array<string, class-string|array<int, class-string>|string>
      */
+    #[DtoMutateFrom('mutateToString', 'text')]
     protected static array $extends = [
         'id' => ['string', 'null'],
         'element' => 'string',
@@ -58,13 +62,26 @@ abstract class BlueprintArchitecture extends Dto
     /**
      * Set Text
      *
-     * @param  non-empty-string  $text
+     * @param  non-empty-string|array  $text
      * @return $this
      */
-    public function text(string $text): static
+    public function text(string|array $text): static
     {
+        if (is_array($text)) {
+            $text = implode(" ", $text);
+        }
+
         $this->text = $text;
 
         return $this;
+    }
+
+    public static function mutateToString(mixed $value)
+    {
+        if (is_array($value)) {
+            $value = implode(" ", $value);
+        }
+
+        return $value;
     }
 }

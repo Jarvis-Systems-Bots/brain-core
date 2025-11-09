@@ -6,6 +6,8 @@ namespace BrainCore\Architectures;
 
 use Bfg\Dto\Dto;
 use BrainCore\Architectures\Traits\ExtractMetaAttributesTrait;
+use BrainCore\Attributes\Meta;
+use Symfony\Component\VarExporter\VarExporter;
 
 abstract class McpArchitecture extends Dto
 {
@@ -32,5 +34,45 @@ abstract class McpArchitecture extends Dto
     protected function construct(): void
     {
 
+    }
+
+    public static function call(string $name, ...$args): string
+    {
+        foreach ($args as $index => $arg) {
+            try {
+                $args[$index] = VarExporter::export($arg);
+            } catch (\Throwable $e) {
+                $args[$index] = '"unserializable_argument"';
+            }
+        }
+        return static::id() . "__$name" . (empty($args) ? '' : '(' . implode(', ', $args) . ')');
+    }
+
+    /**
+     * Get agent ID.
+     *
+     * @param  mixed  ...$args
+     * @return string
+     */
+    public static function id(...$args): string
+    {
+        foreach ($args as $index => $arg) {
+            try {
+                $args[$index] = VarExporter::export($arg);
+            } catch (\Throwable $e) {
+                $args[$index] = '"unserializable_argument"';
+            }
+        }
+        $ref = new \ReflectionClass(static::class);
+        $attributes = $ref->getAttributes(Meta::class);
+        $id = 'unknown';
+        foreach ($attributes as $attribute) {
+            $meta = $attribute->newInstance();
+            if ($meta->name === 'id') {
+                $id = $meta->getText();
+                break;
+            }
+        }
+        return "mcp__" . $id . (empty($args) ? '' : '(' . implode(', ', $args) . ')');
     }
 }

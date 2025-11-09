@@ -12,6 +12,9 @@ use BrainCore\Archetypes\Traits\PurposeTrait;
 use BrainCore\Archetypes\Traits\ResponseTrait;
 use BrainCore\Archetypes\Traits\StyleTrait;
 use BrainCore\Architectures\ArchetypeArchitecture;
+use BrainCore\Attributes\Meta;
+use BrainCore\Compilation\Operator;
+use BrainCore\Compilation\Tools\TaskTool;
 
 abstract class AgentArchetype extends ArchetypeArchitecture
 {
@@ -31,5 +34,41 @@ abstract class AgentArchetype extends ArchetypeArchitecture
     protected static function defaultElement(): string
     {
         return 'system';
+    }
+
+    /**
+     * Print task representation.
+     *
+     * @param  non-empty-string  ...$text
+     * @return string
+     */
+    public static function call(...$text): string
+    {
+        return TaskTool::call(static::class, ...$text);
+    }
+
+    public static function delegate(): string
+    {
+        return Operator::delegate(static::id());
+    }
+
+    /**
+     * Get agent ID.
+     *
+     * @return string
+     */
+    public static function id(): string
+    {
+        $ref = new \ReflectionClass(static::class);
+        $attributes = $ref->getAttributes(Meta::class);
+        $id = 'explore';
+        foreach ($attributes as $attribute) {
+            $meta = $attribute->newInstance();
+            if ($meta->name === 'id') {
+                $id = $meta->getText();
+                break;
+            }
+        }
+        return "@agent-{$id}";
     }
 }

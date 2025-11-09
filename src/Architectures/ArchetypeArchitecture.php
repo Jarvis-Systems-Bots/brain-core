@@ -6,11 +6,13 @@ namespace BrainCore\Architectures;
 
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Architectures\Traits\CompilationHelpersTrait;
 use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
 abstract class ArchetypeArchitecture extends Dto
 {
     use FactoryHelpersTrait;
+    use CompilationHelpersTrait;
 
     /**
      * Track which classes have already registered their 'created' event listener.
@@ -71,16 +73,6 @@ abstract class ArchetypeArchitecture extends Dto
          $this->includes->add($class);
 
         return $this;
-    }
-
-    /**
-     * Extract structured array.
-     *
-     * @return array<string, mixed>
-     */
-    public function extract(): array
-    {
-        $array = $this->toArray();
     }
 
     /**

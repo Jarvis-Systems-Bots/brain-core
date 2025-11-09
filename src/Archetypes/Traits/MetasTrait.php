@@ -15,6 +15,6 @@ trait MetasTrait
      */
     public function metas(): Metas
     {
-        return $this->findOrCreateOfChild(Metas::class);
+        return $this->findOrCreateChild(Metas::class);
     }
 }

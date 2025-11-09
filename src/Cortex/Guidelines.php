@@ -30,6 +30,6 @@ class Guidelines extends CortexArchitecture
      */
     public function guideline(string|null $id = null): Guideline
     {
-        return $this->findOrCreateOfChild(Guideline::class, $id);
+        return $this->findOrCreateChild(Guideline::class, $id);
     }
 }

@@ -29,10 +29,10 @@ class Guideline extends BlueprintArchitecture
     }
 
     /**
-     * @param  non-empty-string  $text
+     * @param  non-empty-string|array  $text
      * @return $this
      */
-    public function text(string $text): static
+    public function text(string|array $text): static
     {
         $this->child->add(
             Text::fromAssoc(compact('text'))
@@ -44,10 +44,10 @@ class Guideline extends BlueprintArchitecture
     /**
      * Set Example
      *
-     * @param  non-empty-string|null  $text
+     * @param  non-empty-string|array|null  $text
      * @return Example
      */
-    public function example(string|null $text = null): Example
+    public function example(string|array|null $text = null): Example
     {
         $this->child->add(
             $example = Example::fromAssoc(compact('text'))

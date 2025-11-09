@@ -61,11 +61,14 @@ class IronRule extends BlueprintArchitecture
     }
 
     /**
-     * @param  non-empty-string  $text
+     * @param  list<string>|non-empty-string  $text
      * @return $this
      */
-    public function text(string $text): static
+    public function text(array|string $text): static
     {
+        if (is_array($text)) {
+            $text = implode(" ", $text);
+        }
         $this->child->add(
             Text::fromAssoc(compact('text'))
         );
@@ -76,11 +79,14 @@ class IronRule extends BlueprintArchitecture
     /**
      * Set Why
      *
-     * @param  non-empty-string  $text
+     * @param  list<string>|non-empty-string  $text
      * @return static
      */
-    public function why(string $text): static
+    public function why(array|string $text): static
     {
+        if (is_array($text)) {
+            $text = implode(" ", $text);
+        }
         $this->child->add(
             Why::fromAssoc(compact('text'))
         );
@@ -91,11 +97,14 @@ class IronRule extends BlueprintArchitecture
     /**
      * Set On Violation
      *
-     * @param  non-empty-string  $text
+     * @param  list<string>|non-empty-string  $text
      * @return static
      */
-    public function onViolation(string $text): static
+    public function onViolation(array|string $text): static
     {
+        if (is_array($text)) {
+            $text = implode(" ", $text);
+        }
         $this->child->add(
             OnViolation::fromAssoc(compact('text'))
         );

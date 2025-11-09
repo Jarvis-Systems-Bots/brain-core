@@ -175,6 +175,8 @@ class XmlBuilder
 
     protected function escape(string $value): string
     {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
+//        return htmlspecialchars($value, ENT_XML1, 'UTF-8');
+//        return htmlspecialchars($value, 0, 'UTF-8');
+        return $value;
     }
 }

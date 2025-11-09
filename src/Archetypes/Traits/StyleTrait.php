@@ -15,6 +15,6 @@ trait StyleTrait
      */
     public function style(): Style
     {
-        return $this->findOrCreateOfChild(Style::class);
+        return $this->findOrCreateChild(Style::class);
     }
 }

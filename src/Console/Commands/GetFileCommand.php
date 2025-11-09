@@ -44,7 +44,7 @@ class GetFileCommand extends Command
         $timings = ['parse' => 0, 'fromEmpty' => 0, 'merger' => 0, 'builder' => 0, 'other' => 0];
 
         foreach ($files as $file) {
-            if (preg_match('/(.*)::([a-z]+)/', $file, $matches)) {
+            if (preg_match('/^(.*)::([a-z]+)$/', $file, $matches)) {
                 $file = $matches[1];
                 if (! $isMeta) {
                     $dumpFormat = $format;

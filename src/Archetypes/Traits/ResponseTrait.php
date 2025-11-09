@@ -13,6 +13,6 @@ trait ResponseTrait
      */
     public function response(): Response
     {
-        return $this->findOrCreateOfChild(Response::class);
+        return $this->findOrCreateChild(Response::class);
     }
 }

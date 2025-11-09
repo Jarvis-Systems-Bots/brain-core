@@ -14,13 +14,11 @@ trait FactoryHelpersTrait
      * @param  non-empty-string|null  $id
      * @return TClass
      */
-    protected function findOrCreateOfChild(string $class, string|null $id = null): Dto
+    protected function findOrCreateChild(string $class, string|null $id = null): Dto
     {
-        $child = $this->child->firstWhere(
-            fn ($item) => is_a($item, $class, true)
-                && ($id === null || $item->isEquals('id', $id))
-        );
-        if (! is_a($child, $class, true)) {
+        $child = $this->findChild($class, $id);
+
+        if (! $child) {
             $this->child->add(
                 $child = $class::fromEmpty()
             );
@@ -28,7 +26,26 @@ trait FactoryHelpersTrait
                 $child->set('id', $id);
             }
         }
+
         return $child;
+    }
+
+    /**
+     * @template TClass of Dto<null>
+     * @param  class-string<TClass>  $class
+     * @param  non-empty-string|null  $id
+     * @return TClass|null
+     */
+    protected function findChild(string $class, string|null $id = null): Dto|null
+    {
+        $child = $this->child->firstWhere(
+            fn ($item) => is_a($item, $class, true)
+                && ($id === null || $item->isEquals('id', $id))
+        );
+        if (is_a($child, $class, true)) {
+            return $child;
+        }
+        return null;
     }
 
     /**
