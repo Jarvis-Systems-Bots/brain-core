@@ -164,7 +164,7 @@ class GetFileCommand extends Command
     {
         $file = Brain::basePath($file);
 
-        if (!file_exists($file)) {
+        if (!file_exists($file) || !is_file($file)) {
             return ERROR;
         }
 

@@ -21,6 +21,8 @@ class BrainCLI
     const MAKE_SKILL = 'brain make:skill';
     const MASTER_LIST = 'brain master:list';
 
+    const INCLUDES_LIST = 'brain includes:list';
+
     public static function MAKE_COMMAND(...$args): string
     {
         $arguments = implode(' ', $args);
