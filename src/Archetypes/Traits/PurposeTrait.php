@@ -18,6 +18,8 @@ trait PurposeTrait
     {
         $this->createOfChild(Purpose::class, text: $text);
 
+        $this->setMeta(['purposeText' => $text]);
+
         return $this;
     }
 }

@@ -31,7 +31,6 @@ trait ExtractAttributesTrait
             $this->purpose(
                 $purposeInstance->getPurpose()
             );
-            $this->setMeta(['purposeText' => $purposeInstance->getPurpose()]);
         }
 
         foreach ($includesAttributes as $attribute) {
