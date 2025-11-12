@@ -16,6 +16,17 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->text('Understanding of full compilation pipeline.')
             ->example('{{ NODE_DIRECTORY }}/*.php → brain compile → brain-core get:file --xml/json/yaml/toml → {{ BRAIN_FOLDER }} + {{ AGENTS_FOLDER }} + {{ COMMANDS_FOLDER }} + {{ MCP_FILE }}')->key('flow');
 
+        $this->guideline('source-vs-compiled-directories')
+            ->text('Clear separation between source (editable) and compiled (readonly) directories.')
+            ->example('SOURCE (EDITABLE): {{ NODE_DIRECTORY }} - All PHP classes (Brain.php, Agents/*.php, Commands/*.php, Skills/*.php, Includes/*.php, Mcp/*.php)')->key('source')
+            ->example('COMPILED (READONLY): {{ BRAIN_FOLDER }} - Auto-generated output from compilation (CLAUDE.md, agents/*.md, commands/*.md, skills/*.md)')->key('compiled')
+            ->example('{{ BRAIN_FOLDER }} = {{ BRAIN_FILE }} parent directory')->key('brain-folder')
+            ->example('{{ AGENTS_FOLDER }} = {{ BRAIN_FOLDER }}/agents/')->key('agents-folder')
+            ->example('{{ COMMANDS_FOLDER }} = {{ BRAIN_FOLDER }}/commands/')->key('commands-folder')
+            ->example('{{ SKILLS_FOLDER }} = {{ BRAIN_FOLDER }}/skills/')->key('skills-folder')
+            ->example('Workflow: Edit {{ NODE_DIRECTORY }}/*.php → brain compile → Auto-generates {{ BRAIN_FOLDER }}/*')->key('workflow')
+            ->example('NEVER Write/Edit to {{ BRAIN_FOLDER }}, {{ AGENTS_FOLDER }}, {{ COMMANDS_FOLDER }}, {{ SKILLS_FOLDER }} - these are compilation artifacts')->key('never-edit-compiled');
+
         $this->guideline('builder-api-rules')
             ->text('Core Builder API syntax patterns.')
             ->example('$this->rule(id)->severity()->text()->why()->onViolation()')->key('rules')
@@ -112,9 +123,46 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->example('Categories: code-solution, bug-fix, architecture, learning, tool-usage, debugging, performance, security, other')->key('categories');
 
         $this->rule('never-hardcode-paths')->critical()
-            ->text('Always use compilation variables ({{ VARIABLE }}) instead of hardcoded paths like .claude/ or .brain/node/.')
-            ->why('Ensures platform-agnostic code that works across all compilation targets.')
-            ->onViolation('Replace hardcoded paths with proper {{ VARIABLE }} references.');
+            ->text('ABSOLUTELY FORBIDDEN TO HARDCODE PATHS. ALWAYS USE COMPILATION VARIABLES. EVERY path reference MUST use \{\{ VARIABLE \}\} syntax. NO EXCEPTIONS EVER.')
+            ->why('Hardcoded paths break multi-target compilation (claude/codex/qwen/gemini), prevent platform portability, and violate single-source-of-truth principle. Variables ensure all targets compile correctly.')
+            ->onViolation('STOP IMMEDIATELY. Replace ALL hardcoded paths with \{\{ VARIABLE \}\}. Scan entire output for hardcoded paths before submitting. ZERO TOLERANCE.');
+
+        $this->guideline('path-variables-examples')
+            ->text('Concrete examples of FORBIDDEN vs CORRECT path usage.')
+            ->example('FORBIDDEN: "{{ BRAIN_FILE }}" → CORRECT: "\{\{ BRAIN_FILE \}\}"')->key('brain-file')
+            ->example('FORBIDDEN: "{{ BRAIN_FOLDER }}" → CORRECT: "\{\{ BRAIN_FOLDER \}\}"')->key('brain-folder')
+            ->example('FORBIDDEN: "{{ NODE_DIRECTORY }}" → CORRECT: "\{\{ NODE_DIRECTORY \}\}"')->key('node-dir')
+            ->example('FORBIDDEN: "{{ NODE_DIRECTORY }}Brain.php" → CORRECT: "\{\{ NODE_DIRECTORY \}\}Brain.php"')->key('node-brain')
+            ->example('FORBIDDEN: "{{ AGENTS_FOLDER }}" → CORRECT: "\{\{ AGENTS_FOLDER \}\}"')->key('agents')
+            ->example('FORBIDDEN: "{{ COMMANDS_FOLDER }}" → CORRECT: "\{\{ COMMANDS_FOLDER \}\}"')->key('commands')
+            ->example('FORBIDDEN: "{{ SKILLS_FOLDER }}" → CORRECT: "\{\{ SKILLS_FOLDER \}\}"')->key('skills')
+            ->example('FORBIDDEN: "{{ MCP_FILE }}" → CORRECT: "\{\{ MCP_FILE \}\}"')->key('mcp')
+            ->example('FORBIDDEN: "{{ BRAIN_DIRECTORY }}" → CORRECT: "\{\{ BRAIN_DIRECTORY \}\}"')->key('brain-directory')
+            ->example('RULE: If you see literal path string ({{ BRAIN_FOLDER }}, {{ NODE_DIRECTORY }}, etc. after compilation) → you violated this rule. Always write \{\{ VARIABLE \}\} in source code.')->key('rule');
+
+        $this->rule('never-write-to-compiled')->critical()
+            ->text('ABSOLUTELY FORBIDDEN: Write(), Edit(), or ANY file operations to {{ BRAIN_FOLDER }}, {{ BRAIN_FILE }}, {{ AGENTS_FOLDER }}, {{ COMMANDS_FOLDER }}, {{ SKILLS_FOLDER }} paths. These directories contain COMPILED OUTPUT (readonly, auto-generated). ONLY ALLOWED: Write/Edit to {{ NODE_DIRECTORY }} PHP source files (Brain.php, Agents/*.php, Commands/*.php, Skills/*.php, Includes/*.php). MANDATORY workflow: Use brain make:command/make:master/make:skill → Edit {{ NODE_DIRECTORY }}/*.php → brain compile → auto-generates {{ BRAIN_FOLDER }}/*. NO EXCEPTIONS.')
+            ->why('{{ BRAIN_FOLDER }} is compilation artifact auto-generated from {{ NODE_DIRECTORY }} sources. Direct edits bypass compilation system, corrupt architecture, and are overwritten on next compile. Single source of truth is {{ NODE_DIRECTORY }} PHP classes.')
+            ->onViolation('ABORT ALL OPERATIONS IMMEDIATELY. DO NOT WRITE. DO NOT EDIT. STEP 1: Determine task type (command/agent/skill). STEP 2: Execute appropriate brain make:* command. STEP 3: Edit ONLY {{ NODE_DIRECTORY }}/*.php source. STEP 4: Run brain compile. VIOLATION = CRITICAL ARCHITECTURE CORRUPTION.');
+
+        $this->guideline('pre-write-validation-checklist')
+            ->text('MANDATORY checklist executed BEFORE any Write() or Edit() operation.')
+            ->example()
+                ->phase('check-1', 'Verify target path starts with {{ NODE_DIRECTORY }} (e.g., {{ NODE_DIRECTORY }}/Commands/FooCommand.php)')
+                ->phase('check-2', 'Verify target path ends with .php extension')
+                ->phase('check-3', 'Verify target path does NOT contain {{ BRAIN_FOLDER }}, {{ AGENTS_FOLDER }}, {{ COMMANDS_FOLDER }}, {{ SKILLS_FOLDER }}')
+                ->phase('check-4', 'If creating new file: verify brain make:* command executed first')
+                ->phase('check-5', 'If ANY check fails: ABORT operation and use correct workflow')
+                ->phase('validation', 'ALL checks MUST pass before Write/Edit execution');
+
+        $this->guideline('file-creation-decision-tree')
+            ->text('Decision tree for creating Brain components.')
+            ->example('Task: Create command → Action: Bash("brain make:command CommandName") → Edit({{ NODE_DIRECTORY }}/Commands/CommandNameCommand.php) → Bash("brain compile")')->key('command')
+            ->example('Task: Create agent → Action: Bash("brain make:master AgentName") → Edit({{ NODE_DIRECTORY }}/Agents/AgentNameMaster.php) → Bash("brain compile")')->key('agent')
+            ->example('Task: Create skill → Action: Bash("brain make:skill SkillName") → Edit({{ NODE_DIRECTORY }}/Skills/SkillNameSkill.php) → Bash("brain compile")')->key('skill')
+            ->example('Task: Create include → Action: Bash("brain make:include IncludeName") → Edit({{ NODE_DIRECTORY }}/Includes/IncludeName.php) → Bash("brain compile")')->key('include')
+            ->example('Task: Edit existing → Action: Read({{ NODE_DIRECTORY }}/*.php) → Edit({{ NODE_DIRECTORY }}/*.php) → Bash("brain compile")')->key('edit')
+            ->example('FORBIDDEN: Write({{ BRAIN_FOLDER }}/*) or Write({{ COMMANDS_FOLDER }}/*) or Write({{ AGENTS_FOLDER }}/*)')->key('forbidden');
 
         $this->rule('respect-archetype-structure')->critical()
             ->text('Each archetype type has specific structure requirements: attributes, extends clause, handle() method.')
