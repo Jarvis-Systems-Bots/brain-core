@@ -11,6 +11,7 @@ class BrainCLI
 {
     const COMPILE = 'brain compile';
     const HELP = 'brain help';
+    const DOCS = 'brain docs';
     const INIT = 'brain init';
     const LIST = 'brain list';
     const UPDATE = 'brain update';
@@ -22,6 +23,13 @@ class BrainCLI
     const MASTER_LIST = 'brain master:list';
 
     const INCLUDES_LIST = 'brain includes:list';
+
+    public static function DOCS(...$args): string
+    {
+        $arguments = implode(' ', $args);
+        return static::DOCS
+            . (! empty($arguments) ? " $arguments" : '');
+    }
 
     public static function MAKE_COMMAND(...$args): string
     {
