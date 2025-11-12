@@ -90,12 +90,12 @@ trait CompileStandartsTrait
         return trim(implode(' ', array_filter($args)));
     }
 
-    protected static function flattenArray(array $array): string
+    protected static function flattenArray(array $array, string $separator = ' '): string
     {
         $result = [];
         foreach ($array as $item) {
             if (is_array($item)) {
-                $result[] = static::flattenArray($item);
+                $result[] = static::flattenArray($item, $separator);
             } elseif (is_string($item)) {
                 $result[] = $item;
             } else {
@@ -106,7 +106,20 @@ trait CompileStandartsTrait
                 }
             }
         }
-        return implode(' ', $result);
+        return implode($separator, $result);
+    }
+
+    protected static function exportedArray(array $array, string $separator = ' '): string
+    {
+        $result = [];
+        foreach ($array as $item) {
+            try {
+                $result[] = VarExporter::export($item);
+            } catch (\Throwable) {
+                $result[] = '[unserializable]';
+            }
+        }
+        return implode($separator, $result);
     }
 
     protected static function parametersToString(array $parameters, string $separator = ', ', bool $exportOnlyNonString = false): string

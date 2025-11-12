@@ -12,7 +12,7 @@ class Store
 
     public static function as(string $name, ...$appropriate): string
     {
-        $appropriate = implode(' + ', $appropriate);
+        $appropriate = static::exportedArray($appropriate, ' + ');
         return static::generateOperator(
             name: 'STORE-AS',
             arguments: "$$name". (! empty($appropriate) ? " = $appropriate" : ''),
