@@ -174,11 +174,87 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->why('Maintains DRY principle and ensures single source of truth.')
             ->onViolation('Create Include for shared logic and remove duplication.');
 
+        $this->rule('use-php-api-not-strings')->critical()
+            ->text('ABSOLUTELY FORBIDDEN TO WRITE PSEUDO-SYNTAX AS STRINGS. ALWAYS USE PHP API FROM BrainCore\\Compilation NAMESPACE. EVERY workflow, operator, tool call MUST use PHP static methods. NO STRING PSEUDO-SYNTAX IN SOURCE CODE. ZERO EXCEPTIONS.')
+            ->why('PHP API ensures: (1) Single source of truth for syntax changes, (2) Type safety and IDE support, (3) Consistent compilation across all targets, (4) Ability to evolve pseudo-syntax format without changing every guideline manually.')
+            ->onViolation('STOP IMMEDIATELY. Replace ALL string pseudo-syntax with PHP API calls. Scan entire handle() method for string violations before submitting. ZERO TOLERANCE.');
+
+        $this->guideline('php-api-complete-reference')
+            ->text('Complete PHP API for pseudo-syntax generation from BrainCore\\Compilation namespace.')
+            ->example('BashTool::call(\'command\') - Generate Bash(\'command\')')->key('bash-tool')
+            ->example('ReadTool::call(Runtime::NODE_DIRECTORY(\'path\')) - Generate Read(\'{{ NODE_DIRECTORY }}path\')')->key('read-tool')
+            ->example('TaskTool::agent(\'name\', \'task\') - Generate Task(@agent-name, \'task\')')->key('task-tool')
+            ->example('WebSearchTool::describe(\'query\') - Generate WebSearch(\'query\')')->key('web-search-tool')
+            ->example('Store::as(\'VAR\', \'value\') - Generate STORE-AS($VAR = \'value\')')->key('store-as')
+            ->example('Store::get(\'VAR\') - Generate STORE-GET($VAR)')->key('store-get')
+            ->example('Operator::task([...]) - Generate TASK → [...] → END-TASK')->key('operator-task')
+            ->example('Operator::if(\'cond\', [\'then\'], [\'else\']) - Generate IF(cond) → THEN → [...] → ELSE → [...] → END-IF')->key('operator-if')
+            ->example('Operator::forEach(\'item\', [...]) - Generate FOREACH(item) → [...] → END-FOREACH')->key('operator-foreach')
+            ->example('Operator::verify(...) - Generate VERIFY-SUCCESS(...)')->key('operator-verify')
+            ->example('Operator::report(...) - Generate REPORT(...)')->key('operator-report')
+            ->example('Operator::skip(...) - Generate SKIP(...)')->key('operator-skip')
+            ->example('Operator::note(...) - Generate NOTE(...)')->key('operator-note')
+            ->example('Operator::context(...) - Generate CONTEXT(...)')->key('operator-context')
+            ->example('Operator::output(...) - Generate OUTPUT(...)')->key('operator-output')
+            ->example('Operator::input(...) - Generate INPUT(...)')->key('operator-input')
+            ->example('Runtime::BRAIN_FILE - Generate {{ BRAIN_FILE }}')->key('runtime-brain-file')
+            ->example('Runtime::NODE_DIRECTORY(\'path\') - Generate {{ NODE_DIRECTORY }}path')->key('runtime-node-directory')
+            ->example('Runtime::AGENTS_FOLDER - Generate {{ AGENTS_FOLDER }}')->key('runtime-agents-folder')
+            ->example('BrainCLI::COMPILE - Generate \'brain compile\'')->key('brain-cli-compile')
+            ->example('BrainCLI::MAKE_MASTER(\'Name\') - Generate \'brain make:master Name\'')->key('brain-cli-make-master')
+            ->example('BrainCLI::MASTER_LIST - Generate \'brain master:list\'')->key('brain-cli-master-list')
+            ->example('ExploreMaster::call(...) - Generate Task(@agent-explore-master, ...)')->key('explore-master')
+            ->example('AgentMaster::call(...) - Generate Task(@agent-agent-master, ...)')->key('agent-master')
+            ->example('VectorMemoryMcp::call(\'store_memory\', \'{...}\') - Generate mcp__vector-memory__store_memory(\'{...}\')')->key('vector-memory-mcp');
+
+        $this->guideline('php-api-usage-patterns')
+            ->text('Common PHP API usage patterns in handle() method.')
+            ->example()->phase('pattern-1', '$this->guideline(\'id\')->example(BashTool::call(BrainCLI::COMPILE));')
+            ->phase('pattern-2', '$this->guideline(\'id\')->example(Store::as(\'VAR\', \'initial value\'));')
+            ->phase('pattern-3', '$this->guideline(\'id\')->example(Operator::task([ReadTool::call(Runtime::NODE_DIRECTORY()), BashTool::call(\'ls\')]));')
+            ->phase('pattern-4', '$this->guideline(\'id\')->example(Operator::if(\'condition\', [\'action-true\'], [\'action-false\']));')
+            ->phase('pattern-5', '$this->guideline(\'id\')->example(TaskTool::agent(\'explore-master\', \'Scan project structure\'));');
+
+        $this->guideline('forbidden-vs-correct-examples')
+            ->text('Concrete examples of FORBIDDEN string syntax vs CORRECT PHP API usage.')
+            ->example('FORBIDDEN: ->example(\'Bash("brain compile")\') → CORRECT: ->example(BashTool::call(BrainCLI::COMPILE))')->key('bash')
+            ->example('FORBIDDEN: ->example(\'Read("{{ NODE_DIRECTORY }}Brain.php")\') → CORRECT: ->example(ReadTool::call(Runtime::NODE_DIRECTORY(\'Brain.php\')))')->key('read')
+            ->example('FORBIDDEN: ->example(\'Task(@agent-explore-master, "task")\') → CORRECT: ->example(TaskTool::agent(\'explore-master\', \'task\'))')->key('task')
+            ->example('FORBIDDEN: ->example(\'STORE-AS($VAR)\') → CORRECT: ->example(Store::as(\'VAR\'))')->key('store')
+            ->example('FORBIDDEN: ->example(\'IF(cond) → THEN → [...]\') → CORRECT: ->example(Operator::if(\'cond\', [\'then\']))')->key('operator-if')
+            ->example('FORBIDDEN: ->example(\'FOREACH(item) → [...]\') → CORRECT: ->example(Operator::forEach(\'item\', [...]))')->key('operator-foreach')
+            ->example('FORBIDDEN: ->example(\'{{ BRAIN_FILE }}\') → CORRECT: ->example(Runtime::BRAIN_FILE)')->key('runtime')
+            ->example('FORBIDDEN: ->example(\'brain make:master Foo\') → CORRECT: ->example(BrainCLI::MAKE_MASTER(\'Foo\'))')->key('cli')
+            ->example('RULE: If you see literal pseudo-syntax strings (\'Bash(...)\', \'Task(...)\', \'STORE-AS(...)\') in ->example() → you violated this rule. Always use PHP API.')->key('rule');
+
+        $this->guideline('command-includes-policy')
+            ->text('Commands DO NOT include Universal includes (CoreConstraints, QualityGates, etc.) - they are already in Brain.')
+            ->example('Commands: NO #[Includes()] attribute - commands inherit context from Brain')->key('commands-no-includes')
+            ->example('Agents: YES #[Includes(CoreConstraints, QualityGates, ...)] - agents need explicit context')->key('agents-need-includes')
+            ->example('Brain: YES #[Includes(Universal, Brain-specific)] - Brain loads everything')->key('brain-loads-all')
+            ->example('Reason: Commands execute in Brain context, inheriting all Brain includes automatically')->key('reason')
+            ->example('FORBIDDEN for Commands: #[Includes(CoreConstraints::class)], #[Includes(QualityGates::class)]')->key('forbidden')
+            ->example('ALLOWED for Commands: ONLY command-specific custom includes if absolutely necessary')->key('allowed');
+
+        $this->guideline('agent-vs-command-structure')
+            ->text('Structural differences between Agents and Commands.')
+            ->example('Agent: #[Meta(id)], #[Meta(model)], #[Meta(color)], #[Meta(description)], #[Purpose()], #[Includes(...many...)], extends AgentArchetype')->key('agent-structure')
+            ->example('Command: #[Meta(id)], #[Meta(description)], #[Purpose()], extends CommandArchetype (NO #[Includes()])')->key('command-structure')
+            ->example('Agent: Self-contained execution context, needs all includes explicitly declared')->key('agent-context')
+            ->example('Command: Executes within Brain context, inherits Brain includes automatically')->key('command-context');
+
+        $this->rule('commands-no-universal-includes')->critical()
+            ->text('Commands MUST NOT include Universal includes (CoreConstraints, QualityGates, ErrorRecovery, etc.). Commands execute in Brain context and inherit these automatically.')
+            ->why('Commands run within Brain\'s execution context. Universal includes are already loaded by Brain. Including them in commands creates duplication, bloats compilation, and violates single-source-of-truth principle.')
+            ->onViolation('Remove ALL Universal includes from Command #[Includes()]. Commands should have MINIMAL or NO includes. Only add command-specific custom includes if absolutely necessary.');
+
         $this->guideline('directive')
             ->text('Core directive for compilation system knowledge.')
+            ->example('PHP-first: Use PHP API, never string pseudo-syntax')
             ->example('Platform-agnostic: Use {{ VARIABLES }} everywhere')
             ->example('Structure-first: Follow archetype templates exactly')
             ->example('DRY: Extract shared logic to Includes')
+            ->example('Commands-minimal: No Universal includes in commands')
             ->example('Validate: Compile after changes to verify correctness');
     }
 }
