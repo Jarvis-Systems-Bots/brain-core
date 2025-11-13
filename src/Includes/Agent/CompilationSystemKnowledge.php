@@ -227,6 +227,49 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->example('FORBIDDEN: ->example(\'brain make:master Foo\') → CORRECT: ->example(BrainCLI::MAKE_MASTER(\'Foo\'))')->key('cli')
             ->example('RULE: If you see literal pseudo-syntax strings (\'Bash(...)\', \'Task(...)\', \'STORE-AS(...)\') in ->example() → you violated this rule. Always use PHP API.')->key('rule');
 
+        $this->rule('scan-actual-syntax-files')->critical()
+            ->text('MANDATORY: Before generating ANY command/agent code, MUST Read actual PHP syntax files to understand current API. PHP API evolves - documentation examples may be outdated. ALWAYS verify against SOURCE CODE.')
+            ->why('PHP API is single source of truth. Syntax can evolve (new methods, changed signatures, new helpers). Reading actual classes ensures correct, up-to-date syntax usage. Prevents outdated pseudo-syntax patterns.')
+            ->onViolation('STOP. Read required syntax files BEFORE code generation. Use Glob + Read to scan directories and understand actual API.');
+
+        $this->guideline('mandatory-syntax-scanning-workflow')
+            ->text('MANDATORY workflow for understanding actual PHP API syntax.')
+            ->example()
+                ->phase('step-1', 'Glob("{{ BRAIN_DIRECTORY }}vendor/jarvis-brain/core/src/Compilation/**/*.php") → Get list of ALL compilation helper classes')
+                ->phase('step-2', 'Read each Compilation/*.php file (Operator.php, Store.php, Runtime.php, BrainCLI.php, Tools/*.php) → Extract available methods and signatures')
+                ->phase('step-3', 'Glob("{{ NODE_DIRECTORY }}Mcp/*.php") → Get list of MCP classes')
+                ->phase('step-4', 'Read MCP classes → Understand ::call(string $name, ...$args) and ::id(...$args) patterns')
+                ->phase('step-5', 'Glob("{{ NODE_DIRECTORY }}Commands/*.php") → Get list of Command classes (optional - can use brain master:list for agent names)')
+                ->phase('step-6', 'Read Command classes → Understand ::id(...$args) pattern for command references')
+                ->phase('validation', 'ALL syntax files scanned → Build complete PHP API map → Generate code using ACTUAL methods from source');
+
+        $this->guideline('syntax-files-to-scan')
+            ->text('Specific directories and files to scan for actual PHP API syntax.')
+            ->example('{{ BRAIN_DIRECTORY }}vendor/jarvis-brain/core/src/Compilation/ - MANDATORY: ALL *.php files (Tools/BashTool.php, Tools/TaskTool.php, Tools/ReadTool.php, Tools/WebSearchTool.php, Tools/EditTool.php, Operator.php, Store.php, Runtime.php, BrainCLI.php, Traits/CompileStandartsTrait.php)')->key('compilation-all')
+            ->example('{{ NODE_DIRECTORY }}Mcp/*.php - MANDATORY for MCP usage: All MCP classes (VectorMemoryMcp.php, etc.) → Extract ::call() and ::id() methods')->key('mcp-classes')
+            ->example('{{ NODE_DIRECTORY }}Commands/*.php - OPTIONAL: Command classes have ::id() method for referencing, but brain master:list sufficient for agent names')->key('command-classes')
+            ->example('{{ NODE_DIRECTORY }}Agents/*.php - SKIP: Agent files not needed, use brain master:list for agent discovery')->key('agent-skip')
+            ->example('{{ BRAIN_DIRECTORY }}vendor/jarvis-brain/core/src/Architectures/ToolArchitecture.php - MANDATORY: Base class for all tools, provides ::call() and ::describe() methods')->key('tool-architecture');
+
+        $this->guideline('syntax-extraction-examples')
+            ->text('What to extract from syntax files.')
+            ->example('From Operator.php: Static method signatures (if(), forEach(), task(), verify(), report(), skip(), note(), context(), output(), input(), validate(), delegate())')->key('operator-methods')
+            ->example('From Store.php: Static methods (as($name, ...$appropriate), get($name))')->key('store-methods')
+            ->example('From Runtime.php: Constants (BRAIN_FILE, NODE_DIRECTORY, etc.) + Static methods (NODE_DIRECTORY(...$append), BRAIN_FOLDER(...$append), etc.)')->key('runtime-methods')
+            ->example('From BrainCLI.php: Constants (COMPILE, MAKE_MASTER, etc.) + Static methods (MAKE_MASTER(...$args), DOCS(...$args), etc.)')->key('cli-methods')
+            ->example('From Tools/*.php: Tool classes extending ToolArchitecture → Each has ::call(), ::describe(), some have custom methods like TaskTool::agent()')->key('tool-methods')
+            ->example('From Mcp/*.php: MCP classes → ::call(string $name, ...$args) for mcp__{id}__{name}(...) and ::id(...$args) for referencing')->key('mcp-methods')
+            ->example('From ToolArchitecture.php: Base methods available to ALL tools (call(...$parameters), describe(string|array $command, ...$steps))')->key('base-methods');
+
+        $this->guideline('when-to-scan-syntax')
+            ->text('Situations requiring mandatory syntax file scanning.')
+            ->example('Before creating new Command - scan Compilation + Mcp classes')->key('create-command')
+            ->example('Before creating new Agent - scan Compilation + Mcp classes')->key('create-agent')
+            ->example('Before creating new Skill - scan Compilation classes')->key('create-skill')
+            ->example('Before modifying existing Command/Agent/Skill with new pseudo-syntax - re-scan to verify API changes')->key('modify-existing')
+            ->example('When user reports syntax errors - scan to verify correct current API')->key('debug-syntax')
+            ->example('After Brain system upgrade - re-scan to discover new API methods')->key('after-upgrade');
+
         $this->guideline('command-includes-policy')
             ->text('Commands DO NOT include Universal includes (CoreConstraints, QualityGates, etc.) - they are already in Brain.')
             ->example('Commands: NO #[Includes()] attribute - commands inherit context from Brain')->key('commands-no-includes')
