@@ -1,0 +1,53 @@
+#!/usr/bin/env php
+<?php
+
+use Illuminate\Console\Application;
+
+/** @var Application $app */
+$app = require __DIR__ . '/app.php';
+
+$app->setName('Brain Scripts');
+
+// Auto-discover commands from .brain/scripts (recursive)
+$scriptsPath = realpath(__DIR__ . '/../../scripts');
+if ($scriptsPath && is_dir($scriptsPath)) {
+    $finder = new \Symfony\Component\Finder\Finder();
+    $finder->files()->in($scriptsPath)->name('*.php');
+
+    foreach ($finder as $file) {
+        // Get relative path from scripts directory and convert to namespace
+        $relativePath = str_replace($scriptsPath . DIRECTORY_SEPARATOR, '', $file->getRealPath());
+        $className = 'BrainScripts\\' . str_replace(
+            [DIRECTORY_SEPARATOR, '.php'],
+            ['\\', ''],
+            $relativePath
+        );
+
+        if (class_exists($className)) {
+            try {
+                $command = new $className();
+                if ($command instanceof \Illuminate\Console\Command) {
+                    $app->add($command);
+                }
+            } catch (\Throwable $e) {
+                // Skip invalid commands
+                fwrite(STDERR, sprintf(
+                    "Warning: Could not load command '%s': %s\n",
+                    $className,
+                    $e->getMessage()
+                ));
+            }
+        }
+    }
+}
+
+// Hide default commands
+foreach (['completion', 'help'] as $cmdName) {
+    if ($app->has($cmdName)) {
+        $app->get($cmdName)->setHidden(true);
+    }
+}
+
+$status = $app->run();
+
+exit($status);
