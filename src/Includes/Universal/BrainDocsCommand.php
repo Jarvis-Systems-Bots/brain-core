@@ -26,7 +26,8 @@ class BrainDocsCommand extends IncludeArchetype
             ->example('brain docs - List all documentation files')->key('list-all')
             ->example('brain docs keyword1,keyword2 - Search by keywords')->key('search')
             ->example('Returns: file path, name, description, part, type, date, version')->key('output')
-            ->example('Keywords: comma-separated, case-insensitive, search in name/description/content')->key('format');
+            ->example('Keywords: comma-separated, case-insensitive, search in name/description/content')->key('format')
+            ->example('Returns INDEX only (metadata), use Read tool to get file content')->key('index-only');
 
         $this->guideline('yaml-front-matter')
             ->text('Required structure for brain docs indexing.')
@@ -41,6 +42,19 @@ version: "1.0.0"
             ->example('name, description: REQUIRED')->key('required')
             ->example('part, type, date, version: optional')->key('optional')
             ->example('type values: tor, guide, api, concept, architecture, reference')->key('types');
+
+        $this->guideline('output-format-index-only')
+            ->text('brain docs returns INDEX ONLY (file metadata), NOT file content. You must Read files separately.')
+            ->example('Path: .docs/test.md
+Name: Document Title
+Description: Brief description
+Part: 1
+Type: guide
+Date: 2025-11-12
+---')->key('format-example')
+            ->example('Output contains: Path, Name, Description, Part, Type, Date, Version')->key('fields')
+            ->example('To get content: Parse output → Extract paths → Read(path) for each needed file')->key('workflow')
+            ->example('brain docs is indexing/discovery tool, NOT content retrieval tool')->key('purpose');
 
         $this->guideline('workflow-discovery')
             ->goal('Discover existing documentation before creating new')
