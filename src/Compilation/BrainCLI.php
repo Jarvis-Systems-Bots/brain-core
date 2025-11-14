@@ -20,9 +20,10 @@ class BrainCLI
     const MAKE_MASTER = 'brain make:master';
     const MAKE_MCP = 'brain make:mcp';
     const MAKE_SKILL = 'brain make:skill';
-    const MASTER_LIST = 'brain master:list';
+    const MAKE_SCRIPT = 'brain make:script';
 
-    const INCLUDES_LIST = 'brain includes:list';
+    const LIST_MASTERS = 'brain list:masters';
+    const LIST_INCLUDES = 'brain list:includes';
 
     public static function DOCS(...$args): string
     {
@@ -63,6 +64,13 @@ class BrainCLI
     {
         $arguments = implode(' ', $args);
         return static::MAKE_SKILL
+            . (! empty($arguments) ? " $arguments" : '');
+    }
+
+    public static function MAKE_SCRIPT(...$args): string
+    {
+        $arguments = implode(' ', $args);
+        return static::MAKE_SCRIPT
             . (! empty($arguments) ? " $arguments" : '');
     }
 }

@@ -31,13 +31,13 @@ defined("OK") || define("OK", 0);
 defined("ERROR") || define("ERROR", 1);
 
 // Load environment variables
-if (file_exists(__DIR__ . '/../../.env')) {
+if (file_exists(__DIR__ . DS . '..' . DS . '..' . DS . '.env')) {
     $repository = RepositoryBuilder::createWithDefaultAdapters()
         ->addAdapter(PutenvAdapter::class)
         ->immutable()
         ->make();
 
-    $dotenv = Dotenv::create($repository, __DIR__ . '/../..');
+    $dotenv = Dotenv::create($repository, __DIR__ . DS . '..' . DS . '..');
     $dotenv->load();
 }
 

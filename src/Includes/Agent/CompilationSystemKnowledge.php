@@ -103,8 +103,8 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->text('Brain CLI commands for development workflow.')
             ->example('brain compile [target] - Compile to target format')->key('compile')
             ->example('brain init - Initialize Brain project')->key('init')
-            ->example('brain master:list - List of agents')->key('list-master')
-            ->example('brain includes:list - List of includes')->key('list-includes')
+            ->example('brain list:masters - List of agents')->key('list-masters')
+            ->example('brain list:includes - List of includes')->key('list-includes')
             ->example('brain make:master Name - Create agent')->key('make-master')
             ->example('brain make:skill Name - Create skill')->key('make-skill')
             ->example('brain make:command Name - Create command')->key('make-command')
@@ -202,7 +202,7 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->example('Runtime::AGENTS_FOLDER - Generate {{ AGENTS_FOLDER }}')->key('runtime-agents-folder')
             ->example('BrainCLI::COMPILE - Generate \'brain compile\'')->key('brain-cli-compile')
             ->example('BrainCLI::MAKE_MASTER(\'Name\') - Generate \'brain make:master Name\'')->key('brain-cli-make-master')
-            ->example('BrainCLI::MASTER_LIST - Generate \'brain master:list\'')->key('brain-cli-master-list')
+            ->example('BrainCLI::LIST_MASTERS - Generate \'brain list:masters\'')->key('brain-cli-master-list')
             ->example('ExploreMaster::call(...) - Generate Task(@agent-explore-master, ...)')->key('explore-master')
             ->example('AgentMaster::call(...) - Generate Task(@agent-agent-master, ...)')->key('agent-master')
             ->example('VectorMemoryMcp::call(\'store_memory\', \'{...}\') - Generate mcp__vector-memory__store_memory(\'{...}\')')->key('vector-memory-mcp');
@@ -239,7 +239,7 @@ class CompilationSystemKnowledge extends IncludeArchetype
                 ->phase('step-2', 'Read each Compilation/*.php file (Operator.php, Store.php, Runtime.php, BrainCLI.php, Tools/*.php) → Extract available methods and signatures')
                 ->phase('step-3', 'Glob("{{ NODE_DIRECTORY }}Mcp/*.php") → Get list of MCP classes')
                 ->phase('step-4', 'Read MCP classes → Understand ::call(string $name, ...$args) and ::id(...$args) patterns')
-                ->phase('step-5', 'Glob("{{ NODE_DIRECTORY }}Commands/*.php") → Get list of Command classes (optional - can use brain master:list for agent names)')
+                ->phase('step-5', 'Glob("{{ NODE_DIRECTORY }}Commands/*.php") → Get list of Command classes (optional - can use brain list:masters for agent names)')
                 ->phase('step-6', 'Read Command classes → Understand ::id(...$args) pattern for command references')
                 ->phase('validation', 'ALL syntax files scanned → Build complete PHP API map → Generate code using ACTUAL methods from source');
 
@@ -247,8 +247,8 @@ class CompilationSystemKnowledge extends IncludeArchetype
             ->text('Specific directories and files to scan for actual PHP API syntax.')
             ->example('{{ BRAIN_DIRECTORY }}vendor/jarvis-brain/core/src/Compilation/ - MANDATORY: ALL *.php files (Tools/BashTool.php, Tools/TaskTool.php, Tools/ReadTool.php, Tools/WebSearchTool.php, Tools/EditTool.php, Operator.php, Store.php, Runtime.php, BrainCLI.php, Traits/CompileStandartsTrait.php)')->key('compilation-all')
             ->example('{{ NODE_DIRECTORY }}Mcp/*.php - MANDATORY for MCP usage: All MCP classes (VectorMemoryMcp.php, etc.) → Extract ::call() and ::id() methods')->key('mcp-classes')
-            ->example('{{ NODE_DIRECTORY }}Commands/*.php - OPTIONAL: Command classes have ::id() method for referencing, but brain master:list sufficient for agent names')->key('command-classes')
-            ->example('{{ NODE_DIRECTORY }}Agents/*.php - SKIP: Agent files not needed, use brain master:list for agent discovery')->key('agent-skip')
+            ->example('{{ NODE_DIRECTORY }}Commands/*.php - OPTIONAL: Command classes have ::id() method for referencing, but brain list:masters sufficient for agent names')->key('command-classes')
+            ->example('{{ NODE_DIRECTORY }}Agents/*.php - SKIP: Agent files not needed, use brain list:masters for agent discovery')->key('agent-skip')
             ->example('{{ BRAIN_DIRECTORY }}vendor/jarvis-brain/core/src/Architectures/ToolArchitecture.php - MANDATORY: Base class for all tools, provides ::call() and ::describe() methods')->key('tool-architecture');
 
         $this->guideline('syntax-extraction-examples')

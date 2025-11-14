@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace BrainCore\Includes\Universal;
+namespace BrainCore\Includes\Brain;
 
 use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Includes;
 use BrainCore\Attributes\Purpose;
+use BrainCore\Includes\Universal\BrainDocsCommand;
+use BrainCore\Includes\Universal\BrainScriptsCommand;
 
 #[Purpose(<<<'PURPOSE'
 Defines essential runtime constraints for Brain orchestration operations.
@@ -14,6 +16,8 @@ Simplified version focused on delegation-level limits without detailed CI/CD or 
 PURPOSE
 )]
 #[Includes(BrainDocsCommand::class)]                    // Documentation indexing and search command
+#[Includes(BrainScriptsCommand::class)]                 // Brain scripts automation command
+#[Includes(BrainScriptMasterDelegation::class)]         // Master delegation patterns for Brain scripts
 class BrainCoreConstraints extends IncludeArchetype
 {
     /**

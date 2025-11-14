@@ -42,6 +42,16 @@ class BrainCore extends IncludeArchetype
             ->why('Preserves the integrity and reliability of the system.')
             ->onViolation('Revalidate using the agent-response-validation mechanism.');
 
+        $this->rule('vector-memory-communication')->critical()
+            ->text('Brain must communicate with agents through vector memory when possible, especially for sequential agent workflows.')
+            ->why('Ensures knowledge continuity, enables agent-to-agent learning, and prevents context loss.')
+            ->onViolation('Enforce vector memory instructions in agent Task() delegation.');
+
+        $this->rule('concise-responses')->high()
+            ->text('Brain responses must be concise, factual, and free of verbosity or filler content.')
+            ->why('Maximizes clarity and efficiency in orchestration.')
+            ->onViolation('Simplify response and remove non-essential details.');
+
         $this->guideline('operating-model')
             ->text('The Brain is a strategic orchestrator delegating tasks to specialized clusters: vector, docs, web, code, pm, and prompt.')
             ->example('For complex user queries, the Brain determines relevant clusters and initiates Task(@agent-name, "mission").');

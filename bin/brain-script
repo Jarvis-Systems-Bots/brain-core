@@ -16,9 +16,9 @@ if ($scriptsPath && is_dir($scriptsPath)) {
 
     foreach ($finder as $file) {
         // Get relative path from scripts directory and convert to namespace
-        $relativePath = str_replace($scriptsPath . DIRECTORY_SEPARATOR, '', $file->getRealPath());
+        $relativePath = str_replace($scriptsPath . DS, '', $file->getRealPath());
         $className = 'BrainScripts\\' . str_replace(
-            [DIRECTORY_SEPARATOR, '.php'],
+            [DS, '.php'],
             ['\\', ''],
             $relativePath
         );

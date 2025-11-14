@@ -43,7 +43,7 @@ class WorkflowPseudoSyntax extends IncludeArchetype
             ->example('Runtime::BRAIN_FOLDER → {{ BRAIN_FOLDER }}')->key('brain-folder')
             ->example('BrainCLI::COMPILE → brain compile')->key('compile')
             ->example('BrainCLI::MAKE_MASTER(Name) → brain make:master Name')->key('make-master')
-            ->example('BrainCLI::MASTER_LIST → brain master:list')->key('master-list');
+            ->example('BrainCLI::MASTER_LIST → brain list:masters')->key('master-list');
 
         $this->guideline('workflow-agent-delegation')
             ->text('Agent delegation syntax for Task tool invocations.')

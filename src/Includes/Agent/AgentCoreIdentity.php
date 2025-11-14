@@ -8,6 +8,7 @@ use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Includes;
 use BrainCore\Attributes\Purpose;
 use BrainCore\Includes\Universal\BrainDocsCommand;
+use BrainCore\Includes\Universal\BrainScriptsCommand;
 
 #[Purpose(<<<'PURPOSE'
 Defines core agent identity, temporal awareness, and execution boundaries.
@@ -15,6 +16,7 @@ Unified lightweight include combining identity, temporal context, and tools-only
 PURPOSE
 )]
 #[Includes(BrainDocsCommand::class)]                    // Documentation indexing and search command
+#[Includes(BrainScriptsCommand::class)]                 // Brain scripts automation command
 class AgentCoreIdentity extends IncludeArchetype
 {
     protected function handle(): void
@@ -55,6 +57,21 @@ class AgentCoreIdentity extends IncludeArchetype
             ->text('Agents are strictly prohibited from creating or invoking other agents.')
             ->why('Prevents recursive loops and context loss.')
             ->onViolation('Terminate offending process and log violation under agent_policy_violation.');
+
+        $this->rule('vector-memory-mandatory-pre')->critical()
+            ->text('Agents MUST search vector memory before task execution via mcp__vector-memory__search_memories.')
+            ->why('Ensures knowledge reuse, prevents duplicate work, and maintains learning continuity.')
+            ->onViolation('Block execution until vector memory search completed.');
+
+        $this->rule('vector-memory-mandatory-post')->critical()
+            ->text('Agents MUST store significant learnings, outcomes, and insights to vector memory after task completion via mcp__vector-memory__store_memory.')
+            ->why('Builds collective intelligence and enables future agent learning.')
+            ->onViolation('Log failure to store insights; require post-task memory storage.');
+
+        $this->rule('concise-agent-responses')->high()
+            ->text('Agent responses must be concise, factual, and focused on task outcomes without verbosity.')
+            ->why('Maximizes efficiency and clarity in multi-agent workflows.')
+            ->onViolation('Simplify response and remove filler content.');
 
         $this->rule('tools-only-access')->critical()
             ->text('Agents may only perform execution through registered tool APIs.')
