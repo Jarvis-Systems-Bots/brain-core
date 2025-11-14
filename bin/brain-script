@@ -10,6 +10,9 @@ $app->setName('Brain Scripts');
 
 // Auto-discover commands from .brain/scripts (recursive)
 $scriptsPath = realpath(__DIR__ . '/../../scripts');
+if (! $scriptsPath) {
+    $scriptsPath = realpath(__DIR__ . '/../../../../scripts');
+}
 if ($scriptsPath && is_dir($scriptsPath)) {
     $finder = new \Symfony\Component\Finder\Finder();
     $finder->files()->in($scriptsPath)->name('*.php');
@@ -18,10 +21,10 @@ if ($scriptsPath && is_dir($scriptsPath)) {
         // Get relative path from scripts directory and convert to namespace
         $relativePath = str_replace($scriptsPath . DS, '', $file->getRealPath());
         $className = 'BrainScripts\\' . str_replace(
-            [DS, '.php'],
-            ['\\', ''],
-            $relativePath
-        );
+                        [DS, '.php'],
+                        ['\\', ''],
+                        $relativePath
+                );
 
         if (class_exists($className)) {
             try {
@@ -32,9 +35,9 @@ if ($scriptsPath && is_dir($scriptsPath)) {
             } catch (\Throwable $e) {
                 // Skip invalid commands
                 fwrite(STDERR, sprintf(
-                    "Warning: Could not load command '%s': %s\n",
-                    $className,
-                    $e->getMessage()
+                        "Warning: Could not load command '%s': %s\n",
+                        $className,
+                        $e->getMessage()
                 ));
             }
         }
@@ -48,6 +51,14 @@ foreach (['completion', 'help'] as $cmdName) {
     }
 }
 
-$status = $app->run();
+try {
+    $status = $app->run();
+} catch (Exception $e) {
+    if (getenv('BRAIN_SCRIPT_DEBUG') == '1') {
+        dump($e);
+    }
+    fwrite(STDERR, "Error: " . $e->getMessage() . "\n");
+    $status = 1;
+}
 
 exit($status);
