@@ -170,7 +170,8 @@ class GetFileCommand extends Command
 
         $content = file_get_contents($file);
         preg_match('/namespace\s+([a-zA-Z0-9_\\\\]+);/', $content, $namespaceMatches);
-        preg_match('/class\s+([a-zA-Z0-9_]+)\s*/', $content, $classMatches);
+        //preg_match('/class\s+([a-zA-Z0-9_]+)\s*/', $content, $classMatches);
+        preg_match('/\nclass\s+([a-zA-Z0-9_]+)\s*/', $content, $classMatches);
 
         if (isset($namespaceMatches[1]) && isset($classMatches[1])) {
             $class = $namespaceMatches[1] . '\\' . $classMatches[1];
