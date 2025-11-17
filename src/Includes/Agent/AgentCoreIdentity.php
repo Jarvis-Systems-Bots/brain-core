@@ -5,18 +5,13 @@ declare(strict_types=1);
 namespace BrainCore\Includes\Agent;
 
 use BrainCore\Archetypes\IncludeArchetype;
-use BrainCore\Attributes\Includes;
 use BrainCore\Attributes\Purpose;
-use BrainCore\Includes\Universal\BrainDocsCommand;
-use BrainCore\Includes\Universal\BrainScriptsCommand;
 
 #[Purpose(<<<'PURPOSE'
 Defines core agent identity, temporal awareness, and execution boundaries.
 Unified lightweight include combining identity, temporal context, and tools-only execution policies.
 PURPOSE
 )]
-#[Includes(BrainDocsCommand::class)]                    // Documentation indexing and search command
-#[Includes(BrainScriptsCommand::class)]                 // Brain scripts automation command
 class AgentCoreIdentity extends IncludeArchetype
 {
     protected function handle(): void
