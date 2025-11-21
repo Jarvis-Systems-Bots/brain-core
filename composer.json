@@ -50,7 +50,6 @@
     "illuminate/support": "^v12.0",
     "illuminate/validation": "^v12.0",
     "illuminate/view": "^v12.0",
-    "illuminated/helper-functions": "^12.x-dev",
     "composer/composer": "^2.8",
     "symfony/var-dumper": "^7.3",
     "yosymfony/toml": "^1.0",
