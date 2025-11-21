@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace BrainCore;
 
+use Bfg\Dto\Dto;
+
 class Core
 {
     protected string|null $versionCache = null;
+
+    protected array $variables = [];
+
+    protected Dto|null $currentCompileDto = null;
 
     public function basePath(string $path = '', bool $relative = false): string
     {
@@ -38,5 +44,44 @@ class Core
         }
 
         return $this->versionCache = null;
+    }
+
+    public function setVariable(string $name, mixed $value): void
+    {
+        $this->variables[$name] = $value;
+    }
+
+    /**
+     * @param  string  $name
+     * @param  mixed|null  $default
+     * @return scalar
+     */
+    public function getVariable(string $name, mixed $default = null): mixed
+    {
+        return $this->variables[$name] ?? value($default);
+    }
+
+    public function mergeVariables(array ...$arrays): void
+    {
+        foreach ($arrays as $array) {
+            foreach ($array as $key => $value) {
+                $this->variables[$key] = $value;
+            }
+        }
+    }
+
+    public function setCurrentCompileDto(Dto|null $dto): void
+    {
+        $this->currentCompileDto = $dto;
+    }
+
+    public function getCurrentCompileDto(): Dto|null
+    {
+        return $this->currentCompileDto;
+    }
+
+    public function getVariables(): array
+    {
+        return $this->variables;
     }
 }

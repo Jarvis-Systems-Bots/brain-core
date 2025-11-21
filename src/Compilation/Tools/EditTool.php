@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace BrainCore\Compilation\Tools;
 
-use BrainCore\Architectures\ToolArchitecture;
+use BrainCore\Abstracts\ToolAbstract;
 
-class EditTool extends ToolArchitecture
+class EditTool extends ToolAbstract
 {
     public static function name(): string
     {

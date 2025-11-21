@@ -6,10 +6,10 @@ namespace BrainCore\Compilation\Tools;
 
 use BrainCore\Abstracts\ToolAbstract;
 
-class WebSearchTool extends ToolAbstract
+class WebFetchTool extends ToolAbstract
 {
     public static function name(): string
     {
-        return 'WebSearch';
+        return 'WebFetch';
     }
 }

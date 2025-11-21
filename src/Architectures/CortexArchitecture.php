@@ -6,6 +6,7 @@ namespace BrainCore\Architectures;
 
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Abstracts\ArchitectureAbstract;
 use BrainCore\Architectures\Traits\CompilationHelpersTrait;
 use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
@@ -14,7 +15,7 @@ use BrainCore\Architectures\Traits\FactoryHelpersTrait;
  * @property-write string $element
  * @property-write DtoCollection<int, Dto> $child
  */
-abstract class CortexArchitecture extends Dto
+abstract class CortexArchitecture extends ArchitectureAbstract
 {
     use FactoryHelpersTrait;
     use CompilationHelpersTrait;

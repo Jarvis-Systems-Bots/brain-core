@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace BrainCore\Compilation\Tools;
 
-use BrainCore\Architectures\ToolArchitecture;
+use BrainCore\Abstracts\ToolAbstract;
 use Symfony\Component\VarExporter\VarExporter;
 
-class TaskTool extends ToolArchitecture
+class TaskTool extends ToolAbstract
 {
     public static function name(): string
     {
@@ -23,7 +23,8 @@ class TaskTool extends ToolArchitecture
                 $args[$index] = "'[unserializable]'";
             }
         }
+        $agentName = puzzle('agent', $name);
         $args = count($args) > 0 ? ' ' . implode(', ', $args) : '';
-        return static::name() . "(@agent-{$name}$args)";
+        return static::name() . "($agentName$args)";
     }
 }

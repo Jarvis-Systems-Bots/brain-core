@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace BrainCore\Architectures;
 
-use Bfg\Dto\Dto;
+use BrainCore\Abstracts\ArchitectureAbstract;
 use BrainCore\Architectures\Traits\ExtractMetaAttributesTrait;
 use BrainCore\Attributes\Meta;
 use Symfony\Component\VarExporter\VarExporter;
 
-abstract class McpArchitecture extends Dto
+abstract class McpArchitecture extends ArchitectureAbstract
 {
     use ExtractMetaAttributesTrait;
 

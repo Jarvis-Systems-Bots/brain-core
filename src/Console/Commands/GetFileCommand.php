@@ -18,6 +18,7 @@ class GetFileCommand extends Command
 {
     protected $signature = 'get:file 
         {files : The file to read}
+        {--variables= : Variables to use in the compilation}
         {--json : Output in JSON format}
         {--xml : Output in XML format}
         {--yaml : Output in YAML format}
@@ -31,6 +32,11 @@ class GetFileCommand extends Command
     {
         $cmdStart = microtime(true);
 
+        $variables = $this->option('variables') ?? "{}";
+        $variables = json_decode($variables, true) ?? [];
+        if ($variables) {
+            Brain::mergeVariables($variables);
+        }
         $isXml = $this->option('xml');
         $isJson = $this->option('json');
         $isYaml = $this->option('yaml');
@@ -65,7 +71,14 @@ class GetFileCommand extends Command
             }
 
             $fromEmptyStart = microtime(true);
+
+            $class::on('created', function (Dto $dto) use ($variables) {
+                $dto->setMeta($variables);
+                Brain::setCurrentCompileDto($dto);
+            });
             $dto = $class::fromEmpty();
+            $class::clearEvents();
+            Brain::setCurrentCompileDto(null);
             $timings['fromEmpty'] += (microtime(true) - $fromEmptyStart) * 1000;
 
             $otherStart = microtime(true);
@@ -170,7 +183,6 @@ class GetFileCommand extends Command
 
         $content = file_get_contents($file);
         preg_match('/namespace\s+([a-zA-Z0-9_\\\\]+);/', $content, $namespaceMatches);
-        //preg_match('/class\s+([a-zA-Z0-9_]+)\s*/', $content, $classMatches);
         preg_match('/\nclass\s+([a-zA-Z0-9_]+)\s*/', $content, $classMatches);
 
         if (isset($namespaceMatches[1]) && isset($classMatches[1])) {

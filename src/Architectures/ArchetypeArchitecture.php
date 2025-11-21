@@ -6,10 +6,11 @@ namespace BrainCore\Architectures;
 
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Abstracts\ArchitectureAbstract;
 use BrainCore\Architectures\Traits\CompilationHelpersTrait;
 use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
-abstract class ArchetypeArchitecture extends Dto
+abstract class ArchetypeArchitecture extends ArchitectureAbstract
 {
     use FactoryHelpersTrait;
     use CompilationHelpersTrait;

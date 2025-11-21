@@ -2,8 +2,64 @@
 
 declare(strict_types=1);
 
+use BrainCore\Support\Brain;
 use Illuminate\Support\Facades\Date;
 use Carbon\CarbonInterface;
+
+if (!function_exists('puzzle')) {
+    /**
+     * Get the puzzle instance.
+     *
+     * @param  string  $name
+     * @param  mixed  $value
+     * @return string
+     */
+    function puzzle(string $name, mixed $value): string
+    {
+        $dto = Brain::getCurrentCompileDto();
+        return $dto
+            ? $dto->puzzle($name, $value)
+            : puzzle_replace((string) Brain::getVariable(...puzzle_params($name)), $value);
+    }
+}
+
+if (!function_exists('puzzle_params')) {
+    /**
+     * Get the puzzle parameters instance.
+     *
+     * @param  string  $name
+     * @return array<string, string>
+     */
+    function puzzle_params(string $name): array
+    {
+        return [
+            'name' => "puzzle-$name",
+            'default' => "[puzzle.$name]",
+        ];
+    }
+}
+
+if (!function_exists('puzzle_replace')) {
+    /**
+     * Invested puzzle replacement on the object values or array.
+     *
+     * @template T as string
+     * @param  T  $text
+     * @param  mixed  $value
+     * @return T
+     */
+    function puzzle_replace(string $text, mixed $value): string
+    {
+        $value = to_string($value);
+
+        /** @var T */
+        return tag_replace($text, [
+            ...compact('value'),
+            ...Brain::getVariables(),
+            ...getenv(),
+        ], "{{ * }}");
+    }
+}
 
 if (!function_exists("config")) {
     /**

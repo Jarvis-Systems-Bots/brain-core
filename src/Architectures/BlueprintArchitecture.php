@@ -7,6 +7,7 @@ namespace BrainCore\Architectures;
 use Bfg\Dto\Attributes\DtoMutateFrom;
 use Bfg\Dto\Collections\DtoCollection;
 use Bfg\Dto\Dto;
+use BrainCore\Abstracts\ArchitectureAbstract;
 use BrainCore\Architectures\Traits\CompilationHelpersTrait;
 use BrainCore\Architectures\Traits\FactoryHelpersTrait;
 
@@ -16,7 +17,7 @@ use BrainCore\Architectures\Traits\FactoryHelpersTrait;
  * @property-write DtoCollection<int, Dto<null>> $child
  * @property-write string|null $text
  */
-abstract class BlueprintArchitecture extends Dto
+abstract class BlueprintArchitecture extends ArchitectureAbstract
 {
     use FactoryHelpersTrait;
     use CompilationHelpersTrait;

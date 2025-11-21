@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace BrainCore\Architectures;
+namespace BrainCore\Abstracts;
 
 use BrainCore\Compilation\Traits\CompileStandartsTrait;
-use Symfony\Component\VarExporter\VarExporter;
 
-abstract class ToolArchitecture
+abstract class ToolAbstract
 {
     use CompileStandartsTrait;
 

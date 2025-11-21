@@ -69,6 +69,6 @@ abstract class AgentArchetype extends ArchetypeArchitecture
                 break;
             }
         }
-        return "@agent-{$id}";
+        return puzzle('agent', $id);
     }
 }
