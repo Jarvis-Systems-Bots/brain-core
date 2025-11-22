@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace BrainCore\Variations\Traits;
 
-use BrainCore\Includes\Agent\AgentCoreIdentityInclude;
-use BrainCore\Includes\Agent\AgentDocumentationInclude;
+use BrainCore\Includes\Agent\CoreInclude;
+use BrainCore\Includes\Agent\DocumentationFirstInclude;
 use BrainCore\Includes\Universal\BrainDocsInclude;
 use BrainCore\Includes\Universal\LaravelBoostClassToolsInclude;
 use BrainCore\Includes\Universal\LaravelBoostGuidelinesInclude;
@@ -36,8 +36,8 @@ trait AgentIncludesTrait
         $this->include(SequentialReasoningInclude::class);   // Sequential reasoning capability
 
         // === AGENT CORE ===
-        $this->include(AgentCoreIdentityInclude::class);               // Core identity and purpose
-        $this->include(AgentDocumentationInclude::class);        // Documentation-first execution policy
+        $this->include(CoreInclude::class);               // Core identity and purpose
+        $this->include(DocumentationFirstInclude::class);        // Documentation-first execution policy
 
         if ($this->var('HAS_LARAVEL')) {
             $this->include(LaravelBoostGuidelinesInclude::class);      // Laravel boosting guidelines
