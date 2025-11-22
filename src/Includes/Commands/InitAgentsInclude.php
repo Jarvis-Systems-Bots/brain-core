@@ -12,7 +12,6 @@ use BrainCore\Compilation\Operator;
 use BrainCore\Compilation\Runtime;
 use BrainCore\Compilation\Store;
 use BrainCore\Compilation\Tools\BashTool;
-use BrainCore\Compilation\Tools\ReadTool;
 use BrainCore\Compilation\Tools\TaskTool;
 use BrainCore\Compilation\Tools\WebSearchTool;
 use BrainNode\Agents\AgentMaster;
@@ -31,35 +30,35 @@ class InitAgentsInclude extends IncludeArchetype
     protected function handle(): void
     {
         // Iron Rules
-        $this->rule('no-interactive-questions')->critical()
-            ->text('NO interactive questions')
-            ->why('Automated workflow for gap analysis and generation')
-            ->onViolation('Execute fully automated without user prompts');
+        $this->rule('mandatory-agentmaster-delegation')->critical()
+            ->text('Brain MUST delegate ALL agent generation to AgentMaster. FORBIDDEN: Brain creating agents directly.')
+            ->why('Separation of orchestration (Brain) and execution (AgentMaster). Brain is NOT an executor.')
+            ->onViolation('ABORT. Delegate to AgentMaster immediately. Brain orchestrates, never executes.');
 
-        $this->rule('temporal-context-first')->critical()
-            ->text(['Temporal context FIRST:', BashTool::call('date')])
-            ->why('Ensures up-to-date best practices in generated artifacts')
-            ->onViolation('Missing temporal context leads to outdated patterns');
+        $this->rule('parallel-agentmaster-execution')->critical()
+            ->text('Run up to 5 AgentMaster instances in PARALLEL. Each AgentMaster can generate 1-3 agents per batch.')
+            ->why('Maximizes throughput. Sequential generation wastes time. Parallel = 5x faster.')
+            ->onViolation('Batch agents into groups of 3, delegate to 5 AgentMasters concurrently.');
+
+        $this->rule('no-interactive-questions')->critical()
+            ->text('NO interactive questions. Fully automated gap analysis and generation.')
+            ->why('Automated workflow requires zero user prompts')
+            ->onViolation('Execute fully automated');
 
         $this->rule('brain-make-master-only')->critical()
-            ->text(['MUST use', BashTool::call(BrainCLI::MAKE_MASTER), 'for agent creation - NOT Write() or Edit()'])
-            ->why([BrainCLI::MAKE_MASTER, 'ensures proper PHP archetype structure and compilation compatibility'])
-            ->onViolation('Manually created agents may have structural issues and compilation errors');
+            ->text(['AgentMaster MUST use', BashTool::call(BrainCLI::MAKE_MASTER), 'for creation - NOT Write() or Edit()'])
+            ->why('Ensures proper PHP archetype structure and compilation compatibility')
+            ->onViolation('Reject manually created agents');
 
         $this->rule('no-regeneration')->critical()
-            ->text('No regeneration of existing agents')
-            ->why('Idempotent operation safe for repeated execution')
-            ->onViolation('Wasted computation and potential conflicts');
+            ->text('Skip existing agents. Idempotent operation.')
+            ->why('Safe for repeated execution')
+            ->onViolation('Skip and continue');
 
         $this->rule('delegates-web-research')->high()
-            ->text('Brain MUST delegate all web research to WebResearchMaster, never execute WebSearch directly')
-            ->why('Maintains delegation hierarchy and prevents Brain from performing execution-level tasks')
-            ->onViolation('Delegation protocol violation - escalate to Architect Agent');
-
-        $this->rule('cache-web-results')->high()
-            ->text('Store web research patterns in vector memory for 30 days to speed up repeated runs')
-            ->why('Avoids redundant web searches and improves performance')
-            ->onViolation('Unnecessary web API calls and slower execution');
+            ->text('Delegate web research to WebResearchMaster. Brain NEVER executes WebSearch.')
+            ->why('Maintains delegation hierarchy')
+            ->onViolation('Delegate to WebResearchMaster');
 
         // Phase 0: Arguments Processing
         $this->guideline('phase0-arguments-processing')
@@ -248,47 +247,66 @@ class InitAgentsInclude extends IncludeArchetype
                 )
             )
             ->phase(Store::as('GAP_ANALYSIS'))
-            ->phase('Filter: Only include agents with confidence >= 0.75 AND industry_alignment >= 0.7')
+            ->phase('Filter: confidence >= 0.6, industry_alignment >= 0.6, priority != "low"')
             ->phase('Sort by: priority DESC, confidence DESC, industry_alignment DESC');
 
         // Phase 4.5: Validate Against Industry Standards (REMOVED - integrated into phase4)
         // This validation is now part of the AgentMaster delegation in phase4
         // AgentMaster can use WebSearchTool internally as part of its workflow
 
-        // Phase 5: Generate Missing Agents (ENHANCED with confidence tracking)
-        $this->guideline('phase5-generate-agents')
-            ->goal('Create missing agents (sequential, 1 by 1) with confidence and industry alignment metadata')
-            ->example()
+        // Phase 5: PARALLEL Agent Generation (5 AgentMasters, 1-3 agents each)
+        $this->guideline('phase5-parallel-generation')
+            ->goal('Create missing agents via PARALLEL AgentMaster delegation. Max 5 concurrent AgentMasters.')
             ->note('Created files must be valid PHP archetypes extending', AgentArchetype::class)
-            ->forEach('agent in $GAP_ANALYSIS.missing_agents', [
-                Operator::if('agent already exists in $EXISTING_AGENTS', Operator::skip('idempotent - preserving existing')),
-                Operator::if('agent.confidence < 0.75 OR agent.priority === "medium"', [
-                    'Log: "Skipping low-confidence agent: {agent.name} (confidence: {agent.confidence})"',
-                    Operator::skip('low confidence or medium priority')
-                ]),
-                'Log: "Generating {agent.name} (confidence: {agent.confidence}, industry_alignment: {agent.industry_alignment}, priority: {agent.priority})"',
-                BashTool::describe(BrainCLI::MAKE_MASTER('{AgentName}'), ['Creates', Runtime::NODE_DIRECTORY('Agents/{AgentName}.php')]),
-                AgentMaster::call(
-                    Operator::task(
-                        ReadTool::call(Runtime::NODE_DIRECTORY('Agents/{AgentName}.php')),
-                        'Update Purpose attribute based on gap analysis',
-                        'Include industry best practices from $INDUSTRY_PATTERNS and $TECH_PATTERNS',
-                        'Add appropriate includes (Universal + custom if needed)',
-                        'Define agent-specific guidelines and capabilities',
-                        'Follow existing agent structure (AgentMaster, CommitMaster, etc.)',
-                        'Add metadata comment: confidence={agent.confidence}, industry_alignment={agent.industry_alignment}',
-                    ),
-                    Operator::context([
-                        '{agent_purpose}, {agent_capabilities} from gap analysis',
-                        'Industry patterns: {$INDUSTRY_PATTERNS}',
-                        'Technology patterns: {$TECH_PATTERNS[relevant_tech]}',
-                        'Confidence score: {agent.confidence}',
-                    ])
-                ),
-                Operator::report('{completed}/{total} agents generated (avg confidence: {avg_confidence})'),
+            ->example()
+            ->phase('Step 1: Filter and batch agents')
+            ->phase([
+                'Remove: existing agents, confidence < 0.6, priority === "low"',
+                'Keep: confidence >= 0.6 AND (priority === "critical" OR priority === "high")',
+                Store::as('FILTERED_AGENTS', '[...filtered list...]'),
             ])
-            ->phase('Store generation summary')
-            ->phase(Store::as('GENERATION_SUMMARY', '{generated: [...], skipped: [...], avg_confidence: 0-1, total_agents: count}'));
+            ->phase('Step 2: Batch into groups of 3 (max 5 batches = 15 agents)')
+            ->phase([
+                'batch_1 = agents[0:3], batch_2 = agents[3:6], ...',
+                Store::as('AGENT_BATCHES', '[[batch1], [batch2], [batch3], [batch4], [batch5]]'),
+            ])
+            ->phase('Step 3: Pre-create all agent files via brain make:master')
+            ->phase(Operator::forEach('agent in $FILTERED_AGENTS', [
+                BashTool::describe(BrainCLI::MAKE_MASTER('{agent.name}'), ['Creates', Runtime::NODE_DIRECTORY('Agents/{agent.name}.php')]),
+            ]))
+            ->phase('Step 4: PARALLEL delegation to 5 AgentMasters')
+            ->phase([
+                'CRITICAL: Launch ALL 5 Task() calls in SINGLE message block',
+                'Each AgentMaster receives batch of 1-3 agents to configure',
+                'AgentMasters work CONCURRENTLY, not sequentially',
+            ])
+            ->phase(Operator::forEach('batch in $AGENT_BATCHES (PARALLEL)', [
+                AgentMaster::call(
+                    Operator::input(
+                        'batch_agents = [{name, purpose, capabilities, confidence}, ...]',
+                        Store::get('INDUSTRY_PATTERNS'),
+                        Store::get('TECH_PATTERNS'),
+                        Store::get('EXISTING_AGENTS'),
+                    ),
+                    Operator::task(
+                        'FOREACH agent in batch_agents:',
+                        '  1. Read created file: .brain/node/Agents/{agent.name}.php',
+                        '  2. Update #[Purpose()] with detailed domain expertise',
+                        '  3. Add #[Includes()] from Universal + domain-specific',
+                        '  4. Define rules + guidelines in handle()',
+                        '  5. Follow AgentMaster/CommitMaster structure',
+                        '  6. Use PHP API only (Runtime::, Operator::, Store::)',
+                        'Return: {completed: [...], failed: [...]}',
+                    ),
+                    Operator::output('{batch_id, completed: [names], failed: [names], errors: [...]}'),
+                ),
+            ]))
+            ->phase('Step 5: Aggregate results from all AgentMasters')
+            ->phase([
+                'Merge: all completed agents from 5 AgentMaster responses',
+                'Collect: all failures for error report',
+                Store::as('GENERATION_SUMMARY', '{generated: [...], failed: [...], total: N}'),
+            ]);
 
         // Phase 6: Compile Agents
         $this->guideline('phase6-compile')
@@ -317,177 +335,48 @@ class InitAgentsInclude extends IncludeArchetype
             ])
             ->phase('Include cache performance metrics: {cache_hits}, {web_searches_performed}');
 
-        // Response Format - Option A: Agents Generated
-        $this->guideline('response-format-a-enhanced')
-            ->text('Response when Agents Generated')
-            ->example('Init Gap Analysis Complete')
-            ->example('Mode: {search_mode} (targeted|discovery)')
-            ->example('Agents Generated: {agents_count}')
-            ->phase('Created in', Runtime::NODE_DIRECTORY('Agents/'))
-            ->phase('Compiled to', Runtime::AGENTS_FOLDER)
-            ->example('New domains: {list_of_new_agent_names}')
-            ->example('Quality Metrics:')
-            ->phase('Average confidence: {avg_confidence} (0-1 scale)')
-            ->phase('Average industry alignment: {avg_industry_alignment} (0-1 scale)')
-            ->phase('Priority breakdown: {critical_count} critical, {high_count} high')
-            ->example('Coverage Improved:')
-            ->phase('Technologies: {technologies_list}')
-            ->phase('Industry coverage score: {industry_coverage_score} (0-1 scale)')
-            ->phase('Total agents: {total_agents_count} (was: {old_count})')
-            ->example('Preserved: {existing_agents_count} existing agents')
-            ->example('Performance:')
-            ->phase('Cache hits: {cache_hits}')
-            ->phase('Web searches: {web_searches_count} (delegated to WebResearchMaster)')
-            ->phase('Skipped agents: {skipped_count} (low confidence or medium priority)')
-            ->example('Next Steps:')
-            ->phase(['Review generated agents in', Runtime::NODE_DIRECTORY('Agents/')])
-            ->phase('Customize agent capabilities if needed')
-            ->phase('Recompile: brain compile (if customized)')
-            ->phase(['Agents are ready to use via', TaskTool::agent('{name}', '...')]);
+        // Response Format (unified)
+        $this->guideline('response-format')
+            ->text('Response structure')
+            ->example('Header: Init Gap Analysis Complete | Mode: {search_mode}')
+            ->example('Agents Generated: {count} | Preserved: {existing}')
+            ->example('Quality: confidence={avg}, alignment={avg}')
+            ->example('Performance: cache_hits={n}, parallel_batches={n}')
+            ->phase(['Created:', Runtime::NODE_DIRECTORY('Agents/'),'| Compiled:', Runtime::AGENTS_FOLDER])
+            ->phase(['Ready via:', TaskTool::agent('{name}', '...')]);
 
-        // Response Format - Option B: Full Coverage
-        $this->guideline('response-format-b-enhanced')
-            ->text('Response when Full Coverage (no gaps detected)')
-            ->example('Init Gap Analysis Complete')
-            ->example('Mode: {search_mode} (targeted|discovery)')
-            ->example('Status: Full domain coverage')
-            ->example('Existing Agents: {agents_count}')
-            ->example('{list_existing_agents_with_descriptions}')
-            ->example('Stack Coverage:')
-            ->phase('Brain requirements: COVERED')
-            ->phase('Project stack: {technologies_list}')
-            ->phase('Domain expertise: COMPLETE')
-            ->phase('Industry coverage score: {industry_coverage_score} (0-1 scale)')
-            ->example('Industry Validation:')
-            ->phase('Multi-agent patterns: ALIGNED')
-            ->phase('Technology-specific agents: ALIGNED')
-            ->phase('Best practices compliance: {compliance_score}')
-            ->example('Performance:')
-            ->phase('Cache hits: {cache_hits}')
-            ->phase('Web searches: {web_searches_count} (delegated to WebResearchMaster)')
+        // Error Recovery (compressed)
+        $this->guideline('error-recovery')
+            ->text('Graceful degradation')
+            ->example('no .docs/ → Brain context only, continue')
+            ->example('agent exists → skip, log preserved')
+            ->example('make:master fails → skip agent, continue')
+            ->example('compile fails → report errors, list failed')
+            ->example('AgentMaster fails → skip batch, continue')
+            ->example('web timeout → use cached, mark partial')
+            ->example('no internet → local only, -0.2 confidence')
+            ->example('memory unavailable → skip cache, continue');
+
+        // Quality Gates (compressed)
+        $this->guideline('quality-gates')
+            ->text('Validation checkpoints')
+            ->example('Gate 1-3: temporal context, cache check, list:masters')
+            ->example('Gate 4-5: web delegation, gap analysis output')
+            ->example('Gate 6-7: confidence >= 0.6, alignment >= 0.6')
+            ->example('Gate 8-9: make:master success, compile success')
+            ->example(['Gate 10:', Runtime::AGENTS_FOLDER, 'populated']);
+
+        // Example: Parallel batch generation
+        $this->guideline('example-parallel-batch')
+            ->scenario('10 agents discovered → 4 batches → 4 parallel AgentMasters')
             ->example()
-            ->do('No new agents needed', 'System ready');
-
-        // Memory Optimization
-        $this->guideline('memory-optimization')
-            ->text('Cache web research results for faster repeated runs')
-            ->example()
-            ->phase('Before web search: Check vector memory for cached patterns')
-            ->phase('Query patterns: "multi-agent architecture patterns", "{tech} agent patterns"')
-            ->phase('Cache TTL: 30 days for industry patterns, 14 days for technology patterns')
-            ->phase(Operator::if('cache_hit AND cache_age < TTL', [
-                'Use cached patterns',
-                'Pass cache context to WebResearchMaster',
-                'Log: "Cache hit: {pattern_type} (age: {days} days)"',
-                'WebResearchMaster skips web search'
-            ]))
-            ->phase(Operator::if('cache_miss OR cache_expired', [
-                'Delegate to WebResearchMaster for fresh research',
-                'Store results with category: "learning"',
-                'Tag: ["agent-patterns", "best-practices", "{tech}", "{CURRENT_YEAR}"]',
-                'Log: "Cache miss: performing web search via WebResearchMaster"'
-            ]))
-            ->phase('Post-analysis: Store gap analysis results for project context')
-            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Gap analysis for {project}: {summary}", category: "architecture", tags: ["gap-analysis", "{technologies}"]}'));
-
-        // Error Recovery
-        $this->guideline('error-recovery-enhanced')
-            ->text('Error handling scenarios with graceful degradation')
-            ->example()
-            ->phase()->if('no .docs/ found', ['Use Brain context only', 'Continue with gap analysis', 'Log: "No .docs/ - using Brain context"'])
-            ->phase()->if('agent already exists', [Operator::skip('generation'), 'LOG as preserved', 'Continue with next agent'])
-            ->phase()->if([BrainCLI::MAKE_MASTER, 'fails'], ['LOG error', Operator::skip('this agent'), 'Continue with remaining agents'])
-            ->phase()->if([BrainCLI::COMPILE, 'fails'], ['Report compilation errors', 'List failed agents', 'Manual intervention required'])
-            ->phase()->if([AgentMaster::id(), 'fails'], ['Report error', 'Suggest manual agent creation', 'Continue with next agent'])
-            ->phase()->if('web search timeout', [
-                'WebResearchMaster handles timeout internally',
-                'Falls back to vector memory cached patterns',
-                'Continues with available data',
-                'Marks analysis as "partial" in report',
-                'Log: "Web search timeout - using cached data only"'
-            ])
-            ->phase()->if('no internet connection', [
-                'WebResearchMaster reports unavailable',
-                'Skip all web search phases',
-                'Use local project analysis only',
-                'Use cached patterns from vector memory',
-                'Warn user: "Limited coverage validation - no internet connection"',
-                'Continue with reduced confidence scores (-0.2 penalty)'
-            ])
-            ->phase()->if('vector memory unavailable', [
-                'Skip caching operations',
-                'WebResearchMaster performs all web searches (no cache hits)',
-                'Continue without storing results',
-                'Log: "Vector memory unavailable - no caching"'
-            ])
-            ->phase()->if('low confidence for all proposed agents', [
-                'Request additional context from user',
-                'Suggest manual review of project requirements',
-                'Output: "Unable to confidently identify missing agents. Manual review recommended."'
-            ])
-            ->phase()->report('{successful_count}/{total_count} agents generated (avg confidence: {avg_confidence})');
-
-        // Quality Gates
-        $this->guideline('quality-gates-enhanced')
-            ->text('Quality validation checkpoints with confidence thresholds')
-            ->example('Gate 1: Temporal context retrieved (date/year)')
-            ->example('Gate 2: Vector memory cache checked for recent patterns')
-            ->example('Gate 3: brain list:masters executed successfully')
-            ->example('Gate 4: Web research delegated to WebResearchMaster OR cache hit')
-            ->example('Gate 5: Gap analysis completed with valid output structure')
-            ->example('Gate 6: Gap analysis includes confidence scores >= 0.75 for critical agents')
-            ->example('Gate 7: Industry alignment scores >= 0.7 for all proposed agents')
-            ->example('Gate 8: brain make:master creates valid PHP archetype')
-            ->example('Gate 9: brain compile completes without errors')
-            ->example(['Gate 10: Generated agents appear in', Runtime::AGENTS_FOLDER])
-            ->example('Gate 11: Generation summary includes quality metrics (confidence, industry_alignment)');
-
-        // Examples
-        $this->guideline('example-1-targeted-mode')
-            ->scenario('User provides: "missing agent for Laravel" → Targeted mode')
-            ->example()
-            ->phase('input', '$ARGUMENTS = "missing agent for Laravel"')
-            ->phase('parse', 'target_domain = "Laravel", search_mode = "targeted"')
-            ->phase('delegation', 'WebResearchMaster: Focus on Laravel-specific agent patterns')
-            ->phase('result', 'Gap detected: Laravel expertise missing (confidence: 0.92, industry_alignment: 0.88)')
-            ->phase()->name('action')
-            ->do(BrainCLI::MAKE_MASTER('LaravelMaster'), ['Edit Purpose with industry patterns', 'Guidelines from best practices'], 'Compile')
-            ->phase('output', 'LaravelMaster agent available (confidence: 0.92)');
-
-        $this->guideline('example-2-discovery-mode')
-            ->scenario('No arguments → Full discovery mode with web research delegation')
-            ->example()
-            ->phase('input', '$ARGUMENTS empty, search_mode = "discovery"')
-            ->phase('delegation', 'WebResearchMaster: Industry patterns for multi-agent architecture (2025)')
-            ->phase('analysis', 'Project uses React + Node.js, no React agent exists')
-            ->phase('validation', 'Industry patterns confirm: Frontend specialization needed (confidence: 0.87)')
-            ->phase('action', Operator::do(BrainCLI::MAKE_MASTER('ReactMaster'), 'Compile'))
-            ->phase('result', ['ReactMaster agent available via', TaskTool::agent('react-master', '...'), '(confidence: 0.87, industry_alignment: 0.85)']);
-
-        $this->guideline('example-3-cache-hit')
-            ->scenario('Repeated run with cached patterns')
-            ->example()
-            ->phase('input', 'Second run within 30 days')
-            ->phase('cache', 'Cache hit: "multi-agent architecture patterns" (age: 5 days)')
-            ->phase('delegation', 'WebResearchMaster: Skip web search, use cached patterns')
-            ->phase('performance', 'No web searches needed, used cached data')
-            ->phase('analysis', 'All domains covered by existing agents')
-            ->phase()
-            ->name('result')
-            ->report('"No gaps detected → System ready" with agent list (cache_hits: 1, web_searches: 0, delegation_count: 2)');
-
-        $this->guideline('example-4-low-confidence-filter')
-            ->scenario('Gap analysis with low confidence agents filtered out')
-            ->example()
-            ->phase('input', 'Full discovery mode')
-            ->phase('delegation', 'WebResearchMaster + AgentMaster: Comprehensive gap analysis')
-            ->phase('analysis', 'Found 5 potential gaps: 3 high confidence (>0.75), 2 low confidence (<0.75)')
-            ->phase('filter', 'Removed 2 low-confidence agents')
-            ->phase('generation', 'Generated 3 agents with avg confidence: 0.84')
-            ->phase('output', 'Report: "3 agents generated, 2 skipped (low confidence), delegation_count: 3"');
+            ->phase('gap', '10 missing agents: API, Cache, Queue, Auth, Payment, Report, Search, Export, Import, Sync')
+            ->phase('batch', 'batch_1=[API,Cache,Queue], batch_2=[Auth,Payment,Report], batch_3=[Search,Export], batch_4=[Import,Sync]')
+            ->phase('parallel', 'Launch 4 Task(@agent-agent-master) in SINGLE message')
+            ->phase('result', 'All 10 agents created in ~1 AgentMaster cycle instead of 10');
 
         // Directive
         $this->guideline('directive')
-            ->text('Generate ONLY missing agents! Preserve existing! Use brain make:master ONLY! Delegate web research to WebResearchMaster! Cache patterns! Validate with industry standards! Report confidence scores! Compile after generation!');
+            ->text('DELEGATE ALL generation to AgentMaster! PARALLEL batches (max 5)! brain make:master ONLY! Cache patterns! Report metrics! Compile!');
     }
 }
