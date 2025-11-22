@@ -42,6 +42,7 @@ class ConvertCommand extends Command
         $isYaml = $this->option('yaml');
         $isToml = $this->option('toml');
         $isMeta = $this->option('meta');
+        $isSetOption = $isXml || $isJson || $isYaml || $isToml || $isMeta;
         $format = ($isXml ? 'xml' : ($isJson ? 'json' : ($isYaml ? 'yaml' : ($isToml ? 'toml' : ($isMeta ? 'meta' : 'dump')))));
         $dumpFormat = null;
         $files = explode(" && ", $this->argument('files'));
@@ -52,7 +53,7 @@ class ConvertCommand extends Command
         foreach ($files as $file) {
             if (preg_match('/^(.*)::([a-z]+)$/', $file, $matches)) {
                 $file = $matches[1];
-                if (! $isMeta) {
+                if (! $isMeta && ! $isSetOption) {
                     $dumpFormat = $format;
                     $format = $matches[2];
                 }
