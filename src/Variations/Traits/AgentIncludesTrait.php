@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace BrainCore\Variations\Traits;
+
+use BrainCore\Includes\Agent\AgentCoreIdentityInclude;
+use BrainCore\Includes\Agent\AgentDocumentationInclude;
+use BrainCore\Includes\Universal\BrainDocsInclude;
+use BrainCore\Includes\Universal\LaravelBoostClassToolsInclude;
+use BrainCore\Includes\Universal\LaravelBoostGuidelinesInclude;
+use BrainCore\Includes\Universal\SequentialReasoningInclude;
+use BrainCore\Includes\Universal\VectorMemoryInclude;
+use BrainCore\Includes\Universal\VectorTaskInclude;
+
+trait AgentIncludesTrait
+{
+    /**
+     * Whether to include the Vector task usage module.
+     *
+     * @var bool
+     */
+    protected bool $taskUsage = true;
+
+    /**
+     * Handle the architecture logic.
+     */
+    protected function handle(): void
+    {
+        // === UNIVERSAL ===
+        $this->include(VectorMemoryInclude::class);               // Vector memory primary knowledge base
+        if ($this->taskUsage) {
+            $this->include(VectorTaskInclude::class);             // Vector task management and tracking
+        }
+        $this->include(BrainDocsInclude::class);                // Documentation indexing and search command
+        $this->include(SequentialReasoningInclude::class);   // Sequential reasoning capability
+
+        // === AGENT CORE ===
+        $this->include(AgentCoreIdentityInclude::class);               // Core identity and purpose
+        $this->include(AgentDocumentationInclude::class);        // Documentation-first execution policy
+
+        if ($this->var('HAS_LARAVEL')) {
+            $this->include(LaravelBoostGuidelinesInclude::class);      // Laravel boosting guidelines
+            $this->include(LaravelBoostClassToolsInclude::class);      // Laravel boosting class tools
+        }
+    }
+}

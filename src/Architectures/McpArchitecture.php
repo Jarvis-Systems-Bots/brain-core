@@ -48,6 +48,11 @@ abstract class McpArchitecture extends ArchitectureAbstract
         return static::id() . "__$name" . (empty($args) ? '' : '(' . implode(', ', $args) . ')');
     }
 
+    public static function method(string $name): string
+    {
+        return static::call($name);
+    }
+
     /**
      * Get agent ID.
      *

@@ -14,7 +14,7 @@ class Core
 
     protected Dto|null $currentCompileDto = null;
 
-    public function basePath(string $path = '', bool $relative = false): string
+    public function basePath(string|array $path = '', bool $relative = false): string
     {
         if (! $relative) {
             $cwd = getcwd();
@@ -25,6 +25,8 @@ class Core
         } else {
             $cwd = '';
         }
+
+        $path = is_array($path) ? implode(DS, array_filter(array_map(fn (string $p) => trim($p, DS), array_filter($path)))) : $path;
 
         return $cwd . ($relative ? '' : DS) . ltrim($path, DS);
     }

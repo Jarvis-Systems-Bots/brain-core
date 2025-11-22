@@ -1,0 +1,421 @@
+<?php
+
+declare(strict_types=1);
+
+namespace BrainCore\Includes\Commands\Do;
+
+use BrainCore\Archetypes\IncludeArchetype;
+use BrainCore\Attributes\Purpose;
+use BrainCore\Compilation\BrainCLI;
+use BrainCore\Compilation\Operator;
+use BrainCore\Compilation\Store;
+use BrainCore\Compilation\Tools\BashTool;
+use BrainCore\Compilation\Tools\TaskTool;
+use BrainNode\Mcp\VectorMemoryMcp;
+use BrainNode\Mcp\VectorTaskMcp;
+
+#[Purpose('Defines the do:async command protocol for multi-agent orchestration with flexible execution modes, user approval gates, and vector memory integration. Ensures zero distractions, atomic tasks, and strict plan adherence for reliable task execution.')]
+class DoAsyncInclude extends IncludeArchetype
+{
+    /**
+     * Handle the architecture logic.
+     *
+     * @return void
+     */
+    protected function handle(): void
+    {
+        // Iron Rules - Zero Tolerance
+        $this->rule('zero-distractions')->critical()
+            ->text('ZERO distractions - implement ONLY specified task from $ARGUMENTS. NO creative additions, NO unapproved features, NO scope creep.')
+            ->why('Ensures focused execution and prevents feature drift')
+            ->onViolation('Abort immediately. Return to approved plan.');
+
+        $this->rule('approval-gates-mandatory')->critical()
+            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation.')
+            ->why('Maintains user control and prevents unauthorized execution')
+            ->onViolation('STOP. Wait for user approval before continuing.');
+
+        $this->rule('atomic-tasks-only')->critical()
+            ->text('Each agent task MUST be small and focused: maximum 1-2 files per agent invocation. NO large multi-file changes.')
+            ->why('Prevents complexity, improves reliability, enables precise tracking')
+            ->onViolation('Break task into smaller pieces. Re-plan with atomic steps.');
+
+        $this->rule('no-improvisation')->critical()
+            ->text('Execute ONLY approved plan steps. NO improvisation, NO "while we\'re here" additions, NO proactive suggestions during execution.')
+            ->why('Maintains plan integrity and predictability')
+            ->onViolation('Revert to last approved checkpoint. Resume approved steps only.');
+
+        $this->rule('execution-mode-flexible')->high()
+            ->text('Execute agents sequentially BY DEFAULT. Allow parallel execution when: 1) tasks are independent (no file/context conflicts), 2) user explicitly requests parallel mode, 3) optimization benefits outweigh tracking complexity.')
+            ->why('Balances safety with performance optimization')
+            ->onViolation('Validate task independence before parallel execution. Fallback to sequential if conflicts detected.');
+
+        $this->rule('vector-memory-mandatory')->high()
+            ->text('ALL agents MUST search vector memory BEFORE task execution AND store learnings AFTER completion. Vector memory is the primary communication channel between sequential agents.')
+            ->why('Enables knowledge sharing between agents, prevents duplicate work, maintains execution continuity across steps')
+            ->onViolation('Include explicit vector memory instructions in agent Task() delegation.');
+
+        $this->rule('conversation-context-awareness')->high()
+            ->text('ALWAYS analyze conversation context BEFORE planning. User may have discussed requirements, constraints, preferences, or decisions in previous messages.')
+            ->why('Prevents ignoring critical information already provided by user in conversation')
+            ->onViolation('Review conversation history before proceeding with task analysis.');
+
+        $this->rule('vector-task-workflow-mandatory')->critical()
+            ->text('When $ARGUMENTS references a vector task (e.g., "task 15", "task:15", "task #15"), MUST: 1) Fetch task via task_get, 2) Fetch parent if exists, 3) Use task_start before execution, 4) Use task_finish on completion.')
+            ->why('Vector tasks have structured workflow with status tracking. Ignoring statuses breaks task management.')
+            ->onViolation('STOP. Fetch vector task first. Follow task lifecycle: start → execute → finish.');
+
+        // Anti-Improvisation: Strict Tool Prohibition
+        $this->rule('no-direct-file-tools')->critical()
+            ->text('FORBIDDEN: Brain NEVER calls Glob, Grep, Read, Edit, Write directly. ALL file operations MUST be delegated to agents via Task().')
+            ->why('Direct tool calls are expensive, bypass agent expertise, and violate orchestration model. Each file operation costs tokens that agents handle more efficiently.')
+            ->onViolation('STOP. Remove direct tool call. Delegate to appropriate agent: ExploreMaster (search/read), code agents (edit/write).');
+
+        $this->rule('orchestration-only')->critical()
+            ->text('Brain role is ORCHESTRATION ONLY. Permitted: Task(), vector MCP, brain CLI (docs, list:masters). Everything else → delegate.')
+            ->why('Brain is conductor, not musician. Agents execute, Brain coordinates.')
+            ->onViolation('Identify task type → Select agent → Delegate via Task().');
+
+        $this->rule('one-agent-one-file')->critical()
+            ->text('Each programming subtask = separate agent invocation. One agent, one file change. NO multi-file edits in single delegation.')
+            ->why('Atomic changes enable precise tracking, easier rollback, clear accountability.')
+            ->onViolation('Split into multiple Task() calls. One agent per file modification.');
+
+        // Phase -1: Vector Task Reference Detection
+        $this->guideline('phase-minus1-task-detection')
+            ->goal('Detect if $ARGUMENTS is a vector task reference and fetch task details')
+            ->example()
+            ->phase('Parse $ARGUMENTS for task reference patterns: "task N", "task:N", "task #N", "task-N", "#N"')
+            ->phase(Operator::if('$ARGUMENTS matches task reference pattern', [
+                'Extract task_id from pattern',
+                Store::as('IS_VECTOR_TASK', 'true'),
+                Store::as('VECTOR_TASK_ID', '{extracted_id}'),
+                VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'),
+                Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'),
+                Operator::if('$VECTOR_TASK.parent_id !== null', [
+                    VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK.parent_id}'),
+                    Store::as('PARENT_TASK', '{parent task for context}'),
+                ]),
+                Store::as('TASK_DESCRIPTION', '$VECTOR_TASK.title + $VECTOR_TASK.content'),
+                Operator::output([
+                    '=== VECTOR TASK LOADED ===',
+                    'Task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}',
+                    'Status: {$VECTOR_TASK.status} | Priority: {$VECTOR_TASK.priority}',
+                    'Parent: {$PARENT_TASK.title or "none"}',
+                ]),
+            ]))
+            ->phase(Operator::if('$ARGUMENTS is plain description', [
+                Store::as('IS_VECTOR_TASK', 'false'),
+                Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
+            ]));
+
+        // Phase 0: Conversation Context Analysis
+        $this->guideline('phase0-context-analysis')
+            ->goal('Extract task insights from conversation history before planning')
+            ->example()
+            ->phase(Store::as('TASK_DESCRIPTION', 'User task from $ARGUMENTS'))
+            ->phase('Analyze conversation context: requirements mentioned, constraints discussed, user preferences, prior decisions, related code/files referenced')
+            ->phase(Store::as('CONVERSATION_CONTEXT', '{requirements, constraints, preferences, decisions, references}'))
+            ->phase(Operator::if('conversation has relevant context', [
+                'Integrate context into task understanding',
+                'Note: Use conversation insights throughout all phases',
+            ]))
+            ->phase(Operator::output([
+                '=== PHASE 0: CONTEXT ANALYSIS ===',
+                'Task: {$TASK_DESCRIPTION}',
+                'Context: {summary of relevant conversation info}',
+            ]));
+
+        // Phase 1: Agent Discovery
+        $this->guideline('phase1-agent-discovery')
+            ->goal('Discover agents leveraging conversation context + vector memory')
+            ->example()
+            ->phase(VectorMemoryMcp::call('search_memories', '{query: "similar: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution,architecture"}'))
+            ->phase(Store::as('PAST_SOLUTIONS', 'Past approaches'))
+            ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'brain list:masters'))
+            ->phase(Store::as('AVAILABLE_AGENTS', 'Agents list'))
+            ->phase('Match task to agents: $TASK_DESCRIPTION + $CONVERSATION_CONTEXT + $PAST_SOLUTIONS')
+            ->phase(Store::as('RELEVANT_AGENTS', '[{agent, capability, rationale}, ...]'))
+            ->phase(Operator::output([
+                '=== PHASE 1: AGENT DISCOVERY ===',
+                'Agents: {selected} | Context: {conversation insights applied}',
+            ]));
+
+        // Phase 2: Requirements Analysis + Approval Gate
+        $this->guideline('phase2-requirements-analysis-approval')
+            ->goal('Create requirements plan leveraging conversation + memory + GET USER APPROVAL')
+            ->example()
+            ->phase(VectorMemoryMcp::call('search_memories', '{query: "patterns: {task_domain}", limit: 5, category: "learning,architecture"}'))
+            ->phase(Store::as('IMPLEMENTATION_PATTERNS', 'Past patterns'))
+            ->phase('Analyze: $TASK_DESCRIPTION + $CONVERSATION_CONTEXT + $PAST_SOLUTIONS + $IMPLEMENTATION_PATTERNS')
+            ->phase('Determine needs: scan targets, web research (if non-trivial), docs scan (if architecture-related)')
+            ->phase(Store::as('REQUIREMENTS_PLAN', '{scan_targets, web_research, docs_scan, conversation_insights, memory_learnings}'))
+            ->phase(Operator::output([
+                '',
+                '=== PHASE 2: REQUIREMENTS ANALYSIS ===',
+                'Context: {conversation insights} | Memory: {key learnings}',
+                'Scanning: {targets} | Research: {status} | Docs: {status}',
+                '',
+                '⚠️  APPROVAL CHECKPOINT #1',
+                '✅ approved/yes | ❌ no/modifications',
+            ]))
+            ->phase('WAIT for user approval')
+            ->phase(Operator::verify('User approved'))
+            ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'));
+
+        // Phase 3: Material Gathering with Vector Storage
+        $this->guideline('phase3-material-gathering')
+            ->goal('Collect materials via agents. Brain permitted: brain docs (index only, few tokens). ALL file reading → delegate to agents.')
+            ->example()
+            ->phase(Operator::forEach('scan_target in $REQUIREMENTS_PLAN.scan_targets', [
+                TaskTool::agent('explore', 'Extract context from {scan_target}. Store findings to vector memory.'),
+                Store::as('GATHERED_MATERIALS[{target}]', 'Agent-extracted context'),
+            ]))
+            ->phase(Operator::if('$DOCS_SCAN_NEEDED === true', [
+                BashTool::describe(BrainCLI::DOCS('{keywords}'), 'Get documentation INDEX only (Path, Name, Description)'),
+                Store::as('DOCS_INDEX', 'Documentation file paths'),
+                TaskTool::agent('explore', 'Read and summarize documentation files: {$DOCS_INDEX paths}. Store to vector memory.'),
+                Store::as('DOCS_SCAN_FINDINGS', 'Agent-summarized documentation'),
+            ]))
+            ->phase(Operator::if('$WEB_RESEARCH_NEEDED === true', [
+                TaskTool::agent('web-research-master', 'Research best practices for {$TASK_DESCRIPTION}. Store findings to vector memory.'),
+                Store::as('WEB_RESEARCH_FINDINGS', 'External knowledge'),
+            ]))
+            ->phase(Store::as('CONTEXT_PACKAGES', '{agent_name: {context, materials, task_domain}, ...}'))
+            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Context for {$TASK_DESCRIPTION}\\n\\nMaterials: {summary}", category: "tool-usage", tags: ["do-command", "context-gathering"]}'))
+            ->phase(Operator::output([
+                '=== PHASE 3: MATERIALS GATHERED ===',
+                'Materials: {count} | Docs: {status} | Web: {status}',
+                'Context stored to vector memory ✓',
+            ]));
+
+        // Phase 4: Execution Planning with Vector Memory + Approval Gate
+        $this->guideline('phase4-execution-planning-approval')
+            ->goal('Create atomic plan leveraging past execution patterns, analyze dependencies, and GET USER APPROVAL')
+            ->example()
+            ->phase(VectorMemoryMcp::call('search_memories', '{query: "execution approach for {task_type}", limit: 5, category: "code-solution"}'))
+            ->phase(Store::as('EXECUTION_PATTERNS', 'Past successful execution approaches'))
+            ->phase('Create plan: atomic steps (≤2 files each), logical order, informed by $EXECUTION_PATTERNS')
+            ->phase('Analyze step dependencies: file conflicts, context dependencies, data flow')
+            ->phase('Determine execution mode: sequential (default/safe) OR parallel (independent tasks/user request/optimization)')
+            ->phase(Operator::if('parallel possible AND beneficial', [
+                'Group independent steps into parallel batches',
+                'Validate NO conflicts: 1) File: same file in multiple steps, 2) Context: step B needs output of step A, 3) Resource: same API/DB/external',
+                Store::as('EXECUTION_MODE', 'parallel'),
+                Store::as('PARALLEL_GROUPS', '[[step1, step2], [step3], ...]'),
+            ]))
+            ->phase(Operator::if('NOT parallel OR dependencies detected', [
+                Store::as('EXECUTION_MODE', 'sequential'),
+            ]))
+            ->phase(Store::as('EXECUTION_PLAN',
+                '{steps: [{step_number, agent_name, task_description, file_scope: [≤2 files], memory_search_query, expected_outcome}, ...], total_steps: N, execution_mode: "sequential|parallel", parallel_groups: [...]}'))
+            ->phase(Operator::verify('Each step has ≤ 2 files'))
+            ->phase(Operator::verify('Parallel groups have NO conflicts'))
+            ->phase(Operator::output([
+                '',
+                '=== PHASE 4: EXECUTION PLAN ===',
+                'Task: {$TASK_DESCRIPTION} | Steps: {N} | Mode: {execution_mode}',
+                'Learned from: {$EXECUTION_PATTERNS summary}',
+                '',
+                '{Step-by-step breakdown with files and memory search queries}',
+                '{If parallel: show grouped batches}',
+                '',
+                '⚠️  APPROVAL CHECKPOINT #2',
+                '✅ Type "approved" or "yes" to begin.',
+                '❌ Type "no" or provide modifications.',
+            ]))
+            ->phase('WAIT for user approval')
+            ->phase(Operator::verify('User confirmed approval'))
+            ->phase(Operator::if('user rejected', [
+                'Accept modifications → Update plan → Verify atomic + dependencies → Re-present → WAIT',
+            ]));
+
+        // Phase 5: Flexible Execution (references agent-memory-pattern)
+        $this->guideline('phase5-flexible-execution')
+            ->goal('Execute plan with optimal mode (sequential OR parallel)')
+            ->example()
+            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
+                VectorTaskMcp::call('task_start', '{task_id: $VECTOR_TASK_ID}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started']),
+            ]))
+            ->phase('Initialize: current_step = 1')
+            ->phase(Operator::if('$EXECUTION_PLAN.execution_mode === "sequential"', [
+                'SEQUENTIAL MODE: Execute steps one-by-one',
+                Operator::forEach('step in $EXECUTION_PLAN.steps', [
+                    Operator::output(['▶️ Step {N}/{total}: @agent-{step.agent_name} | 📁 {step.file_scope}']),
+                    'Delegate via Task() with agent-memory-pattern (BEFORE→DURING→AFTER)',
+                    TaskTool::describe('Task(@agent-{name}, {task + memory_search_query + context})'),
+                    Store::as('STEP_RESULTS[{N}]', 'Result'),
+                    Operator::output(['✅ Step {N} complete']),
+                ]),
+            ]))
+            ->phase(Operator::if('$EXECUTION_PLAN.execution_mode === "parallel"', [
+                'PARALLEL MODE: Execute independent steps concurrently',
+                Operator::forEach('group in $EXECUTION_PLAN.parallel_groups', [
+                    Operator::output(['🚀 Batch {N}: {count} steps']),
+                    'Launch ALL steps CONCURRENTLY via multiple Task() calls',
+                    'Each task follows agent-memory-pattern',
+                    'WAIT for ALL tasks in batch to complete',
+                    Store::as('BATCH_RESULTS[{N}]', 'Batch results'),
+                    Operator::output(['✅ Batch {N} complete']),
+                ]),
+            ]))
+            ->phase(Operator::if('step fails', ['Store failure to memory', 'Offer: Retry / Skip / Abort']));
+
+        // Phase 6: Completion with Vector Memory Storage
+        $this->guideline('phase6-completion-report')
+            ->goal('Report results and store comprehensive learnings to vector memory')
+            ->example()
+            ->phase(Store::as('COMPLETION_SUMMARY', '{completed_steps, files_modified, outcomes, learnings}'))
+            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Completed: {$TASK_DESCRIPTION}\n\nApproach: {summary}\n\nSteps: {outcomes}\n\nLearnings: {insights}\n\nFiles: {list}", category: "code-solution", tags: ["do-command", "completed"]}'))
+            ->phase(Operator::if('$IS_VECTOR_TASK === true AND status === SUCCESS', [
+                VectorTaskMcp::call('task_finish', '{task_id: $VECTOR_TASK_ID}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} completed ✓']),
+            ]))
+            ->phase(Operator::if('$IS_VECTOR_TASK === true AND status === PARTIAL', [
+                VectorTaskMcp::call('task_comment', '{task_id: $VECTOR_TASK_ID, comment: "Partial completion: {completed}/{total} steps. Remaining: {list}", append: true}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} progress saved (partial)']),
+            ]))
+            ->phase(Operator::output([
+                '',
+                '=== EXECUTION COMPLETE ===',
+                'Task: {$TASK_DESCRIPTION} | Status: {SUCCESS/PARTIAL/FAILED}',
+                '✓ Steps: {completed}/{total} | 📁 Files: {count} | 💾 Learnings stored to memory',
+                '{step_outcomes}',
+            ]))
+            ->phase(Operator::if('partial', [
+                'Store partial state → List remaining → Suggest resumption',
+            ]));
+
+        // Agent Vector Memory Instructions Template
+        $this->guideline('agent-memory-instructions')
+            ->text('MANDATORY vector memory pattern for ALL agents')
+            ->example()
+            ->phase('BEFORE TASK:')
+            ->do([
+                'Execute: mcp__vector-memory__search_memories(query: "{relevant}", limit: 5)',
+                'Review: Analyze results for patterns, solutions, learnings',
+                'Apply: Incorporate insights into approach',
+            ])
+            ->phase('DURING TASK:')
+            ->do([
+                'Focus: Execute ONLY assigned task within file scope',
+                'Atomic: Respect 1-2 file limit strictly',
+            ])
+            ->phase('AFTER TASK:')
+            ->do([
+                'Document: Summarize what was done, how it worked, key insights',
+                'Execute: mcp__vector-memory__store_memory(content: "{what+how+insights}", category: "{appropriate}", tags: [...])',
+                'Verify: Confirm storage successful',
+            ])
+            ->phase('CRITICAL: Vector memory is the communication channel between agents. Your learnings enable the next agent!');
+
+        // Error Handling
+        $this->guideline('error-handling')
+            ->text('Graceful error handling with recovery options')
+            ->example()
+            ->phase()->if('vector task not found', [
+                'Report: "Vector task #{id} not found"',
+                'Suggest: Check task ID with ' . VectorTaskMcp::method('task_list'),
+                'Abort command',
+            ])
+            ->phase()->if('vector task already completed', [
+                'Report: "Vector task #{id} already has status: completed"',
+                'Ask user: "Do you want to re-execute this task?"',
+                'WAIT for user decision',
+            ])
+            ->phase()->if('no agents available', [
+                'Report: "No agents found via brain list:masters"',
+                'Suggest: Run /init-agents first',
+                'Abort command',
+            ])
+            ->phase()->if('user rejects requirements plan', [
+                'Accept modifications',
+                'Rebuild requirements plan',
+                'Re-submit for approval',
+            ])
+            ->phase()->if('user rejects execution plan', [
+                'Accept modifications',
+                'Rebuild execution plan',
+                'Verify atomic task constraints',
+                'Re-submit for approval',
+            ])
+            ->phase()->if('agent execution fails', [
+                'Log: "Step {N} failed: {error}"',
+                'Offer options:',
+                '  1. Retry current step',
+                '  2. Skip and continue',
+                '  3. Abort remaining steps',
+                'WAIT for user decision',
+            ])
+            ->phase()->if('documentation scan fails', [
+                'Log: "brain docs command failed or no documentation found"',
+                'Proceed without documentation context',
+                'Note: "Documentation context unavailable"',
+            ])
+            ->phase()->if('web research timeout', [
+                'Log: "Web research timed out - continuing without external knowledge"',
+                'Proceed with local context only',
+            ])
+            ->phase()->if('context gathering fails', [
+                'Log: "Failed to gather {context_type}"',
+                'Proceed with available context',
+                'Warn: "Limited context may affect quality"',
+            ]);
+
+        // Constraints and Validation
+        $this->guideline('constraints-validation')
+            ->text('Enforcement of critical constraints throughout execution')
+            ->example()
+            ->phase('Before Requirements Analysis: Verify $ARGUMENTS is not empty')
+            ->phase('Before Phase 2 → Phase 3 transition: Verify user approval received')
+            ->phase('Before Phase 4 → Phase 5 transition: Verify user approval received')
+            ->phase('During Execution Planning: Verify each step has ≤ 2 files in scope')
+            ->phase('During Execution: Verify dependencies respected (sequential: step order, parallel: no conflicts)')
+            ->phase('Throughout: NO unapproved steps allowed')
+            ->phase(Operator::verify([
+                'approval_checkpoints_passed = 2',
+                'all_tasks_atomic = true (≤ 2 files each)',
+                'execution_mode = sequential OR parallel (validated)',
+                'improvisation_count = 0',
+            ]));
+
+        // Examples (3 core scenarios)
+        $this->guideline('example-simple')
+            ->scenario('Simple single-agent task')
+            ->example()
+            ->phase('input', '"Fix authentication bug in LoginController.php"')
+            ->phase('flow', 'Context → Discovery → Requirements ✓ → Gather → Plan ✓ → Execute (1 step) → Complete');
+
+        $this->guideline('example-sequential')
+            ->scenario('Complex multi-agent sequential task')
+            ->example()
+            ->phase('input', '"Add Laravel rate limiting to API endpoints"')
+            ->phase('agents', '@web-research-master, @code-master, @documentation-master')
+            ->phase('plan', '4 steps: Middleware → Kernel → Routes → Docs')
+            ->phase('execution', 'Sequential: 1→2→3→4 (dependencies between steps)')
+            ->phase('result', '4/4 ✓');
+
+        $this->guideline('example-parallel')
+            ->scenario('Parallel execution for independent tasks')
+            ->example()
+            ->phase('input', '"Add validation to UserController, ProductController, OrderController"')
+            ->phase('analysis', '3 independent files, no conflicts')
+            ->phase('plan', 'Mode: PARALLEL, Batch 1: [Step1, Step2, Step3]')
+            ->phase('execution', 'Concurrent: 3 agents simultaneously')
+            ->phase('result', '3/3 ✓ (faster than sequential)');
+
+        $this->guideline('example-vector-task')
+            ->scenario('Execute from vector task reference')
+            ->example()
+            ->phase('input', '"task 15" or "task:15" or "#15"')
+            ->phase('detection', 'Pattern matched → task_get(15) → Load task + parent')
+            ->phase('context', 'Task: "Add user avatar upload" | Parent: "User profile feature"')
+            ->phase('flow', 'Task Detection → Context → Discovery → Requirements ✓ → Gather → Plan ✓ → task_start → Execute → task_finish → Complete')
+            ->phase('result', 'Vector task #15 completed ✓');
+
+        // Response Format
+        $this->guideline('response-format')
+            ->text('=== headers | ⚠️ approval gates | ▶️✅❌ progress | 📁 file scope | No filler');
+    }
+}

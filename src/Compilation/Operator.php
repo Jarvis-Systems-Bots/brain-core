@@ -72,6 +72,11 @@ class Operator
         return static::generateOperatorBodyLine($args);
     }
 
+    public static function chain(...$args): string
+    {
+        return static::generateOperatorBodyLine($args);
+    }
+
     public static function skip(...$args): string
     {
         return static::generateOperator('SKIP', $args);

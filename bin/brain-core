@@ -9,7 +9,7 @@ $app = require __DIR__ . '/app.php';
 $app->setName('Brain Core');
 
 // Core commands
-$app->add(new \BrainCore\Console\Commands\GetFileCommand());
+$app->add(new \BrainCore\Console\Commands\ConvertCommand());
 
 $status = $app->run();
 

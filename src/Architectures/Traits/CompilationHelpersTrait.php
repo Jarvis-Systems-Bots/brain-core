@@ -71,6 +71,13 @@ trait CompilationHelpersTrait
         );
     }
 
+    public function chain(...$args): static
+    {
+        return $this->addText(
+            Operator::chain(...$args)
+        );
+    }
+
     public function skip(...$args): static
     {
         return $this->addText(

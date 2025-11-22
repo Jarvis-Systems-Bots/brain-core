@@ -65,20 +65,23 @@ if (!function_exists("config")) {
     /**
      * Get the specified configuration value.
      *
-     * @param  string|null  $key
+     * @param  string|array|null  $key
      * @param  mixed  $default
      * @return \Illuminate\Contracts\Config\Repository|mixed
      * @return ($key is null ? \Illuminate\Contracts\Config\Repository : mixed)
      */
-    function config(string|null $key = null, mixed $default = null): mixed
+    function config(string|array|null $key = null, mixed $default = null): mixed
     {
         try {
             $container = Illuminate\Container\Container::getInstance();
             if ($container && $container->bound('config')) {
                 /** @var \Illuminate\Contracts\Config\Repository $config */
                 $config = $container->make('config');
-                if ($key) {
+                if (is_string($key)) {
                     return $config->get($key, $default);
+                } elseif (is_array($key)) {
+                    $config->set($key);
+                    return null;
                 }
                 return $config;
             }

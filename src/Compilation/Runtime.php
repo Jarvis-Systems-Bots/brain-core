@@ -6,6 +6,17 @@ namespace BrainCore\Compilation;
 
 /**
  * The class of runtime variables.
+ *
+ * @method static string YEAR() Year of the current date.
+ * @method static string MONTH() Month of the current date.
+ * @method static string DAY() Day of the current date.
+ * @method static string UNIQUE_ID() Unique ID of the current date.
+ * @method static string DATE_TIME() Date and time of the current date.
+ * @method static string DATE() Date of the current date.
+ * @method static string TIME() Time of the current date.
+ * @method static string AGENT() Agent name.
+ * @method static string BRAIN_FILE() Brain file name.
+ * @method static string MCP_FILE() MCP file name.
  */
 class Runtime
 {
@@ -66,5 +77,11 @@ class Runtime
     public static function SKILLS_FOLDER(...$append): string
     {
         return static::SKILLS_FOLDER . (count($append) ? implode('/', $append) : '');
+    }
+
+    public static function __callStatic(string $name, array $arguments)
+    {
+        if (isset(self::${$name})) return self::${$name};
+        return static::print($name);
     }
 }
