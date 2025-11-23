@@ -55,6 +55,11 @@ class TaskCreateInclude extends IncludeArchetype
             ->why('Large tasks should be decomposed for better manageability and tracking')
             ->onViolation('Warn user and recommend decomposition after task creation');
 
+        $this->rule('create-only-no-execution')->critical()
+            ->text('This command ONLY creates tasks. NEVER execute the task after creation, regardless of size or complexity.')
+            ->why('Task creation and task execution are separate concerns. User decides when to execute via /task:next or /do commands.')
+            ->onViolation('STOP immediately. Return created task ID and let user decide next action.');
+
         // Workflow Step 0 - Parse Arguments
         $this->guideline('workflow-step0')
             ->text('STEP 0 - Parse and Understand $ARGUMENTS')
