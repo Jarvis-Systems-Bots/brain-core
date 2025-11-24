@@ -8,255 +8,473 @@ use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 use BrainCore\Compilation\BrainCLI;
 use BrainCore\Compilation\Operator;
+use BrainCore\Compilation\Runtime;
 use BrainCore\Compilation\Store;
 use BrainCore\Compilation\Tools\BashTool;
 use BrainCore\Compilation\Tools\ReadTool;
-use BrainCore\Compilation\Tools\TaskTool;
+use BrainNode\Agents\DocumentationMaster;
+use BrainNode\Agents\ExploreMaster;
+use BrainNode\Agents\VectorMaster;
+use BrainNode\Agents\WebResearchMaster;
 use BrainNode\Mcp\SequentialThinkingMcp;
 use BrainNode\Mcp\VectorMemoryMcp;
 use BrainNode\Mcp\VectorTaskMcp;
 
-#[Purpose('Project task initializer that performs exhaustive research via specialized agents, analyzes all project materials, and creates the foundational first layer of root tasks for subsequent decomposition. NEVER executes tasks - only creates them.')]
+#[Purpose('Aggressive project task initializer with MAXIMUM parallel agent orchestration. Scans every project corner via specialized agents, creates comprehensive epic-level tasks. NEVER executes - only creates.')]
 class InitTaskInclude extends IncludeArchetype
 {
-    /**
-     * Handle the architecture logic.
-     *
-     * @return void
-     */
     protected function handle(): void
     {
-        // Role definition
-        $this->guideline('role')
-            ->text('Project task initializer that orchestrates comprehensive research via specialized agents, synthesizes findings into strategic root tasks, and creates the foundational task layer for project execution. This is the FIRST and MOST CRITICAL step in project planning.');
+        // ============================================
+        // IRON RULES - AGGRESSIVE ORCHESTRATION
+        // ============================================
 
-        // Iron Rules
-        $this->rule('delegate-research-to-agents')->critical()
-            ->text('MUST delegate ALL research to specialized agents. Brain cannot comprehensively scan entire project alone.')
-            ->why('Agents have specialized capabilities for deep exploration. Direct scanning misses critical details.')
-            ->onViolation('Use Task(@agent-explore) for codebase, WebResearchMaster for external context, read docs via agents.');
+        $this->rule('parallel-agent-execution')->critical()
+            ->text('Launch INDEPENDENT research agents in PARALLEL (multiple Task calls in single response)')
+            ->why('Maximizes coverage, reduces total research time, comprehensive analysis')
+            ->onViolation('Group independent areas, launch ALL simultaneously');
 
-        $this->rule('exhaustive-research-mandatory')->critical()
-            ->text('MUST complete ALL research phases before task generation: documentation, codebase, vector memory, external context.')
-            ->why('First layer tasks define entire project direction. Incomplete research leads to missed requirements and rework.')
-            ->onViolation('STOP. Complete all research steps. Do not skip any phase.');
+        $this->rule('every-corner-coverage')->critical()
+            ->text('MUST explore EVERY project area: code, tests, config, docs, build, migrations, routes, schemas')
+            ->why('First layer tasks define entire project. Missing areas = missing epics = incomplete planning')
+            ->onViolation('Add missing areas to parallel exploration batch');
+
+        $this->rule('multi-agent-research')->critical()
+            ->text('Use SPECIALIZED agents for each domain: ExploreMaster(code), DocumentationMaster(docs), VectorMaster(memory), WebResearchMaster(external)')
+            ->why('Each agent has domain expertise. Single agent cannot comprehensively analyze all areas.')
+            ->onViolation('Delegate to appropriate specialized agent');
 
         $this->rule('create-only-no-execution')->critical()
-            ->text('This command ONLY creates root tasks. NEVER execute any task after creation, regardless of simplicity.')
-            ->why('Init-task creates strategic foundation. Execution is separate concern via /task:next or /do commands.')
-            ->onViolation('STOP immediately after task creation. Return control to user.');
+            ->text('This command ONLY creates root tasks. NEVER execute any task after creation.')
+            ->why('Init-task creates strategic foundation. Execution via /task:next or /do')
+            ->onViolation('STOP immediately after task creation');
 
         $this->rule('mandatory-user-approval')->critical()
-            ->text('MUST get explicit user approval before creating ANY tasks')
-            ->why('User must validate task breakdown before committing to vector storage')
-            ->onViolation('Present task list and wait for user confirmation');
+            ->text('MUST get explicit user YES/APPROVE/CONFIRM before creating ANY tasks')
+            ->why('User must validate task breakdown before committing')
+            ->onViolation('Present task list and wait for explicit confirmation');
 
         $this->rule('estimate-required')->critical()
-            ->text('MUST provide time estimate for EACH task')
+            ->text('MUST provide time estimate (8-40h) for EACH epic')
             ->why('Estimates enable planning and identify tasks needing decomposition')
-            ->onViolation('Add estimate before presenting task');
+            ->onViolation('Add estimate before presenting epic');
 
-        $this->rule('root-tasks-are-epics')->high()
-            ->text('Root tasks should be EPICS (major work streams). Individual tasks created later via /task:create or /task:decompose.')
-            ->why('First layer defines strategic direction, not tactical implementation details.')
-            ->onViolation('Consolidate granular tasks into broader epics. Target 5-15 root tasks for typical project.');
-
-        $this->rule('max-task-estimate')->high()
-            ->text('Each root task estimate should be 8-40 hours (will be decomposed)')
-            ->why('Root tasks are epics that will be broken down. Too small = too granular for first layer.')
-            ->onViolation('Merge small tasks into larger epics or flag for /task:decompose');
-
-        $this->rule('no-creation-without-confirmation')->critical()
-            ->text('NO task creation without explicit user YES/APPROVE/CONFIRM')
-            ->why('Prevents accidental task creation and allows user revision')
-            ->onViolation('Wait for explicit approval signal');
+        $this->rule('exclude-brain-directory')->critical()
+            ->text('NEVER analyze ' . Runtime::BRAIN_DIRECTORY . ' - Brain system internals, not project code')
+            ->why('Brain config pollutes task list with irrelevant system tasks')
+            ->onViolation('Skip ' . Runtime::BRAIN_DIRECTORY . ' in all exploration phases');
 
         // ============================================
-        // PHASE 1: PRE-FLIGHT CHECKS
+        // PHASE 0: PRE-FLIGHT CHECKS
         // ============================================
 
-        // Workflow Step 0 - Check Existing State
-        $this->guideline('workflow-step0')
-            ->text('STEP 0 - Pre-flight: Check Existing Tasks and Project State')
+        $this->guideline('phase0-preflight')
+            ->goal('Check existing state, determine mode')
             ->example()
-            ->phase('action-1', VectorTaskMcp::call('task_stats', '{}') . ' → check if tasks already exist')
-            ->phase('action-2', VectorTaskMcp::call('task_list', '{status: "pending", limit: 20}') . ' → list existing pending tasks')
-            ->phase('decision', Operator::if(
-                'existing tasks > 0',
-                'STOP. Show existing tasks. Ask user: "Tasks exist. Options: (1) Continue and add more, (2) Clear all and restart, (3) Abort"',
-                'Proceed with initialization'
-            ))
-            ->phase('output', Store::as('EXISTING_STATE', 'task count, existing task IDs if any'));
+            ->phase('STEP 1 - Check task state:')
+            ->do([
+                VectorTaskMcp::call('task_stats', '{}'),
+                Store::as('TASK_STATE', '{total, pending, in_progress}'),
+            ])
+            ->phase('STEP 2 - Decision:')
+            ->do([
+                Operator::if('$TASK_STATE.total === 0', 'Fresh init → proceed'),
+                Operator::if('$TASK_STATE.total > 0', 'Ask: "Tasks exist. (1) Add more, (2) Clear & restart, (3) Abort"'),
+            ]);
 
         // ============================================
-        // PHASE 2: EXHAUSTIVE RESEARCH (via Agents)
+        // PHASE 1: STRUCTURE DISCOVERY (Quick Scan)
         // ============================================
 
-        // Workflow Step 1 - Documentation Research (Agent-Delegated)
-        $this->guideline('workflow-step1')
-            ->text('STEP 1 - Documentation Research via Explore Agent (MANDATORY)')
+        $this->guideline('phase1-structure')
+            ->goal('Quick structure scan to identify ALL areas for parallel exploration')
             ->example()
-            ->phase('action-1', TaskTool::agent('explore', 'DOCUMENTATION SCAN: Find and analyze ALL documentation in project. Search: README*, CHANGELOG*, docs/, .docs/, *.md files, API specs, architecture docs. Return: comprehensive summary of project purpose, features, requirements, constraints.'))
-            ->phase('action-2', BashTool::call(BrainCLI::DOCS) . ' → ' . Store::as('DOCS_INDEX', 'indexed documentation paths'))
-            ->phase('action-3', ReadTool::call('README.md') . ' → ' . Store::as('README', 'project overview'))
-            ->phase('output', Store::as('DOCUMENTATION', 'complete documentation analysis from Explore agent'));
-
-        // Workflow Step 2 - Codebase Deep Exploration (Agent-Delegated)
-        $this->guideline('workflow-step2')
-            ->text('STEP 2 - Codebase Deep Exploration via Explore Agent (MANDATORY)')
-            ->example()
-            ->phase('action-1', TaskTool::agent('explore', 'ARCHITECTURE ANALYSIS: Comprehensive codebase scan. Analyze: directory structure, entry points, core modules, design patterns, tech stack, dependencies (composer.json/package.json), database schema, API routes, test coverage. Return: detailed architecture map with components, relationships, and technical debt areas.'))
-            ->phase('output', Store::as('CODEBASE_ARCHITECTURE', 'complete architecture analysis'));
-
-        // Workflow Step 3 - Vector Memory Research
-        $this->guideline('workflow-step3')
-            ->text('STEP 3 - Vector Memory Research for Prior Context (MANDATORY)')
-            ->example()
-            ->phase('action-1', VectorMemoryMcp::call('search_memories', '{query: "project architecture implementation", limit: 10, category: "architecture"}'))
-            ->phase('action-2', VectorMemoryMcp::call('search_memories', '{query: "project requirements features", limit: 10, category: "learning"}'))
-            ->phase('action-3', VectorMemoryMcp::call('search_memories', '{query: "project bugs issues problems", limit: 5, category: "bug-fix"}'))
-            ->phase('action-4', VectorMemoryMcp::call('search_memories', '{query: "project decisions trade-offs", limit: 5, category: "code-solution"}'))
-            ->phase('analyze', 'Extract: past decisions, known issues, architectural insights, lessons learned')
-            ->phase('output', Store::as('PRIOR_KNOWLEDGE', 'memory IDs, insights, warnings, recommendations'));
-
-        // Workflow Step 4 - External Context (if needed)
-        $this->guideline('workflow-step4')
-            ->text('STEP 4 - External Context Research (if project uses external APIs/services)')
-            ->example()
-            ->phase('decision', Operator::if(
-                'project integrates external services/APIs',
-                TaskTool::agent('web-research-master', 'Research external dependencies: {services}. Find: API documentation, best practices, known issues, integration patterns.'),
-                Operator::skip('No external dependencies requiring research')
-            ))
-            ->phase('output', Store::as('EXTERNAL_CONTEXT', 'external service documentation, integration notes'));
+            ->phase(
+                ExploreMaster::call(
+                    Operator::task([
+                        'QUICK STRUCTURE SCAN - identify directories only',
+                        'Glob("*") → list root directories and key files',
+                        'EXCLUDE: ' . Runtime::BRAIN_DIRECTORY . ', vendor/, node_modules/, .git/',
+                        'IDENTIFY: code(src/app), tests, config, docs(.docs), migrations, routes, build, public',
+                        'Output JSON: {areas: [{path, type, estimated_files, priority}]}',
+                    ]),
+                    Operator::output('{areas: [{path, type, estimated_files, priority: critical|high|medium|low}]}'),
+                    Store::as('PROJECT_AREAS')
+                )
+            );
 
         // ============================================
-        // PHASE 3: SYNTHESIS AND ANALYSIS
+        // PHASE 2: PARALLEL EXPLORATION BATCH 1 - CODE
         // ============================================
 
-        // Workflow Step 5 - Synthesize Project Context
-        $this->guideline('workflow-step5')
-            ->text('STEP 5 - Synthesize All Research into Project Context')
+        $this->guideline('phase2-parallel-code')
+            ->goal('PARALLEL: Launch code exploration agents simultaneously')
             ->example()
-            ->phase('input-1', 'Combine: ' . Store::get('DOCUMENTATION'))
-            ->phase('input-2', 'Combine: ' . Store::get('CODEBASE_ARCHITECTURE'))
-            ->phase('input-3', 'Combine: ' . Store::get('PRIOR_KNOWLEDGE'))
-            ->phase('input-4', 'Combine: ' . Store::get('EXTERNAL_CONTEXT'))
-            ->phase('synthesize-1', 'Extract: project scope, primary objectives, success criteria')
-            ->phase('synthesize-2', 'Identify: requirements (functional, non-functional), constraints, risks')
-            ->phase('synthesize-3', 'Assess: current state (greenfield/existing/refactor), completion percentage')
-            ->phase('synthesize-4', 'Map: major work streams, component boundaries, dependency graph')
-            ->phase('output', Store::as('PROJECT_CONTEXT', 'comprehensive project understanding'));
+            ->phase('BATCH 1 - Core Code Areas (LAUNCH IN PARALLEL):')
+            ->do([
+                ExploreMaster::call(
+                    Operator::task([
+                        'Area: src/ or app/ (MAIN CODE)',
+                        'Thoroughness: very thorough',
+                        'ANALYZE: directory structure, namespaces, classes, design patterns',
+                        'IDENTIFY: entry points, core modules, service layers, models',
+                        'EXTRACT: {path|files_count|classes|namespaces|patterns|complexity}',
+                        'FOCUS ON: what needs to be built/refactored/improved',
+                    ]),
+                    Operator::output('{path:"src",files:N,modules:[],patterns:[],tech_debt:[]}'),
+                    Store::as('CODE_ANALYSIS')
+                ),
+                ExploreMaster::call(
+                    Operator::task([
+                        'Area: tests/ (TEST COVERAGE)',
+                        'Thoroughness: medium',
+                        'ANALYZE: test structure, frameworks, coverage areas',
+                        'IDENTIFY: tested modules, missing coverage, test patterns',
+                        'EXTRACT: {path|test_files|framework|covered_modules|gaps}',
+                    ]),
+                    Operator::output('{path:"tests",files:N,framework:str,coverage_gaps:[]}'),
+                    Store::as('TEST_ANALYSIS')
+                ),
+                ExploreMaster::call(
+                    Operator::task([
+                        'Area: database/ + migrations/ (DATA LAYER)',
+                        'Thoroughness: thorough',
+                        'ANALYZE: migrations, seeders, factories, schema',
+                        'IDENTIFY: tables, relationships, indexes, pending migrations',
+                        'EXTRACT: {migrations_count|tables|relationships|pending_changes}',
+                    ]),
+                    Operator::output('{migrations:N,tables:[],relationships:[],pending:[]}'),
+                    Store::as('DATABASE_ANALYSIS')
+                ),
+            ])
+            ->phase('NOTE: All 3 ExploreMaster agents run SIMULTANEOUSLY');
 
-        // Workflow Step 6 - Strategic Task Decomposition
-        $this->guideline('workflow-step6')
-            ->text('STEP 6 - Strategic Epic Decomposition via Sequential Thinking')
+        // ============================================
+        // PHASE 3: PARALLEL EXPLORATION BATCH 2 - CONFIG & ROUTES
+        // ============================================
+
+        $this->guideline('phase3-parallel-config')
+            ->goal('PARALLEL: Config, routes, and infrastructure analysis')
             ->example()
-            ->phase('thinking', SequentialThinkingMcp::call('sequentialthinking', '{
-                    thought: "Analyzing comprehensive project context for strategic epic decomposition. Context: ' . Store::get('PROJECT_CONTEXT') . '",
+            ->phase('BATCH 2 - Config & Infrastructure (LAUNCH IN PARALLEL):')
+            ->do([
+                ExploreMaster::call(
+                    Operator::task([
+                        'Area: config/ (CONFIGURATION)',
+                        'Thoroughness: quick',
+                        'ANALYZE: config files, env vars, service bindings',
+                        'IDENTIFY: services configured, missing configs, security settings',
+                        'EXTRACT: {configs:[names],services:[],env_vars_needed:[]}',
+                    ]),
+                    Operator::output('{configs:[],services:[],security_gaps:[]}'),
+                    Store::as('CONFIG_ANALYSIS')
+                ),
+                ExploreMaster::call(
+                    Operator::task([
+                        'Area: routes/ (API SURFACE)',
+                        'Thoroughness: thorough',
+                        'ANALYZE: route definitions, middleware, controllers',
+                        'IDENTIFY: endpoints, auth requirements, API versioning',
+                        'EXTRACT: {routes_count|endpoints:[method,path,controller]|middleware:[]}',
+                    ]),
+                    Operator::output('{routes:N,api_endpoints:[],web_routes:[],middleware:[]}'),
+                    Store::as('ROUTES_ANALYSIS')
+                ),
+                ExploreMaster::call(
+                    Operator::task([
+                        'Area: build/CI (.github/, docker*, Makefile)',
+                        'Thoroughness: quick',
+                        'ANALYZE: CI/CD pipelines, Docker setup, build scripts',
+                        'IDENTIFY: deployment process, missing CI steps, containerization',
+                        'EXTRACT: {ci:bool,docker:bool,pipelines:[],missing:[]}',
+                    ]),
+                    Operator::output('{ci:bool,docker:bool,deployment_ready:bool,gaps:[]}'),
+                    Store::as('BUILD_ANALYSIS')
+                ),
+            ])
+            ->phase('NOTE: All 3 agents run SIMULTANEOUSLY with Batch 1');
+
+        // ============================================
+        // PHASE 4: DOCUMENTATION ANALYSIS
+        // ============================================
+
+        $this->guideline('phase4-documentation')
+            ->goal('Index docs via brain docs, then PARALLEL DocumentationMaster analysis')
+            ->example()
+            ->phase('STEP 1 - Get documentation index:')
+            ->do([
+                BashTool::call(BrainCLI::DOCS),
+                Store::as('DOCS_INDEX', '[{path, name, description, type}]'),
+            ])
+            ->phase('STEP 2 - Adaptive batching based on doc count:')
+            ->do([
+                Operator::if('docs_count <= 3', 'Single DocumentationMaster for all'),
+                Operator::if('docs_count 4-8', '2 DocumentationMaster agents in parallel'),
+                Operator::if('docs_count > 8', '3+ DocumentationMaster agents in parallel'),
+            ])
+            ->phase('STEP 3 - PARALLEL DocumentationMaster agents:')
+            ->do([
+                DocumentationMaster::call(
+                    Operator::task([
+                        'Docs batch: [README*, CONTRIBUTING*, ARCHITECTURE*]',
+                        'Read each doc via Read tool',
+                        'EXTRACT: {name|purpose|requirements|constraints|decisions}',
+                        'FOCUS ON: project goals, user requirements, acceptance criteria',
+                    ]),
+                    Operator::output('{docs_analyzed:N,requirements:[],constraints:[]}'),
+                    Store::as('DOCS_REQUIREMENTS')
+                ),
+                DocumentationMaster::call(
+                    Operator::task([
+                        'Docs batch: [API docs, technical specs, .docs/*.md]',
+                        'Read each doc via Read tool',
+                        'EXTRACT: {name|endpoints|integrations|dependencies}',
+                        'FOCUS ON: technical requirements, API contracts, integrations',
+                    ]),
+                    Operator::output('{docs_analyzed:N,api_specs:[],integrations:[]}'),
+                    Store::as('DOCS_TECHNICAL')
+                ),
+            ])
+            ->phase('STEP 4 - README.md direct read for project overview:')
+            ->do([
+                ReadTool::call('README.md'),
+                Store::as('README_CONTENT', 'project overview, features, setup'),
+            ]);
+
+        // ============================================
+        // PHASE 5: VECTOR MEMORY DEEP RESEARCH
+        // ============================================
+
+        $this->guideline('phase5-vector-research')
+            ->goal('VectorMaster for comprehensive prior knowledge extraction')
+            ->example()
+            ->phase(
+                VectorMaster::call(
+                    Operator::task([
+                        'DEEP MEMORY RESEARCH for project planning',
+                        'Multi-probe search strategy:',
+                        'Probe 1: "project architecture implementation patterns" (architecture)',
+                        'Probe 2: "project requirements features roadmap" (learning)',
+                        'Probe 3: "bugs issues problems technical debt" (bug-fix)',
+                        'Probe 4: "decisions trade-offs alternatives" (code-solution)',
+                        'Probe 5: "project context conventions standards" (project-context)',
+                        'EXTRACT: past decisions, known issues, lessons learned, patterns',
+                        'OUTPUT: actionable insights for task planning',
+                    ]),
+                    Operator::output('{memories_found:N,insights:[],warnings:[],recommendations:[]}'),
+                    Store::as('PRIOR_KNOWLEDGE')
+                )
+            )
+            ->phase('PARALLEL: Direct memory searches for specific categories:')
+            ->do([
+                VectorMemoryMcp::call('search_memories', '{query: "project goals objectives success criteria", limit: 5, category: "learning"}'),
+                VectorMemoryMcp::call('search_memories', '{query: "technical debt refactoring needed", limit: 5, category: "architecture"}'),
+                VectorMemoryMcp::call('search_memories', '{query: "blocked issues dependencies", limit: 5, category: "debugging"}'),
+            ]);
+
+        // ============================================
+        // PHASE 6: EXTERNAL CONTEXT (if needed)
+        // ============================================
+
+        $this->guideline('phase6-external')
+            ->goal('WebResearchMaster for external dependencies and APIs')
+            ->example()
+            ->phase('CONDITIONAL: If project uses external services/APIs:')
+            ->do([
+                Operator::if(
+                    'external services detected in config/routes analysis',
+                    WebResearchMaster::call(
+                        Operator::task([
+                            'Research external dependencies: {detected_services}',
+                            'Find: API documentation, rate limits, best practices',
+                            'Find: known issues, integration patterns, gotchas',
+                            'OUTPUT: integration requirements, constraints, risks',
+                        ]),
+                        Operator::output('{services_researched:N,requirements:[],risks:[]}'),
+                        Store::as('EXTERNAL_CONTEXT')
+                    ),
+                    Operator::skip('No external dependencies detected')
+                ),
+            ]);
+
+        // ============================================
+        // PHASE 7: SYNTHESIS VIA SEQUENTIAL THINKING
+        // ============================================
+
+        $this->guideline('phase7-synthesis')
+            ->goal('Synthesize ALL research into comprehensive project context')
+            ->example()
+            ->phase('COMBINE all stored research:')
+            ->do([
+                Store::get('CODE_ANALYSIS'),
+                Store::get('TEST_ANALYSIS'),
+                Store::get('DATABASE_ANALYSIS'),
+                Store::get('CONFIG_ANALYSIS'),
+                Store::get('ROUTES_ANALYSIS'),
+                Store::get('BUILD_ANALYSIS'),
+                Store::get('DOCS_REQUIREMENTS'),
+                Store::get('DOCS_TECHNICAL'),
+                Store::get('README_CONTENT'),
+                Store::get('PRIOR_KNOWLEDGE'),
+                Store::get('EXTERNAL_CONTEXT'),
+            ])
+            ->phase('SEQUENTIAL THINKING for strategic decomposition:')
+            ->do([
+                SequentialThinkingMcp::call('sequentialthinking', '{
+                    thought: "Analyzing comprehensive research from 8+ parallel agents. Synthesizing into strategic epics.",
                     thoughtNumber: 1,
-                    totalThoughts: 6,
+                    totalThoughts: 8,
                     nextThoughtNeeded: true
-                }'))
-            ->phase('decompose-1', 'Identify 5-15 major work streams (EPICS) from synthesized requirements')
-            ->phase('decompose-2', 'Define each epic: scope, boundaries, deliverables, dependencies')
-            ->phase('decompose-3', 'Estimate each epic (8-40 hours range for root tasks)')
-            ->phase('decompose-4', 'Assign priority: critical (blockers) > high (core) > medium (features) > low (nice-to-have)')
-            ->phase('decompose-5', 'Add strategic tags: [epic, {domain}, {stack}, {phase}]')
-            ->phase('decompose-6', 'Identify inter-epic dependencies and optimal execution order')
-            ->phase('output', Store::as('EPIC_LIST', 'array of {title, content, priority, estimate, tags, dependencies}'));
+                }'),
+            ])
+            ->phase('SYNTHESIS STEPS:')
+            ->do([
+                'Step 1: Extract project scope, primary objectives, success criteria',
+                'Step 2: Map functional requirements from docs + code analysis',
+                'Step 3: Map non-functional requirements (performance, security, scalability)',
+                'Step 4: Identify current state: greenfield / existing / refactor',
+                'Step 5: Calculate completion percentage per area',
+                'Step 6: Identify major work streams (future epics)',
+                'Step 7: Map dependencies between work streams',
+                'Step 8: Prioritize: blockers first, then core, then features',
+            ])
+            ->phase(Store::as('PROJECT_SYNTHESIS', 'comprehensive project understanding'));
 
         // ============================================
-        // PHASE 4: USER APPROVAL AND CREATION
+        // PHASE 8: EPIC GENERATION
         // ============================================
 
-        // Workflow Step 7 - Present for Approval
-        $this->guideline('workflow-step7')
-            ->text('STEP 7 - Present Epic List for User Approval (MANDATORY GATE)')
+        $this->guideline('phase8-epic-generation')
+            ->goal('Generate 5-15 strategic epics from synthesis')
             ->example()
-            ->phase('format', 'Format epic list as table: # | Epic Title | Priority | Estimate | Dependencies | Tags')
-            ->phase('summary-1', 'Total epics: {count}')
-            ->phase('summary-2', 'Total estimated hours: {sum}')
-            ->phase('summary-3', 'Critical path: epics with dependencies')
-            ->phase('summary-4', 'Research sources: Documentation, Codebase, Memory ({memory_count} insights), External')
-            ->phase('recommendations', 'After creation, run /task:decompose {epic_id} for each epic to create subtasks')
-            ->phase('prompt', 'Ask: "Approve epic creation? (yes/no/modify)"')
-            ->phase('gate', Operator::validate(
-                'User response is YES, APPROVE, or CONFIRM',
-                'Wait for explicit approval. Allow modifications if requested.'
-            ));
+            ->phase('EPIC GENERATION RULES:')
+            ->do([
+                'Target: 5-15 root epics (not too few, not too many)',
+                'Each epic: major work stream, 8-40 hours estimate',
+                'Epic boundaries: clear scope, deliverables, acceptance criteria',
+                'Dependencies: identify inter-epic dependencies',
+                'Tags: [epic, {domain}, {stack}, {phase}]',
+            ])
+            ->phase('EPIC CATEGORIES to consider:')
+            ->do([
+                'FOUNDATION: setup, infrastructure, CI/CD, database schema',
+                'CORE: main features, business logic, models, services',
+                'API: endpoints, authentication, authorization, contracts',
+                'FRONTEND: UI components, views, assets, interactions',
+                'TESTING: unit tests, integration tests, E2E, coverage',
+                'SECURITY: auth, validation, encryption, audit',
+                'PERFORMANCE: optimization, caching, scaling, monitoring',
+                'DOCUMENTATION: API docs, guides, deployment docs',
+                'TECH_DEBT: refactoring, upgrades, cleanup, migrations',
+            ])
+            ->phase(Store::as('EPIC_LIST', '[{title, content, priority, estimate, tags, dependencies}]'));
 
-        // Workflow Step 8 - Create Tasks
-        $this->guideline('workflow-step8')
-            ->text('STEP 8 - Create Root Tasks (Epics) After Approval')
-            ->example()
-            ->phase('create', VectorTaskMcp::call('task_create_bulk', '{tasks: ' . Store::get('EPIC_LIST') . '}'))
-            ->phase('verify', VectorTaskMcp::call('task_stats', '{}') . ' → confirm creation')
-            ->phase('capture', Store::as('CREATED_EPIC_IDS', 'array of created task IDs'));
+        // ============================================
+        // PHASE 9: USER APPROVAL GATE
+        // ============================================
 
-        // Workflow Step 9 - Summary and Stop
-        $this->guideline('workflow-step9')
-            ->text('STEP 9 - Report Summary (END - NO EXECUTION)')
+        $this->guideline('phase9-approval')
+            ->goal('Present epics for user approval (MANDATORY GATE)')
             ->example()
-            ->phase('report-1', 'Created epics: ' . Store::get('CREATED_EPIC_IDS'))
-            ->phase('report-2', 'Total estimated hours: {sum}')
-            ->phase('report-3', 'NEXT STEPS:')
-            ->phase('report-4', '  1. /task:decompose {epic_id} - Break down each epic into subtasks')
-            ->phase('report-5', '  2. /task:list - View all tasks')
-            ->phase('report-6', '  3. /task:next - Start working on first task')
-            ->phase('stop', 'STOP HERE. Do NOT execute any task. Return control to user.');
+            ->phase('FORMAT epic list as table:')
+            ->do([
+                '# | Epic Title | Priority | Estimate | Dependencies | Tags',
+                '---|------------|----------|----------|--------------|-----',
+                '1 | Foundation Setup | critical | 16h | - | [epic,infra,setup]',
+                '2 | Core Models | high | 24h | #1 | [epic,backend,models]',
+                '... (all epics)',
+            ])
+            ->phase('SUMMARY:')
+            ->do([
+                'Total epics: {count}',
+                'Total estimated hours: {sum}',
+                'Critical path: {epics with dependencies}',
+                'Research agents used: {count} (Explore, Doc, Vector, Web)',
+                'Areas analyzed: code, tests, database, config, routes, build, docs, memory',
+            ])
+            ->phase('PROMPT:')
+            ->do([
+                'Ask: "Approve epic creation? (yes/no/modify)"',
+                Operator::validate('User response is YES, APPROVE, or CONFIRM', 'Wait for explicit approval'),
+            ]);
 
-        // Workflow Step 10 - Store Initialization Insight
-        $this->guideline('workflow-step10')
-            ->text('STEP 10 - Store Project Initialization Insight')
+        // ============================================
+        // PHASE 10: TASK CREATION
+        // ============================================
+
+        $this->guideline('phase10-create')
+            ->goal('Create epics in vector task system after approval')
             ->example()
-            ->phase('store', VectorMemoryMcp::call('store_memory', '{
-                    content: "Project initialized with {epic_count} epics. Total estimate: {hours}h. Key areas: {domains}. Tech stack: {stack}. Critical path: {critical_epics}.",
+            ->phase('CREATE epics:')
+            ->do([
+                VectorTaskMcp::call('task_create_bulk', '{tasks: ' . Store::get('EPIC_LIST') . '}'),
+                Store::as('CREATED_EPICS', '[task_ids]'),
+            ])
+            ->phase('VERIFY creation:')
+            ->do([
+                VectorTaskMcp::call('task_stats', '{}'),
+                'Confirm: {count} epics created',
+            ]);
+
+        // ============================================
+        // PHASE 11: COMPLETION & MEMORY STORAGE
+        // ============================================
+
+        $this->guideline('phase11-complete')
+            ->goal('Report completion, store insight, STOP')
+            ->example()
+            ->phase('STORE initialization insight:')
+            ->do([
+                VectorMemoryMcp::call('store_memory', '{
+                    content: "PROJECT_INIT|epics:{count}|hours:{total}|areas:{list}|stack:{tech}|critical_path:{deps}",
                     category: "architecture",
-                    tags: ["project-init", "epics", "planning"]
-                }'));
+                    tags: ["project-init", "epics", "planning", "init-task"]
+                }'),
+            ])
+            ->phase('REPORT:')
+            ->do([
+                '═══ INIT-TASK COMPLETE ═══',
+                'Epics created: {count}',
+                'Total estimate: {hours}h',
+                'Agents used: {agent_count} (parallel execution)',
+                'Areas covered: code, tests, db, config, routes, build, docs, memory, external',
+                '═══════════════════════════',
+                '',
+                'NEXT STEPS:',
+                '  1. /task:decompose {epic_id} - Break down each epic',
+                '  2. /task:list - View all tasks',
+                '  3. /task:next - Start first task',
+            ])
+            ->phase('STOP: Do NOT execute any task. Return control to user.');
 
         // ============================================
-        // REFERENCE: FORMATS AND GUIDELINES
+        // REFERENCE: FORMATS
         // ============================================
 
-        // Epic Format Specification
         $this->guideline('epic-format')
-            ->text('Required epic (root task) structure')
-            ->example('title: Concise epic name capturing major work stream (max 10 words)')->key('title')
-            ->example('content: Detailed scope with: objectives, boundaries, deliverables, acceptance criteria, known dependencies, risk factors')->key('content')
+            ->text('Required epic structure')
+            ->example('title: Concise name (max 10 words)')->key('title')
+            ->example('content: Scope, objectives, deliverables, acceptance criteria')->key('content')
             ->example('priority: critical | high | medium | low')->key('priority')
-            ->example('tags: [epic, {domain}, {stack}, {phase}]')->key('tags')
-            ->example('estimate: 8-40 hours (will be decomposed into subtasks)')->key('estimate');
+            ->example('estimate: 8-40 hours (will be decomposed)')->key('estimate')
+            ->example('tags: [epic, {domain}, {stack}, {phase}]')->key('tags');
 
-        // Estimation Guidelines for Epics
-        $this->guideline('estimation-rules')
-            ->text('Epic estimation guidelines (larger than regular tasks)')
-            ->example('8-16h: Focused epic, single domain, limited scope')->key('small')
-            ->example('16-24h: Standard epic, cross-component, moderate complexity')->key('medium')
-            ->example('24-32h: Large epic, architectural changes, multiple integrations')->key('large')
-            ->example('32-40h: Major epic, foundational work, high complexity')->key('xlarge')
-            ->example('>40h: Consider splitting into multiple epics')->key('split');
+        $this->guideline('estimation-guide')
+            ->text('Epic estimation guidelines')
+            ->example('8-16h: Focused, single domain')->key('small')
+            ->example('16-24h: Cross-component, moderate')->key('medium')
+            ->example('24-32h: Architectural, integrations')->key('large')
+            ->example('32-40h: Foundational, high complexity')->key('xlarge')
+            ->example('>40h: Split into multiple epics')->key('split');
 
-        // Priority Assignment
-        $this->guideline('priority-assignment')
-            ->text('Priority assignment criteria for epics')
-            ->example('critical: Foundation work, blockers for other epics, security, data integrity')->key('critical')
-            ->example('high: Core functionality, key features, dependencies for multiple tasks')->key('high')
-            ->example('medium: Standard features, improvements, optimizations')->key('medium')
-            ->example('low: Nice-to-have, polish, documentation, cleanup')->key('low');
+        $this->guideline('parallel-pattern')
+            ->text('How to execute agents in parallel')
+            ->example('WRONG: forEach(areas) → sequential, slow, incomplete')
+            ->example('RIGHT: List multiple Task() calls in single response')
+            ->example('Brain executes all Task() calls simultaneously')
+            ->example('Each agent stores findings, then synthesize all');
 
-        // Quality Gates
-        $this->guideline('quality-gates')
-            ->text('ALL quality gates MUST pass before epic creation')
-            ->example('Step 0: Existing tasks checked, user informed')
-            ->example('Step 1: Documentation fully scanned via Explore agent')
-            ->example('Step 2: Codebase architecture analyzed via Explore agent')
-            ->example('Step 3: Vector memory searched (4 categories)')
-            ->example('Step 4: External context researched (if applicable)')
-            ->example('Step 5: All research synthesized into project context')
-            ->example('Step 6: Strategic decomposition completed via Sequential Thinking')
-            ->example('Step 7: User approval explicitly received')
-            ->example('Step 9: STOP after creation - do NOT execute');
+        $this->guideline('directive')
+            ->text('PARALLEL agents! EVERY corner! MAXIMUM coverage! Dense synthesis! User approval!');
     }
 }
