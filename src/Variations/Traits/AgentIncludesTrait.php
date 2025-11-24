@@ -28,20 +28,24 @@ trait AgentIncludesTrait
     protected function handle(): void
     {
         // === UNIVERSAL ===
-        $this->include(VectorMemoryInclude::class);               // Vector memory primary knowledge base
+        $this->include(VectorMemoryInclude::class);                 // Vector memory primary knowledge base
         if ($this->taskUsage) {
-            $this->include(VectorTaskInclude::class);             // Vector task management and tracking
+            $this->include(VectorTaskInclude::class);               // Vector task management and tracking
         }
-        $this->include(BrainDocsInclude::class);                // Documentation indexing and search command
-        $this->include(SequentialReasoningInclude::class);   // Sequential reasoning capability
+        $this->include(BrainDocsInclude::class);                    // Documentation indexing and search command
+        $this->include(SequentialReasoningInclude::class);          // Sequential reasoning capability
 
         // === AGENT CORE ===
-        $this->include(CoreInclude::class);               // Core identity and purpose
-        $this->include(DocumentationFirstInclude::class);        // Documentation-first execution policy
+        $this->include(CoreInclude::class);                         // Core identity and purpose
+        $this->include(DocumentationFirstInclude::class);           // Documentation-first execution policy
 
         if ($this->var('HAS_LARAVEL')) {
-            $this->include(LaravelBoostGuidelinesInclude::class);      // Laravel boosting guidelines
-            $this->include(LaravelBoostClassToolsInclude::class);      // Laravel boosting class tools
+            $this->include(LaravelBoostGuidelinesInclude::class);   // Laravel boosting guidelines
+            $this->include(LaravelBoostClassToolsInclude::class);   // Laravel boosting class tools
+        }
+
+        if (class_exists('BrainNode\\Common')) {
+            $this->include('BrainNode\\Common');                    // Common node utilities
         }
     }
 }

@@ -42,6 +42,9 @@ trait BrainIncludesTrait
         }
         $this->include(ResponseValidationInclude::class);               // Agent response validation
         $this->include(ErrorHandlingInclude::class);                    // Basic error handling
+        if (class_exists('BrainNode\\Common')) {
+            $this->include('BrainNode\\Common');                        // Common node utilities
+        }
     }
 
     public function isSelfDev(): bool
