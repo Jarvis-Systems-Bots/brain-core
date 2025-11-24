@@ -59,6 +59,24 @@ class InitBrainInclude extends IncludeArchetype
             ->why('Enables future context retrieval and knowledge accumulation')
             ->onViolation('Knowledge loss and inability to leverage past discoveries');
 
+        $this->rule('preserve-variation')->critical()
+            ->text([
+                'NEVER modify or replace existing #[Includes()] attributes on Brain.php',
+                'Brain already has a Variation (e.g., Scrutinizer) - preserve it',
+                'Standard includes from vendor/jarvis-brain/core/src/Includes are OFF LIMITS',
+            ])
+            ->why('Variations are pre-configured brain personalities with carefully tuned includes')
+            ->onViolation('Modifying Variation breaks brain coherence and predefined behavior');
+
+        $this->rule('project-includes-only')->critical()
+            ->text([
+                'Only analyze and suggest includes from ' . Runtime::NODE_DIRECTORY('Includes/'),
+                'FORBIDDEN: vendor/jarvis-brain/core/src/Includes/* modifications',
+                'FORBIDDEN: Replacing or adding standard includes to Brain.php',
+            ])
+            ->why('Standard includes are managed by Variations, not by init process')
+            ->onViolation('Standard includes are bundled with Variation - do not duplicate or override');
+
         // =====================================================
         // PHASE 1: TEMPORAL CONTEXT INITIALIZATION
         // =====================================================
@@ -203,34 +221,47 @@ class InitBrainInclude extends IncludeArchetype
             ->phase(Store::as('BEST_PRACTICES', 'Collected results from all research tasks'));
 
         // =====================================================
-        // PHASE 5: AVAILABLE INCLUDES ANALYSIS
+        // PHASE 5: PROJECT-SPECIFIC INCLUDES ANALYSIS
         // =====================================================
 
-        $this->guideline('phase5-includes-analysis')
-            ->goal('Analyze available includes and select optimal set for project')
+        $this->guideline('phase5-project-includes')
+            ->goal('Analyze and suggest PROJECT-SPECIFIC includes only (NOT standard includes)')
+            ->note([
+                'IMPORTANT: Brain already has a Variation with standard includes configured',
+                'This phase focuses ONLY on ' . Runtime::NODE_DIRECTORY('Includes/'),
+                'FORBIDDEN: Suggesting or modifying vendor/jarvis-brain/core/src/Includes/*',
+            ])
             ->example()
             ->phase(
-                BashTool::describe(BrainCLI::LIST_INCLUDES, Store::as('AVAILABLE_INCLUDES'))
+                ExploreMaster::call(
+                    Operator::task([
+                        'Scan ' . Runtime::NODE_DIRECTORY('Includes/') . ' for existing project includes',
+                        'Read each include file to understand its purpose',
+                        'Identify gaps in project-specific configuration',
+                    ]),
+                    Operator::context('Project-specific includes discovery')
+                )
             )
+            ->phase(Store::as('EXISTING_PROJECT_INCLUDES'))
             ->phase(
                 AgentMaster::call(
                     Operator::input(
-                        Store::get('AVAILABLE_INCLUDES'),
+                        Store::get('EXISTING_PROJECT_INCLUDES'),
                         Store::get('PROJECT_CONTEXT'),
                         Store::get('DOCS_ANALYSIS'),
                         Store::get('BEST_PRACTICES'),
                     ),
                     Operator::task([
-                        'Analyze all available Brain includes',
+                        'Analyze existing project-specific includes in ' . Runtime::NODE_DIRECTORY('Includes/'),
                         'Map project needs to include capabilities',
-                        'Categorize includes: Essential, Recommended, Optional, Not Needed',
-                        'Identify missing includes that should be created',
-                        'Generate optimal include configuration for this project',
+                        'Identify MISSING project-specific includes that should be CREATED',
+                        'DO NOT suggest standard includes from vendor/jarvis-brain/core/src/Includes',
+                        'Generate list of new project includes to create via brain make:include',
                     ]),
-                    Operator::output('{essential_includes: [...], recommended_includes: [...], optional_includes: [...], missing_includes: [...], rationale: {...}}'),
+                    Operator::output('{existing_project_includes: [...], suggested_new_includes: [...], rationale: {...}}'),
                 )
             )
-            ->phase(Store::as('INCLUDES_RECOMMENDATION'));
+            ->phase(Store::as('PROJECT_INCLUDES_RECOMMENDATION'));
 
         // =====================================================
         // PHASE 6: CUSTOM GUIDELINES GENERATION (PromptMaster)
@@ -261,11 +292,16 @@ class InitBrainInclude extends IncludeArchetype
             ->phase(Store::as('CUSTOM_GUIDELINES'));
 
         // =====================================================
-        // PHASE 7: BRAIN.PHP GENERATION (PromptMaster)
+        // PHASE 7: BRAIN.PHP ENHANCEMENT (PromptMaster)
         // =====================================================
 
-        $this->guideline('phase7-brain-generation')
-            ->goal('Generate optimized Brain.php configuration file using PromptMaster')
+        $this->guideline('phase7-brain-enhancement')
+            ->goal('Enhance Brain.php handle() method with project-specific guidelines WHILE PRESERVING existing Variation')
+            ->note([
+                'CRITICAL: Preserve ALL existing #[Includes()] attributes - they define the Variation',
+                'ONLY modify the handle() method to add project-specific rules and guidelines',
+                'DO NOT touch: namespace, class declaration, existing includes, Variation configuration',
+            ])
             ->example()
             ->phase('Backup existing Brain.php')
             ->phase(
@@ -274,31 +310,30 @@ class InitBrainInclude extends IncludeArchetype
                     'Create backup before modification'
                 )
             )
-            ->phase('Generate new Brain.php content')
+            ->phase('Enhance handle() method with project-specific content')
             ->phase(
                 PromptMaster::call(
                     Operator::input(
                         Store::get('CURRENT_BRAIN_CONFIG'),
-                        Store::get('INCLUDES_RECOMMENDATION'),
+                        Store::get('PROJECT_INCLUDES_RECOMMENDATION'),
                         Store::get('CUSTOM_GUIDELINES'),
                         Store::get('PROJECT_CONTEXT'),
                     ),
                     Operator::task([
-                        'Generate complete Brain.php file using Builder API',
-                        'Include all essential includes from recommendation (#[Includes(...)])',
-                        'Add recommended includes with comments explaining rationale',
-                        'Integrate custom guidelines into handle() method',
+                        'PRESERVE existing #[Includes()] attributes (Variation) - DO NOT MODIFY',
+                        'PRESERVE existing class structure and namespace',
+                        'ADD project-specific rules and guidelines to handle() method',
+                        'If suggested new project includes exist, add them to #[Includes()] AFTER existing ones',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
-                        'Maintain proper PHP structure and namespaces',
-                        'Follow Brain.php structure: includes (if exists) → rules → guidelines → style → response',
+                        'Format: existing includes → new project includes (if any) → rules → guidelines → style → response',
                     ]),
-                    Operator::output('{brain_php_content: "...", changes_summary: {...}}'),
+                    Operator::output('{brain_php_content: "...", preserved_variation: "...", changes_summary: {...}}'),
                 )
             )
-            ->phase('Write new Brain.php')
-            ->phase(Store::as('NEW_BRAIN_PHP'))
+            ->phase('Write enhanced Brain.php')
+            ->phase(Store::as('ENHANCED_BRAIN_PHP'))
             ->phase(
-                Operator::note('Brain.php updated with project-specific configuration')
+                Operator::note('Brain.php enhanced with project-specific configuration while preserving Variation')
             );
 
         // =====================================================
@@ -371,6 +406,10 @@ class InitBrainInclude extends IncludeArchetype
                 Operator::output([
                     'Brain Initialization Complete',
                     '',
+                    'Variation:',
+                    '  Preserved: {existing_variation_name} (UNCHANGED)',
+                    '  Standard includes: NOT MODIFIED',
+                    '',
                     'Project Discovery:',
                     '  Type: {project_type}',
                     '  Tech Stack: {tech_stack}',
@@ -381,12 +420,12 @@ class InitBrainInclude extends IncludeArchetype
                     '  Domain Concepts: {domain_concepts_count}',
                     '  Requirements: {requirements_count}',
                     '',
-                    'Includes Configuration:',
-                    '  Essential: {essential_includes_list}',
-                    '  Recommended: {recommended_includes_list}',
-                    '  Total: {total_includes_count}',
+                    'Project-Specific Includes:',
+                    '  Existing: {existing_project_includes}',
+                    '  Suggested new: {suggested_new_includes}',
+                    '  Location: ' . Runtime::NODE_DIRECTORY('Includes/'),
                     '',
-                    'Custom Guidelines:',
+                    'Custom Guidelines Added:',
                     '  Rules: {custom_rules_count}',
                     '  Guidelines: {custom_guidelines_count}',
                     '',
@@ -397,18 +436,19 @@ class InitBrainInclude extends IncludeArchetype
                     'Output Files:',
                     '  Source: ' . Runtime::NODE_DIRECTORY('Brain.php'),
                     '  Compiled: ' . Runtime::BRAIN_FILE,
-                    '  Backup (if not default empty file): ' . Runtime::NODE_DIRECTORY('Brain.php.backup'),
+                    '  Backup: ' . Runtime::NODE_DIRECTORY('Brain.php.backup'),
                     '',
                     'Vector Memory:',
                     '  Insights Stored: {insights_count}',
                     '  Categories: architecture, learning',
                     '',
                     'Next Steps:',
-                    '  1. Review generated Brain.php configuration',
-                    '  2. Test Brain behavior with sample tasks',
-                    '  3. Adjust custom guidelines as needed',
-                    '  4. Run: brain compile (if modified)',
-                    '  5. Consider running: /init-agents for agent generation',
+                    '  1. Review enhanced Brain.php (Variation preserved)',
+                    '  2. Create suggested project includes: brain make:include {name}',
+                    '  3. Test Brain behavior with sample tasks',
+                    '  4. Adjust custom guidelines in handle() as needed',
+                    '  5. Run: brain compile (after any modifications)',
+                    '  6. Consider running: /init-agents for agent generation',
                 ])
             );
 
@@ -471,36 +511,39 @@ class InitBrainInclude extends IncludeArchetype
         // =====================================================
 
         $this->guideline('example-laravel-project')
-            ->scenario('Laravel project with comprehensive documentation')
+            ->scenario('Laravel project with Scrutinizer Variation and comprehensive documentation')
             ->example()
+            ->phase('Variation: Scrutinizer (PRESERVED - not modified)')
             ->phase('Discovery: Laravel 11, PHP 8.3, MySQL, Redis, Queue, Sanctum')
             ->phase('Docs: 15 .md files with architecture, requirements, domain logic')
             ->phase('Research: Laravel 2025 best practices, service container patterns')
-            ->phase('Includes: LaravelBoostGuidelines, QualityGates, DDD patterns')
-            ->phase('Custom Guidelines: Repository pattern rules, service layer conventions')
-            ->phase('Result: Optimized Brain.php with Laravel-specific configuration')
+            ->phase('Project Includes: Suggested LaravelDomainRules.php in ' . Runtime::NODE_DIRECTORY('Includes/'))
+            ->phase('Custom Guidelines: Repository pattern rules, service layer conventions added to handle()')
+            ->phase('Result: Enhanced Brain.php with project-specific guidelines, Variation intact')
             ->phase('Insights: 5 architectural insights stored to vector memory');
 
         $this->guideline('example-node-project')
-            ->scenario('Node.js/Express project without documentation')
+            ->scenario('Node.js/Express project with Architect Variation')
             ->example()
+            ->phase('Variation: Architect (PRESERVED - not modified)')
             ->phase('Discovery: Node.js 20, Express, TypeScript, MongoDB, Docker')
             ->phase('Docs: None found - codebase analysis only')
             ->phase('Research: Express 2025 patterns, TypeScript best practices')
-            ->phase('Includes: CoreConstraints, ErrorRecovery, QualityGates')
-            ->phase('Custom Guidelines: REST API conventions, middleware patterns')
-            ->phase('Result: Brain.php with Node.js-aware configuration')
+            ->phase('Project Includes: No new project includes needed')
+            ->phase('Custom Guidelines: REST API conventions, middleware patterns added to handle()')
+            ->phase('Result: Enhanced Brain.php with Node.js-aware guidelines, Variation intact')
             ->phase('Insights: 3 tech stack insights stored');
 
         $this->guideline('example-hybrid-project')
-            ->scenario('Hybrid PHP/JavaScript project with microservices')
+            ->scenario('Hybrid PHP/JavaScript project with Custom Variation')
             ->example()
+            ->phase('Variation: CustomVariation (PRESERVED - not modified)')
             ->phase('Discovery: Laravel API + React SPA + Docker + Kafka')
             ->phase('Docs: Architectural decision records, API specs, deployment docs')
             ->phase('Research: Microservices patterns, event-driven architecture')
-            ->phase('Includes: Multiple domain-specific includes + custom service layer')
-            ->phase('Custom Guidelines: Microservice boundaries, event schemas, API versioning')
-            ->phase('Result: Complex Brain.php with multi-paradigm support')
+            ->phase('Project Includes: Suggested MicroserviceBoundaries.php, EventSchemas.php')
+            ->phase('Custom Guidelines: API versioning rules, event contract validation added to handle()')
+            ->phase('Result: Enhanced Brain.php with microservice guidelines, Variation intact')
             ->phase('Insights: 12 cross-cutting concerns stored');
 
         // =====================================================

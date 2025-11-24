@@ -35,6 +35,25 @@ class InitAgentsInclude extends IncludeArchetype
             ->why('Separation of orchestration (Brain) and execution (AgentMaster). Brain is NOT an executor.')
             ->onViolation('ABORT. Delegate to AgentMaster immediately. Brain orchestrates, never executes.');
 
+        $this->rule('project-agents-only')->critical()
+            ->text([
+                'ONLY create PROJECT-SPECIFIC agents using Master variation',
+                'FORBIDDEN: Creating or modifying SYSTEM agents (AgentMaster, PromptMaster, CommitMaster, etc.)',
+                'FORBIDDEN: Modifying agents from vendor/jarvis-brain/core/src/',
+                'System agents use SystemMaster variation and are OFF LIMITS',
+            ])
+            ->why('System agents are pre-configured via SystemMaster variation. Project agents use Master variation.')
+            ->onViolation('Skip system agent. Only create project-specific agents.');
+
+        $this->rule('preserve-system-agents')->critical()
+            ->text([
+                'System agents (ending with Master) are managed by SystemMaster variation',
+                'Examples: AgentMaster, PromptMaster, CommitMaster, WebResearchMaster, ExploreMaster, DocumentationMaster, VectorMaster, ScriptMaster',
+                'These agents are specialized for Brain orchestration - NEVER regenerate or modify them',
+            ])
+            ->why('System agents have carefully tuned configurations for Brain ecosystem')
+            ->onViolation('ABORT modification. System agents are immutable.');
+
         $this->rule('parallel-agentmaster-execution')->critical()
             ->text('Run up to 5 AgentMaster instances in PARALLEL. Each AgentMaster can generate 1-3 agents per batch.')
             ->why('Maximizes throughput. Sequential generation wastes time. Parallel = 5x faster.')
@@ -130,14 +149,24 @@ class InitAgentsInclude extends IncludeArchetype
                 'Log: "Targeted mode - using cached patterns, skipping general research"'
             ]));
 
-        // Phase 2: Inventory Existing Agents
+        // Phase 2: Inventory Existing Agents (separating system vs project)
         $this->guideline('phase2-inventory-agents')
-            ->goal('List all existing agents via', BrainCLI::LIST_MASTERS)
+            ->goal('List all existing agents and separate SYSTEM agents from PROJECT agents')
+            ->note([
+                'SYSTEM agents (use SystemMaster variation): AgentMaster, PromptMaster, CommitMaster, WebResearchMaster, ExploreMaster, DocumentationMaster, VectorMaster, ScriptMaster',
+                'PROJECT agents (use Master variation): All other agents created for project-specific needs',
+                'System agents are OFF LIMITS - only inventory, never modify or regenerate',
+            ])
             ->example()
             ->phase([BashTool::call(BrainCLI::LIST_MASTERS), 'Parse output'])
-            ->phase(Store::as('EXISTING_AGENTS', '[{id, name, description}, ...]'))
+            ->phase(Store::as('ALL_AGENTS', '[{id, name, description}, ...]'))
+            ->phase('Filter system agents (names ending with "Master" AND in system list)')
+            ->phase(Store::as('SYSTEM_AGENTS', '[AgentMaster, PromptMaster, CommitMaster, WebResearchMaster, ExploreMaster, DocumentationMaster, VectorMaster, ScriptMaster, ...]'))
+            ->phase('Filter project agents (all others)')
+            ->phase(Store::as('PROJECT_AGENTS', '[...project-specific agents...]'))
             ->phase(['Agents located in', Runtime::NODE_DIRECTORY('Agents/*.php')])
-            ->phase('Count: total_agents = count($EXISTING_AGENTS)');
+            ->phase('Count: system_agents = count($SYSTEM_AGENTS), project_agents = count($PROJECT_AGENTS)')
+            ->phase('Log: "System agents (protected): {system_count}, Project agents (manageable): {project_count}"');
 
         // Phase 3: Extract Project Stack (DELEGATED - ENHANCED with search filter)
         $this->guideline('phase3-read-project-stack')
@@ -195,15 +224,20 @@ class InitAgentsInclude extends IncludeArchetype
                 'Boost relevance score for matching patterns'
             ]));
 
-        // Phase 4: Enhanced Gap Analysis with Industry Validation
+        // Phase 4: Enhanced Gap Analysis with Industry Validation (PROJECT AGENTS ONLY)
         $this->guideline('phase4-gap-analysis-enhanced')
-            ->goal('Identify missing domain agents with industry best practices validation and confidence scoring')
+            ->goal('Identify missing PROJECT-SPECIFIC agents (NOT system agents) with industry validation')
+            ->note([
+                'Gap analysis compares against PROJECT_AGENTS only, not SYSTEM_AGENTS',
+                'FORBIDDEN: Suggesting system agents (AgentMaster, PromptMaster, etc.) as missing',
+                'New agents use Master variation, NOT SystemMaster',
+            ])
             ->example()
-            ->phase('First pass: Web-informed gap analysis')
+            ->phase('First pass: Web-informed gap analysis for PROJECT agents')
             ->phase(
                 WebResearchMaster::call(
                     Operator::input(
-                        Store::get('EXISTING_AGENTS'),
+                        Store::get('PROJECT_AGENTS'),
                         Store::get('PROJECT_STACK'),
                         Store::get('INDUSTRY_PATTERNS'),
                         Store::get('TECH_PATTERNS'),
@@ -211,9 +245,11 @@ class InitAgentsInclude extends IncludeArchetype
                         Store::get('SEARCH_FILTER'),
                     ),
                     Operator::task(
-                        'Gather best practices for agent coverage for the given project stack',
+                        'Gather best practices for PROJECT agent coverage (exclude system agents)',
                         'Cross-reference with industry patterns from web search',
                         'Consider technology-specific agent requirements',
+                        'EXCLUDE: system agent types (orchestration, delegation, memory management)',
+                        'INCLUDE: domain-specific agents (API, Cache, Auth, Payment, etc.)',
                         Operator::if('search_mode === "targeted"', 'Focus on $SEARCH_FILTER domains only')
                     ),
                     Operator::output('{covered_domains: [...], missing_agents: [{name: \'AgentName\', purpose: \'...\', capabilities: [...], industry_alignment: 0-1}], confidence: 0-1}'),
@@ -224,7 +260,8 @@ class InitAgentsInclude extends IncludeArchetype
             ->phase(
                 AgentMaster::call(
                     Operator::input(
-                        Store::get('EXISTING_AGENTS'),
+                        Store::get('PROJECT_AGENTS'),
+                        Store::get('SYSTEM_AGENTS'),
                         Store::get('PROJECT_STACK'),
                         Store::get('WEB_GAP_ANALYSIS'),
                         Store::get('INDUSTRY_PATTERNS'),
@@ -234,36 +271,44 @@ class InitAgentsInclude extends IncludeArchetype
                     ),
                     Operator::task(
                         'Analyze domain expertise needed based on Project requirements',
-                        'Compare with existing agents',
+                        'Compare with existing PROJECT agents (NOT system agents)',
+                        'EXCLUDE any agent that overlaps with SYSTEM_AGENTS functionality',
                         'Cross-validate against industry best practices',
                         'Validate each proposed agent against INDUSTRY_PATTERNS',
                         'Assign confidence score (0-1) to each missing agent recommendation',
                         'Prioritize critical gaps with high industry alignment',
+                        'All new agents will use Master variation (NOT SystemMaster)',
                         Operator::if('search_mode === "targeted"', 'Validate $SEARCH_FILTER.agents against project needs'),
                         Operator::forEach('missing domain', WebSearchTool::describe('{domain} agent architecture {current_year}')),
                     ),
-                    Operator::output('{covered_domains: [...], missing_agents: [{name: \'AgentName\', purpose: \'...\', capabilities: [...], confidence: 0-1, industry_alignment: 0-1, priority: "critical|high|medium"}], industry_coverage_score: 0-1}'),
-                    Operator::note('Focus on critical domain gaps with high confidence and industry alignment'),
+                    Operator::output('{covered_domains: [...], missing_agents: [{name: \'AgentName\', purpose: \'...\', capabilities: [...], confidence: 0-1, industry_alignment: 0-1, priority: "critical|high|medium", variation: "Master"}], industry_coverage_score: 0-1}'),
+                    Operator::note('Focus on PROJECT agent gaps with high confidence and industry alignment'),
                 )
             )
             ->phase(Store::as('GAP_ANALYSIS'))
             ->phase('Filter: confidence >= 0.6, industry_alignment >= 0.6, priority != "low"')
+            ->phase('Validate: NO agent names match SYSTEM_AGENTS list')
             ->phase('Sort by: priority DESC, confidence DESC, industry_alignment DESC');
 
         // Phase 4.5: Validate Against Industry Standards (REMOVED - integrated into phase4)
         // This validation is now part of the AgentMaster delegation in phase4
         // AgentMaster can use WebSearchTool internally as part of its workflow
 
-        // Phase 5: PARALLEL Agent Generation (5 AgentMasters, 1-3 agents each)
+        // Phase 5: PARALLEL Project Agent Generation (5 AgentMasters, 1-3 agents each)
         $this->guideline('phase5-parallel-generation')
-            ->goal('Create missing agents via PARALLEL AgentMaster delegation. Max 5 concurrent AgentMasters.')
-            ->note('Created files must be valid PHP archetypes extending', AgentArchetype::class)
+            ->goal('Create missing PROJECT agents via PARALLEL AgentMaster delegation. Max 5 concurrent AgentMasters.')
+            ->note([
+                'Created agents are PROJECT agents using Master variation',
+                'Created files must be valid PHP archetypes extending ' . AgentArchetype::class,
+                'FORBIDDEN: Creating any agent that matches SYSTEM_AGENTS list',
+            ])
             ->example()
             ->phase('Step 1: Filter and batch agents')
             ->phase([
                 'Remove: existing agents, confidence < 0.6, priority === "low"',
+                'Remove: any agent matching SYSTEM_AGENTS names (AgentMaster, PromptMaster, etc.)',
                 'Keep: confidence >= 0.6 AND (priority === "critical" OR priority === "high")',
-                Store::as('FILTERED_AGENTS', '[...filtered list...]'),
+                Store::as('FILTERED_AGENTS', '[...filtered project agents only...]'),
             ])
             ->phase('Step 2: Batch into groups of 3 (max 5 batches = 15 agents)')
             ->phase([
@@ -277,24 +322,25 @@ class InitAgentsInclude extends IncludeArchetype
             ->phase('Step 4: PARALLEL delegation to 5 AgentMasters')
             ->phase([
                 'CRITICAL: Launch ALL 5 Task() calls in SINGLE message block',
-                'Each AgentMaster receives batch of 1-3 agents to configure',
+                'Each AgentMaster receives batch of 1-3 PROJECT agents to configure',
                 'AgentMasters work CONCURRENTLY, not sequentially',
+                'All agents use Master variation (for project agents)',
             ])
             ->phase(Operator::forEach('batch in $AGENT_BATCHES (PARALLEL)', [
                 AgentMaster::call(
                     Operator::input(
-                        'batch_agents = [{name, purpose, capabilities, confidence}, ...]',
+                        'batch_agents = [{name, purpose, capabilities, confidence, variation: "Master"}, ...]',
                         Store::get('INDUSTRY_PATTERNS'),
                         Store::get('TECH_PATTERNS'),
-                        Store::get('EXISTING_AGENTS'),
+                        Store::get('PROJECT_AGENTS'),
                     ),
                     Operator::task(
                         'FOREACH agent in batch_agents:',
                         '  1. Read created file: .brain/node/Agents/{agent.name}.php',
                         '  2. Update #[Purpose()] with detailed domain expertise',
-                        '  3. Add #[Includes()] from Universal + domain-specific',
-                        '  4. Define rules + guidelines in handle()',
-                        '  5. Follow AgentMaster/CommitMaster structure',
+                        '  3. Add #[Includes(Master::class)] for project agent variation',
+                        '  4. Add project-specific includes from ' . Runtime::NODE_DIRECTORY('Includes/'),
+                        '  5. Define rules + guidelines in handle()',
                         '  6. Use PHP API only (Runtime::, Operator::, Store::)',
                         'Return: {completed: [...], failed: [...]}',
                     ),
@@ -303,9 +349,9 @@ class InitAgentsInclude extends IncludeArchetype
             ]))
             ->phase('Step 5: Aggregate results from all AgentMasters')
             ->phase([
-                'Merge: all completed agents from 5 AgentMaster responses',
+                'Merge: all completed PROJECT agents from 5 AgentMaster responses',
                 'Collect: all failures for error report',
-                Store::as('GENERATION_SUMMARY', '{generated: [...], failed: [...], total: N}'),
+                Store::as('GENERATION_SUMMARY', '{generated: [...], failed: [...], total: N, variation: "Master"}'),
             ]);
 
         // Phase 6: Compile Agents
@@ -339,7 +385,8 @@ class InitAgentsInclude extends IncludeArchetype
         $this->guideline('response-format')
             ->text('Response structure')
             ->example('Header: Init Gap Analysis Complete | Mode: {search_mode}')
-            ->example('Agents Generated: {count} | Preserved: {existing}')
+            ->example('System Agents (protected): {system_count} | Variation: SystemMaster')
+            ->example('Project Agents Generated: {count} | Variation: Master')
             ->example('Quality: confidence={avg}, alignment={avg}')
             ->example('Performance: cache_hits={n}, parallel_batches={n}')
             ->phase(['Created:', Runtime::NODE_DIRECTORY('Agents/'),'| Compiled:', Runtime::AGENTS_FOLDER])
@@ -350,6 +397,7 @@ class InitAgentsInclude extends IncludeArchetype
             ->text('Graceful degradation')
             ->example('no .docs/ → Brain context only, continue')
             ->example('agent exists → skip, log preserved')
+            ->example('system agent suggested → skip, log "system agent protected"')
             ->example('make:master fails → skip agent, continue')
             ->example('compile fails → report errors, list failed')
             ->example('AgentMaster fails → skip batch, continue')
@@ -361,22 +409,26 @@ class InitAgentsInclude extends IncludeArchetype
         $this->guideline('quality-gates')
             ->text('Validation checkpoints')
             ->example('Gate 1-3: temporal context, cache check, list:masters')
-            ->example('Gate 4-5: web delegation, gap analysis output')
-            ->example('Gate 6-7: confidence >= 0.6, alignment >= 0.6')
-            ->example('Gate 8-9: make:master success, compile success')
-            ->example(['Gate 10:', Runtime::AGENTS_FOLDER, 'populated']);
+            ->example('Gate 4: system vs project agents separated')
+            ->example('Gate 5-6: web delegation, gap analysis output')
+            ->example('Gate 7: NO system agents in GAP_ANALYSIS.missing_agents')
+            ->example('Gate 8-9: confidence >= 0.6, alignment >= 0.6')
+            ->example('Gate 10-11: make:master success, compile success')
+            ->example(['Gate 12:', Runtime::AGENTS_FOLDER, 'populated with project agents']);
 
-        // Example: Parallel batch generation
+        // Example: Parallel batch generation (PROJECT AGENTS ONLY)
         $this->guideline('example-parallel-batch')
-            ->scenario('10 agents discovered → 4 batches → 4 parallel AgentMasters')
+            ->scenario('System: 8 protected (SystemMaster) | Project: 10 discovered → 4 batches → 4 parallel AgentMasters')
             ->example()
-            ->phase('gap', '10 missing agents: API, Cache, Queue, Auth, Payment, Report, Search, Export, Import, Sync')
+            ->phase('inventory', 'System agents (OFF LIMITS): AgentMaster, PromptMaster, CommitMaster, ExploreMaster, WebResearchMaster, DocumentationMaster, VectorMaster, ScriptMaster')
+            ->phase('gap', '10 missing PROJECT agents: API, Cache, Queue, Auth, Payment, Report, Search, Export, Import, Sync')
+            ->phase('variation', 'All new agents use Master variation (NOT SystemMaster)')
             ->phase('batch', 'batch_1=[API,Cache,Queue], batch_2=[Auth,Payment,Report], batch_3=[Search,Export], batch_4=[Import,Sync]')
             ->phase('parallel', 'Launch 4 Task(@agent-agent-master) in SINGLE message')
-            ->phase('result', 'All 10 agents created in ~1 AgentMaster cycle instead of 10');
+            ->phase('result', 'All 10 PROJECT agents created with Master variation in ~1 AgentMaster cycle');
 
         // Directive
         $this->guideline('directive')
-            ->text('DELEGATE ALL generation to AgentMaster! PARALLEL batches (max 5)! brain make:master ONLY! Cache patterns! Report metrics! Compile!');
+            ->text('PROJECT agents ONLY! Master variation! NEVER touch system agents! DELEGATE to AgentMaster! PARALLEL batches! brain make:master! Compile!');
     }
 }
