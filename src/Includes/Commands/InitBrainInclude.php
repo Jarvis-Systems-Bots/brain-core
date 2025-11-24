@@ -16,6 +16,7 @@ use BrainCore\Compilation\Tools\WebSearchTool;
 use BrainNode\Agents\AgentMaster;
 use BrainNode\Agents\DocumentationMaster;
 use BrainNode\Agents\ExploreMaster;
+use BrainNode\Agents\PromptMaster;
 use BrainNode\Agents\WebResearchMaster;
 use BrainNode\Mcp\VectorMemoryMcp;
 
@@ -232,14 +233,14 @@ class InitBrainInclude extends IncludeArchetype
             ->phase(Store::as('INCLUDES_RECOMMENDATION'));
 
         // =====================================================
-        // PHASE 6: CUSTOM GUIDELINES GENERATION
+        // PHASE 6: CUSTOM GUIDELINES GENERATION (PromptMaster)
         // =====================================================
 
         $this->guideline('phase6-custom-guidelines')
-            ->goal('Generate project-specific custom guidelines for Brain.php')
+            ->goal('Generate project-specific custom guidelines for Brain.php using PromptMaster')
             ->example()
             ->phase(
-                AgentMaster::call(
+                PromptMaster::call(
                     Operator::input(
                         Store::get('PROJECT_CONTEXT'),
                         Store::get('DOCS_ANALYSIS'),
@@ -248,10 +249,11 @@ class InitBrainInclude extends IncludeArchetype
                     ),
                     Operator::task([
                         'Identify project-specific patterns requiring custom guidelines',
-                        'Generate guidelines using Builder API syntax',
+                        'Generate guidelines using Builder API syntax ($this->guideline(), $this->rule())',
+                        'Apply prompt engineering: clarity, specificity, brevity, actionability',
                         'Focus on: coding standards, architectural rules, domain logic',
                         'Ensure guidelines are actionable and verifiable',
-                        'Format as PHP Builder API code ready for Brain.php',
+                        'Format as PHP Builder API code ready for Brain.php handle() method',
                     ]),
                     Operator::output('{custom_guidelines: [{id: "...", type: "rule|guideline", code: "..."}], rationale: {...}}'),
                 )
@@ -259,11 +261,11 @@ class InitBrainInclude extends IncludeArchetype
             ->phase(Store::as('CUSTOM_GUIDELINES'));
 
         // =====================================================
-        // PHASE 7: BRAIN.PHP GENERATION
+        // PHASE 7: BRAIN.PHP GENERATION (PromptMaster)
         // =====================================================
 
         $this->guideline('phase7-brain-generation')
-            ->goal('Generate optimized Brain.php configuration file')
+            ->goal('Generate optimized Brain.php configuration file using PromptMaster')
             ->example()
             ->phase('Backup existing Brain.php')
             ->phase(
@@ -274,7 +276,7 @@ class InitBrainInclude extends IncludeArchetype
             )
             ->phase('Generate new Brain.php content')
             ->phase(
-                AgentMaster::call(
+                PromptMaster::call(
                     Operator::input(
                         Store::get('CURRENT_BRAIN_CONFIG'),
                         Store::get('INCLUDES_RECOMMENDATION'),
@@ -283,12 +285,12 @@ class InitBrainInclude extends IncludeArchetype
                     ),
                     Operator::task([
                         'Generate complete Brain.php file using Builder API',
-                        'Include all essential includes from recommendation',
-                        'Add recommended includes with comments',
+                        'Include all essential includes from recommendation (#[Includes(...)])',
+                        'Add recommended includes with comments explaining rationale',
                         'Integrate custom guidelines into handle() method',
+                        'Apply prompt engineering: clarity, brevity, token efficiency',
                         'Maintain proper PHP structure and namespaces',
-                        'Follow existing Brain.php formatting conventions',
-                        'Add comprehensive documentation comments',
+                        'Follow Brain.php structure: includes (if exists) → rules → guidelines → style → response',
                     ]),
                     Operator::output('{brain_php_content: "...", changes_summary: {...}}'),
                 )
