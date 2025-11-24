@@ -8,6 +8,7 @@ use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
 use BrainCore\Compilation\BrainCLI;
 use BrainCore\Compilation\Operator;
+use BrainCore\Compilation\Runtime;
 use BrainCore\Compilation\Store;
 use BrainCore\Compilation\Tools\BashTool;
 use BrainNode\Agents\DocumentationMaster;
@@ -45,6 +46,11 @@ class InitVectorInclude extends IncludeArchetype
             ->why('Batch initialization workflow')
             ->onViolation('Proceed autonomously');
 
+        $this->rule('exclude-brain-directory')->critical()
+            ->text('NEVER scan ' . Runtime::BRAIN_DIRECTORY . ' - Brain system internals, not project code')
+            ->why('Brain config files pollute vector memory with irrelevant system data')
+            ->onViolation('Skip ' . Runtime::BRAIN_DIRECTORY . ' in structure discovery and all exploration phases');
+
         // Phase 1: Memory Status Check
         $this->guideline('phase1-status')
             ->goal('Check memory state, determine fresh vs augment mode')
@@ -62,6 +68,7 @@ class InitVectorInclude extends IncludeArchetype
                     Operator::task([
                         'QUICK SCAN ONLY - identify directories, not deep analysis',
                         'Glob("*") → list root directories',
+                        'EXCLUDE: ' . Runtime::BRAIN_DIRECTORY . ', vendor/, node_modules/, .git/',
                         'Classify: code(src/app), tests, config, docs(.docs), build, deps',
                         'Output JSON: {areas: [{path, type, priority}]}',
                     ]),
