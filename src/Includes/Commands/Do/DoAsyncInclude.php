@@ -24,6 +24,12 @@ class DoAsyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // ABSOLUTE FIRST - BLOCKING ENTRY RULE
+        $this->rule('entry-point-blocking')->critical()
+            ->text('ON RECEIVING $ARGUMENTS: Your FIRST output MUST be "=== DO:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
+            ->why('Without explicit entry point, Brain skips workflow and executes directly. Entry point forces workflow compliance.')
+            ->onViolation('STOP IMMEDIATELY. Delete any tool calls. Output "=== DO:ASYNC ACTIVATED ===" and restart from Phase 0.');
+
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
             ->text('ZERO distractions - implement ONLY specified task from $ARGUMENTS. NO creative additions, NO unapproved features, NO scope creep.')
