@@ -65,6 +65,16 @@ class DoAsyncInclude extends IncludeArchetype
             ->why('Vector tasks have structured workflow with status tracking. Ignoring statuses breaks task management.')
             ->onViolation('STOP. Fetch vector task first. Follow task lifecycle: start → execute → finish.');
 
+        $this->rule('full-workflow-mandatory')->critical()
+            ->text('ALL requests (vector task OR plain description) MUST follow complete workflow: Phase 0 (Context) → Phase 1 (Discovery) → Phase 2 (Requirements + APPROVAL) → Phase 3 (Gathering) → Phase 4 (Planning + APPROVAL) → Phase 5 (Execution via agents) → Phase 6 (Completion). NEVER skip phases. NEVER execute directly without agent delegation.')
+            ->why('Workflow ensures quality, user control, and proper orchestration. Skipping phases leads to poor results, missed context, and violated user trust.')
+            ->onViolation('STOP. Return to Phase 0. Follow workflow sequentially. Present approval gates. Delegate via Task().');
+
+        $this->rule('never-execute-directly')->critical()
+            ->text('Brain NEVER executes implementation tasks directly. For ANY $ARGUMENTS (vector task or plain text): MUST delegate to agents via Task(). Brain only: analyzes, plans, presents approvals, delegates, validates results.')
+            ->why('Direct execution violates orchestration model, bypasses agent expertise, wastes Brain tokens on execution instead of coordination.')
+            ->onViolation('STOP. Identify required agent from brain list:masters. Delegate via Task(@agent-name, task).');
+
         // Anti-Improvisation: Strict Tool Prohibition
         $this->rule('no-direct-file-tools')->critical()
             ->text('FORBIDDEN: Brain NEVER calls Glob, Grep, Read, Edit, Write directly. ALL file operations MUST be delegated to agents via Task().')
