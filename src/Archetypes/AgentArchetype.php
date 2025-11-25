@@ -37,6 +37,20 @@ abstract class AgentArchetype extends ArchetypeArchitecture
     }
 
     /**
+     * Init architecture.
+     *
+     * @return void
+     */
+    protected function init(): void
+    {
+        $agent = $this->var('AGENT', 'claude');
+        $upperCaseAgent = strtoupper($agent);
+        $varName = $upperCaseAgent . '_MASTER_MODEL';
+        $model = $this->var($varName, 'opus');
+        $this->setMeta('model', $model);
+    }
+
+    /**
      * Print task representation.
      *
      * @param  non-empty-string  ...$text

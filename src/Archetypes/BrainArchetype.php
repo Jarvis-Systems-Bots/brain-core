@@ -34,4 +34,17 @@ abstract class BrainArchetype extends ArchetypeArchitecture
     {
         return 'system';
     }
+
+    /**
+     * Init architecture.
+     *
+     * @return void
+     */
+    protected function init(): void
+    {
+        $agent = $this->var('AGENT_CONST', 'CLAUDE');
+        $varName = $agent . '_BRAIN_MODEL';
+        $model = $this->var($varName, 'opus');
+        $this->setMeta('model', $model);
+    }
 }

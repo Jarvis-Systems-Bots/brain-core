@@ -42,6 +42,7 @@ abstract class ArchetypeArchitecture extends ArchitectureAbstract
     ) {
         if (!isset(self::$eventListenersRegistered[static::class])) {
             static::on('created', function () {
+                $this->init();
                 if (method_exists($this, 'extractAttributes')) {
                     $this->extractAttributes();
                 }
@@ -49,6 +50,16 @@ abstract class ArchetypeArchitecture extends ArchitectureAbstract
             });
             self::$eventListenersRegistered[static::class] = true;
         }
+    }
+
+    /**
+     * Init architecture.
+     *
+     * @return void
+     */
+    protected function init(): void
+    {
+
     }
 
     /**
