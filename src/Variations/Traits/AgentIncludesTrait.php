@@ -47,5 +47,9 @@ trait AgentIncludesTrait
         if (class_exists('BrainNode\\Common')) {
             $this->include('BrainNode\\Common');                    // Common node utilities
         }
+
+        if (class_exists('BrainNode\\Master')) {
+            $this->include('BrainNode\\Master');                    // Node for agent-specific logic
+        }
     }
 }
