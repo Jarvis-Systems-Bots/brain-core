@@ -31,9 +31,9 @@ class TaskCreateInclude extends IncludeArchetype
 
         // Iron Rules
         $this->rule('analyze-arguments')->critical()
-            ->text('MUST analyze $ARGUMENTS thoroughly before creating any task')
+            ->text('MUST analyze an input task thoroughly before creating any task')
             ->why('User description requires deep understanding to create accurate task specification')
-            ->onViolation('Parse and analyze $ARGUMENTS first, extract scope, requirements, and context');
+            ->onViolation('Parse and analyze an input task first, extract scope, requirements, and context');
 
         $this->rule('search-memory-first')->critical()
             ->text('MUST search vector memory for similar past work before analysis')
@@ -72,12 +72,16 @@ class TaskCreateInclude extends IncludeArchetype
 
         // Workflow Step 0 - Parse Arguments
         $this->guideline('workflow-step0')
-            ->text('STEP 0 - Parse and Understand $ARGUMENTS')
+            ->text('STEP 0 - Parse an input task and Understand')
             ->example()
+            ->phase('parse', Operator::task('$ARGUMENTS'))
             ->phase('action-1', 'Extract: primary objective, scope, requirements from user description')
             ->phase('action-2', 'Identify: implicit constraints, technical domain, affected areas')
             ->phase('action-3', 'Determine: task type (feature, bugfix, refactor, research, docs)')
-            ->phase('output', Store::as('TASK_SCOPE', 'parsed objective, domain, requirements, type'));
+            ->phase()->name('output')->do(
+                Store::as('TASK_SCOPE', 'parsed objective, domain, requirements, type'),
+                Store::as('TASK_TEXT', 'full original user description from phase parse')
+            );
 
         // Workflow Step 1 - Search Existing Tasks (MANDATORY)
         $this->guideline('workflow-step1')
@@ -247,7 +251,7 @@ class TaskCreateInclude extends IncludeArchetype
         // Quality Gates
         $this->guideline('quality-gates')
             ->text('ALL checkpoints MUST pass before task creation')
-            ->example('Step 0: $ARGUMENTS fully parsed - objective, domain, type extracted')
+            ->example('Step 0: ' . Store::get('TASK_TEXT') . ' fully parsed - objective, domain, type extracted')
             ->example('Step 1: Existing tasks searched - duplicates checked, dependencies identified')
             ->example('Step 2: Vector memory searched - code-solution, architecture, bug-fix, learning categories')
             ->example('Step 3: Codebase explored (if code-related) - relevant files, patterns, dependencies found')
