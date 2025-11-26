@@ -18,20 +18,12 @@ abstract class ArchitectureAbstract extends Dto
      */
     public function var(string $name, mixed $default = null): mixed
     {
-        if (($env = getenv(strtoupper($name))) !== false) {
-            return $env;
+        if (Brain::hasEnv($name)) {
+            return Brain::getEnv($name);
         }
 
         return Brain::getVariable($name, function () use ($name, $default) {
-            $defaultClosure = function ($name) use ($default) {
-                $defaultMethod = $name . "_default";
-                if (method_exists($this, $defaultMethod)) {
-                    return call_user_func([$this, $defaultMethod], $default);
-                }
-                return $default;
-            };
-
-            $value = $this->getMeta($name, $defaultClosure);
+            $value = $this->getMeta($name, $default);
 
             if (method_exists($this, $name)) {
                 return call_user_func([$this, $name], $value);
@@ -39,6 +31,24 @@ abstract class ArchitectureAbstract extends Dto
 
             return $value;
         });
+    }
+
+    public function varIs(string $name, mixed $value, bool $strinct = true): bool
+    {
+        if ($strinct) {
+            return $this->var($name) === $value;
+        }
+        return $this->var($name) == $value;
+    }
+
+    public function varIsPositive(string $name): bool
+    {
+        return $this->varIs($name, true, false);
+    }
+
+    public function varIsNegative(string $name): bool
+    {
+        return ! $this->varIsPositive($name);
     }
 
     /**

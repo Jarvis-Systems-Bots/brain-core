@@ -51,6 +51,7 @@ trait BrainIncludesTrait
     {
         $localFile = Brain::basePath(['node', 'Brain.php']);
         $brainFile = Brain::basePath([$this->var('BRAIN_DIRECTORY'), 'node', 'Brain.php']);
-        return is_file($localFile) && is_file($brainFile);
+        return (is_file($localFile) && is_file($brainFile))
+            || $this->varIsPositive('SELF_DEV_MODE');
     }
 }

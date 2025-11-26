@@ -93,6 +93,44 @@ class CompilationSystemKnowledgeInclude extends IncludeArchetype
             ->example('BrainNode\\Includes\\{Name} - Include classes')->key('includes');
 
         // ═══════════════════════════════════════════════════════════════════
+        // COMPILE-TIME VARIABLES SYSTEM
+        // ═══════════════════════════════════════════════════════════════════
+
+        $this->guideline('var-system')
+            ->text('Variable system for centralized configuration across archetypes. Resolution chain: ENV → Runtime → Meta → Method hook.')
+            ->example('$this->var("name", $default) - Get variable with fallback chain')->key('get')
+            ->example('$this->varIs("name", $value, $strict) - Compare variable to value')->key('compare')
+            ->example('$this->varIsPositive("name") - Check if truthy (true, 1, "1", "true")')->key('positive')
+            ->example('$this->varIsNegative("name") - Check if falsy')->key('negative');
+
+        $this->guideline('var-resolution')
+            ->text('Variable resolution order (first match wins).')
+            ->example()
+                ->phase('1-env', Runtime::BRAIN_DIRECTORY('.env') . ' - Environment file (UPPER_CASE names)')
+                ->phase('2-runtime', 'Brain::setVariable() - Compiler runtime variables')
+                ->phase('3-meta', '#[Meta("name", "value")] - Class attribute')
+                ->phase('4-method', 'Local method hook - transforms/provides fallback value');
+
+        $this->guideline('var-env')
+            ->text('Environment variables in ' . Runtime::BRAIN_DIRECTORY('.env') . ' file.')
+            ->example('Names auto-converted to UPPER_CASE: var("my_var") → reads MY_VAR')->key('case')
+            ->example('Type casting: "true"/"false" → bool, "123" → int, "1.5" → float')->key('types')
+            ->example('JSON arrays: "[1,2,3]" or "{\"a\":1}" → parsed arrays')->key('json')
+            ->example(BrainCLI::COMPILE . ' --show-variables - View all runtime variables')->key('cli');
+
+        $this->guideline('var-method-hook')
+            ->text('Local method as variable hook/transformer. Method name = lowercase variable name.')
+            ->example('protected function my_var(mixed $value): mixed { return $value ?? "fallback"; }')->key('signature')
+            ->example('Hook receives: meta value or default → returns final value')->key('flow')
+            ->example('Use case: conditional logic, computed values, complex fallbacks')->key('use');
+
+        $this->guideline('var-usage')
+            ->text('Common variable usage patterns.')
+            ->example('Conditional: if ($this->varIsPositive("feature_x")) { ... }')->key('conditional')
+            ->example('Value: $model = $this->var("default_model", "sonnet")')->key('value')
+            ->example('Centralize: Define once in .env, use across all agents/commands')->key('centralize');
+
+        // ═══════════════════════════════════════════════════════════════════
         // PHP API REFERENCE - VERIFIED FROM SOURCE
         // ═══════════════════════════════════════════════════════════════════
 

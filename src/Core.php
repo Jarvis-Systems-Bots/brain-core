@@ -60,7 +60,8 @@ class Core
      */
     public function getVariable(string $name, mixed $default = null): mixed
     {
-        return $this->variables[$name] ?? value($default);
+        return $this->variables[$name]
+            ?? ($this->variables[strtoupper($name)] ?? value($default));
     }
 
     public function mergeVariables(array ...$arrays): void
@@ -85,5 +86,47 @@ class Core
     public function getVariables(): array
     {
         return $this->variables;
+    }
+
+    public function isDebug(): bool
+    {
+        return !! $this->getEnv('BRAIN_CORE_DEBUG')
+            || !! $this->getEnv('DEBUG');
+    }
+
+    public function hasEnv(string $name): bool
+    {
+        return getenv(strtoupper($name)) !== false;
+    }
+
+    public function getEnv(string $name): mixed
+    {
+        $name = strtoupper($name);
+        $value = getenv($name);
+        if ($value === false) {
+            return null;
+        }
+        if ($value === 'null') {
+            return null;
+        }
+        if (is_numeric($value)) {
+            if (str_contains($value, '.')) {
+                return (float) $value;
+            }
+            return (int) $value;
+        }
+        if (in_array(strtolower($value), ['true', 'false'], true)) {
+            return filter_var($value, FILTER_VALIDATE_BOOL);
+        }
+        if (
+            (str_starts_with($value, '[') && str_ends_with($value, ']'))
+            || (str_starts_with($value, '{') && str_ends_with($value, '}'))
+        ) {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return $value;
     }
 }
