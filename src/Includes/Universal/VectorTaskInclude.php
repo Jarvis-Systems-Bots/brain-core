@@ -158,5 +158,10 @@ class VectorTaskInclude extends IncludeArchetype
             ->text('EVERY task MUST have estimate in hours. No task without estimate.')
             ->why('Estimates enable planning, prioritization, progress tracking, and decomposition decisions.')
             ->onViolation('Add estimate parameter: ' . VectorTaskMcp::call('task_update', '{task_id, estimate: hours}') . '. Leaf tasks ≤4h, parent tasks = sum of children.');
+
+        $this->rule('order-siblings')->high()
+            ->text('Sibling tasks (same parent_id) SHOULD have explicit order for execution sequence.')
+            ->why('Order defines execution priority within same level. Prevents ambiguity in task selection.')
+            ->onViolation('Set order parameter: ' . VectorTaskMcp::call('task_update', '{task_id, order: N}') . '. Sequential: 1, 2, 3. Parallel: same order.');
     }
 }
