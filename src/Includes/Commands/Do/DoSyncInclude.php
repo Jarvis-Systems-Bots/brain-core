@@ -164,7 +164,7 @@ class DoSyncInclude extends IncludeArchetype
             ->goal('Execute plan directly using Brain tools - no delegation')
             ->example()
             ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_start', '{task_id: $VECTOR_TASK_ID}'),
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress"}'),
                 Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started']),
             ]))
             ->phase(Operator::forEach('step in $PLAN', [
@@ -196,11 +196,11 @@ class DoSyncInclude extends IncludeArchetype
             ->phase(Store::as('SUMMARY', '{completed_steps, files_modified, outcome}'))
             ->phase(VectorMemoryMcp::call('store_memory', '{content: "Completed: {$TASK}\n\nApproach: {steps}\n\nFiles: {list}\n\nLearnings: {insights}", category: "code-solution", tags: ["do:sync", "completed"]}'))
             ->phase(Operator::if('$IS_VECTOR_TASK === true AND status === SUCCESS', [
-                VectorTaskMcp::call('task_finish', '{task_id: $VECTOR_TASK_ID}'),
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed"}'),
                 Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} completed ✓']),
             ]))
             ->phase(Operator::if('$IS_VECTOR_TASK === true AND status === PARTIAL', [
-                VectorTaskMcp::call('task_comment', '{task_id: $VECTOR_TASK_ID, comment: "Partial completion: {completed}/{total} steps. Remaining: {list}", append: true}'),
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, comment: "Partial completion: {completed}/{total} steps. Remaining: {list}", append_comment: true}'),
                 Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} progress saved (partial)']),
             ]))
             ->phase(Operator::output([

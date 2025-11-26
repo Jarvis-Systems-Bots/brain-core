@@ -60,6 +60,11 @@ class TaskCreateInclude extends IncludeArchetype
             ->why('Task creation and task execution are separate concerns. User decides when to execute via /task:next or /do commands.')
             ->onViolation('STOP immediately. Return created task ID and let user decide next action.');
 
+        $this->rule('comment-with-context')->critical()
+            ->text('MUST add initial comment with useful links: memory IDs from research, relevant file paths from codebase exploration, related task IDs.')
+            ->why('Comments preserve critical context for future execution. Without links, executor loses valuable research done during creation.')
+            ->onViolation('Add comment with: Memory refs (IDs from PRIOR_WORK), File refs (paths from CODEBASE_CONTEXT), Related tasks (from EXISTING_TASKS).');
+
         $this->rule('deep-research-mandatory')->critical()
             ->text('MUST perform comprehensive research BEFORE formulating task: existing tasks, vector memory, codebase (if code-related), documentation.')
             ->why('Quality task creation requires full context. Skipping research leads to duplicate tasks, missed dependencies, and poor estimates.')
@@ -156,14 +161,21 @@ class TaskCreateInclude extends IncludeArchetype
 
         // Workflow Step 6 - Formulate Task Specification
         $this->guideline('workflow-step6')
-            ->text('STEP 6 - Formulate Task Specification')
+            ->text('STEP 6 - Formulate Task Specification with Context Links')
             ->example()
             ->phase('title', 'Create concise title (max 10 words) capturing objective')
             ->phase('content', 'Write detailed description with: objective, context, acceptance criteria, implementation hints')
             ->phase('priority', 'Assign: critical | high | medium | low')
             ->phase('tags', 'Add relevant tags: [category, domain, stack]')
             ->phase('estimate', 'Set time estimate in hours')
-            ->phase('output', Store::as('TASK_SPEC', '{title, content, priority, tags, estimate}'));
+            ->phase('comment', Operator::do(
+                'Build initial comment with research context:',
+                '- Memory refs: list memory IDs from ' . Store::get('PRIOR_WORK') . ' (format: "Related memories: #ID1, #ID2")',
+                '- File refs: list key file paths from ' . Store::get('CODEBASE_CONTEXT') . ' (format: "Key files: path1, path2")',
+                '- Task refs: list related task IDs from ' . Store::get('EXISTING_TASKS') . ' (format: "Related tasks: #ID1, #ID2")',
+                '- Doc refs: list doc paths from ' . Store::get('DOC_CONTEXT') . ' if available'
+            ))
+            ->phase('output', Store::as('TASK_SPEC', '{title, content, priority, tags, estimate, comment}'));
 
         // Workflow Step 7 - Present for Approval (MANDATORY)
         $this->guideline('workflow-step7')
@@ -188,15 +200,16 @@ class TaskCreateInclude extends IncludeArchetype
                 'Wait for explicit approval. Allow modifications if requested.'
             ));
 
-        // Workflow Step 8 - Create Task
+        // Workflow Step 8 - Create Task with Context Comment
         $this->guideline('workflow-step8')
-            ->text('STEP 8 - Create Task After Approval')
+            ->text('STEP 8 - Create Task After Approval (with context links in comment)')
             ->example()
             ->phase('create', VectorTaskMcp::call('task_create', '{
                     title: "' . Store::get('TASK_SPEC') . '.title",
                     content: "' . Store::get('TASK_SPEC') . '.content",
                     priority: "' . Store::get('TASK_SPEC') . '.priority",
-                    tags: ' . Store::get('TASK_SPEC') . '.tags
+                    tags: ' . Store::get('TASK_SPEC') . '.tags,
+                    comment: "' . Store::get('TASK_SPEC') . '.comment"
                 }'))
             ->phase('capture', Store::as('CREATED_TASK_ID', 'task ID from response'));
 
@@ -257,8 +270,18 @@ class TaskCreateInclude extends IncludeArchetype
             ->example('Step 3: Codebase explored (if code-related) - relevant files, patterns, dependencies found')
             ->example('Step 4: Documentation reviewed (if architecture/API) - specs, decisions documented')
             ->example('Step 5: Sequential thinking analysis completed - complexity, estimate, priority determined')
-            ->example('Step 6: Task spec complete - title, content, priority, tags, estimate')
+            ->example('Step 6: Task spec complete - title, content, priority, tags, estimate, comment with context links')
             ->example('Step 7: User approval explicitly received - YES/APPROVE/CONFIRM')
+            ->example('Step 8: Task created with comment containing memory IDs, file paths, related task IDs')
             ->example('Step 9: STOP after creation - do NOT execute task');
+
+        // Comment Format Guidelines
+        $this->guideline('comment-format')
+            ->text('Initial task comment structure for context preservation')
+            ->example('Related memories: #42, #58, #73 (insights about {domain})')->key('memory-refs')
+            ->example('Key files: src/Services/Auth.php:45, app/Models/User.php')->key('file-refs')
+            ->example('Related tasks: #12 (blocked-by), #15 (related)')->key('task-refs')
+            ->example('Docs: .docs/architecture/auth-flow.md')->key('doc-refs')
+            ->example('Notes: {any critical insights from research}')->key('notes');
     }
 }
