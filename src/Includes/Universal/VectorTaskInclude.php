@@ -153,5 +153,10 @@ class VectorTaskInclude extends IncludeArchetype
             ->text('Vector memory is PRIMARY storage. Task comments for CRITICAL context links only.')
             ->why('Memory is searchable, persistent, shared. Comments are task-local. Duplication wastes space.')
             ->onViolation('Move detailed content to memory. Keep only IDs/paths/references in comments.');
+
+        $this->rule('estimate-required')->critical()
+            ->text('EVERY task MUST have estimate in hours. No task without estimate.')
+            ->why('Estimates enable planning, prioritization, progress tracking, and decomposition decisions.')
+            ->onViolation('Add estimate parameter: ' . VectorTaskMcp::call('task_update', '{task_id, estimate: hours}') . '. Leaf tasks ≤4h, parent tasks = sum of children.');
     }
 }
