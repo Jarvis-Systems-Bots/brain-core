@@ -96,6 +96,16 @@ class InitBrainInclude extends IncludeArchetype
             ->why('Clear categorization ensures each file serves its specific purpose without overlap')
             ->onViolation('Miscategorized rule leads to missing context or unnecessary duplication');
 
+        $this->rule('incremental-enhancement')->critical()
+            ->text([
+                'ALWAYS analyze existing file content BEFORE enhancement',
+                'If file has rules/guidelines - PRESERVE valuable existing, ADD only missing',
+                'NEVER blindly overwrite populated files - merge intelligently',
+                'Compare discovered patterns with existing config to find gaps',
+            ])
+            ->why('Preserves manual customizations and avoids losing valuable existing configuration')
+            ->onViolation('Valuable existing configuration lost, manual work discarded');
+
         // =====================================================
         // PHASE 1: TEMPORAL CONTEXT INITIALIZATION
         // =====================================================
@@ -172,15 +182,22 @@ class InitBrainInclude extends IncludeArchetype
                         Operator::context('Architecture pattern discovery')
                     ),
 
-                    // Task 2.4: Existing Brain Configuration Analysis
+                    // Task 2.4: Existing Configuration Analysis (ALL files in parallel)
                     ExploreMaster::call(
                         Operator::task([
                             ReadTool::call(Runtime::NODE_DIRECTORY('Brain.php')),
-                            'Extract current includes and configuration',
-                            'Identify what is already configured',
-                            Store::as('CURRENT_BRAIN_CONFIG', '{includes: [...], custom_rules: [...], custom_guidelines: [...]}'),
+                            ReadTool::call(Runtime::NODE_DIRECTORY('Common.php')),
+                            ReadTool::call(Runtime::NODE_DIRECTORY('Master.php')),
+                            'For EACH file analyze handle() method content:',
+                            '  - Extract existing $this->rule() definitions (id, severity, text)',
+                            '  - Extract existing $this->guideline() definitions (id, phases, examples)',
+                            '  - Identify custom logic and project-specific patterns',
+                            '  - Mark as POPULATED if handle() has meaningful content beyond skeleton',
+                            Store::as('CURRENT_BRAIN_CONFIG', '{includes: [...], rules: [...], guidelines: [...], is_populated: bool}'),
+                            Store::as('CURRENT_COMMON_CONFIG', '{rules: [...], guidelines: [...], is_populated: bool}'),
+                            Store::as('CURRENT_MASTER_CONFIG', '{rules: [...], guidelines: [...], is_populated: bool}'),
                         ]),
-                        Operator::context('Current Brain configuration analysis')
+                        Operator::context('Existing configuration analysis for incremental enhancement')
                     ),
                 ])
             )
@@ -279,6 +296,92 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
+        // PHASE 3.5: VECTOR MEMORY CRITICAL INSIGHTS MINING
+        // =====================================================
+
+        $this->guideline('phase3-5-vector-memory-mining')
+            ->goal('Extract CRITICAL accumulated knowledge from vector memory that MUST be in instructions')
+            ->note([
+                'Vector memory may contain crucial insights discovered over time',
+                'NOT everything - only HIGH-VALUE knowledge that cannot be found via normal search',
+                'Focus: architectural decisions, gotchas, patterns that prevent repeated mistakes',
+            ])
+            ->example()
+            ->phase()
+            ->name('parallel-vector-mining')
+            ->do(
+                Operator::task([
+                    // Mining 1: Architecture Decisions & Constraints
+                    VectorMemoryMcp::call('search_memories', Operator::input(
+                        'query: "architecture decision critical constraint must always never"',
+                        'category: "architecture"',
+                        'limit: 10',
+                    )),
+                    Store::as('ARCH_DECISIONS'),
+
+                    // Mining 2: Critical Bug Fixes & Gotchas
+                    VectorMemoryMcp::call('search_memories', Operator::input(
+                        'query: "critical bug gotcha always remember never forget important"',
+                        'category: "bug-fix"',
+                        'limit: 10',
+                    )),
+                    Store::as('CRITICAL_GOTCHAS'),
+
+                    // Mining 3: Project-Specific Patterns
+                    VectorMemoryMcp::call('search_memories', Operator::input(
+                        'query: "project pattern convention always use must follow"',
+                        'category: "code-solution"',
+                        'limit: 10',
+                    )),
+                    Store::as('PROJECT_PATTERNS'),
+
+                    // Mining 4: Lessons Learned
+                    VectorMemoryMcp::call('search_memories', Operator::input(
+                        'query: "lesson learned important insight discovery realization"',
+                        'category: "learning"',
+                        'limit: 10',
+                    )),
+                    Store::as('LESSONS_LEARNED'),
+                ])
+            )
+            ->phase(
+                AgentMaster::call(
+                    Operator::input(
+                        Store::get('ARCH_DECISIONS'),
+                        Store::get('CRITICAL_GOTCHAS'),
+                        Store::get('PROJECT_PATTERNS'),
+                        Store::get('LESSONS_LEARNED'),
+                    ),
+                    Operator::task([
+                        'Analyze ALL mined vector memory insights',
+                        'FILTER: Keep ONLY insights meeting CRITICAL criteria:',
+                        '  - Would cause significant issues if forgotten',
+                        '  - Cannot be easily discovered via normal search',
+                        '  - Represents hard-won knowledge or painful lessons',
+                        '  - Applies broadly across multiple tasks/agents',
+                        '',
+                        'EXCLUDE:',
+                        '  - Generic information easily searchable',
+                        '  - One-time fixes without broader applicability',
+                        '  - Outdated or superseded knowledge',
+                        '  - Already covered by standard includes',
+                        '',
+                        'CATEGORIZE filtered insights for distribution:',
+                        '  - COMMON: Universal constraints (all components need)',
+                        '  - MASTER: Agent execution patterns (agents need)',
+                        '  - BRAIN: Orchestration insights (Brain needs)',
+                        '',
+                        'Generate concise rule/guideline code for each critical insight',
+                    ]),
+                    Operator::output('{critical_common: [...], critical_master: [...], critical_brain: [...], filtered_count: N, reason: {...}}'),
+                )
+            )
+            ->phase(Store::as('VECTOR_CRITICAL_INSIGHTS'))
+            ->phase(
+                Operator::note('Critical vector insights will be merged into DISTRIBUTED_GUIDELINES in Phase 6')
+            );
+
+        // =====================================================
         // PHASE 4: BEST PRACTICES RESEARCH (PARALLEL)
         // =====================================================
 
@@ -367,10 +470,12 @@ class InitBrainInclude extends IncludeArchetype
                         Store::get('DOCS_ANALYSIS'),
                         Store::get('BEST_PRACTICES'),
                         Store::get('ARCHITECTURE_PATTERNS'),
+                        Store::get('VECTOR_CRITICAL_INSIGHTS'),
                     ),
                     Operator::task([
-                        'Analyze ALL discovered project patterns and rules',
-                        'CATEGORIZE each rule into exactly ONE target file:',
+                        'Analyze ALL discovered project patterns, rules, AND critical vector insights',
+                        'MERGE VECTOR_CRITICAL_INSIGHTS into distribution (already categorized)',
+                        'CATEGORIZE remaining rules into exactly ONE target file:',
                         '',
                         'COMMON.PHP (Brain + ALL Agents):',
                         '  - Docker/container environment rules (ports, services, networks)',
@@ -435,16 +540,24 @@ class InitBrainInclude extends IncludeArchetype
                     ),
                     Operator::task([
                         'PRESERVE existing class structure, namespace, and extends IncludeArchetype',
-                        'ADD project-specific rules to handle() method from DISTRIBUTED_GUIDELINES.common',
+                        Operator::if('CURRENT_COMMON_CONFIG.is_populated', [
+                            'MERGE MODE: File has existing content',
+                            '  - KEEP all existing rules/guidelines that are still relevant',
+                            '  - UPDATE rules if new discovery provides better info (same id, improved text)',
+                            '  - ADD only NEW rules/guidelines not already present',
+                            '  - REMOVE nothing unless explicitly obsolete',
+                            '  - Compare rule IDs to avoid duplicates',
+                        ], [
+                            'FRESH MODE: File is empty/skeleton - add all discovered rules',
+                        ]),
                         'Focus on environment and universal rules:',
                         '  - Docker/container configuration awareness',
                         '  - Tech stack version constraints',
                         '  - Universal coding conventions',
                         '  - Shared infrastructure knowledge',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
-                        'Use $this->rule() for hard constraints, $this->guideline() for patterns',
                     ]),
-                    Operator::output('{common_php_content: "...", rules_added: [...], guidelines_added: [...]}'),
+                    Operator::output('{common_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...]}'),
                 )
             )
             ->phase('Write enhanced Common.php')
@@ -485,7 +598,16 @@ class InitBrainInclude extends IncludeArchetype
                     ),
                     Operator::task([
                         'PRESERVE existing class structure, namespace, and extends IncludeArchetype',
-                        'ADD agent-specific rules to handle() method from DISTRIBUTED_GUIDELINES.master',
+                        Operator::if('CURRENT_MASTER_CONFIG.is_populated', [
+                            'MERGE MODE: File has existing content',
+                            '  - KEEP all existing rules/guidelines that are still relevant',
+                            '  - UPDATE rules if new discovery provides better info (same id, improved text)',
+                            '  - ADD only NEW rules/guidelines not already present',
+                            '  - REMOVE nothing unless explicitly obsolete',
+                            '  - Compare rule IDs to avoid duplicates',
+                        ], [
+                            'FRESH MODE: File is empty/skeleton - add all discovered rules',
+                        ]),
                         'Focus on agent execution patterns:',
                         '  - How agents should approach project tasks',
                         '  - Tool usage patterns for this project',
@@ -493,9 +615,8 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Test writing patterns',
                         '  - Quality gates before task completion',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
-                        'Use $this->rule() for hard constraints, $this->guideline() for patterns',
                     ]),
-                    Operator::output('{master_php_content: "...", rules_added: [...], guidelines_added: [...]}'),
+                    Operator::output('{master_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...]}'),
                 )
             )
             ->phase('Write enhanced Master.php')
@@ -535,21 +656,152 @@ class InitBrainInclude extends IncludeArchetype
                     Operator::task([
                         'PRESERVE existing #[Includes()] attributes (Variation) - DO NOT MODIFY',
                         'PRESERVE existing class structure and namespace',
-                        'ADD only Brain-specific rules from DISTRIBUTED_GUIDELINES.brain:',
+                        Operator::if('CURRENT_BRAIN_CONFIG.is_populated', [
+                            'MERGE MODE: File has existing handle() content',
+                            '  - KEEP all existing rules/guidelines in handle() that are still relevant',
+                            '  - UPDATE rules if new discovery provides better info (same id, improved text)',
+                            '  - ADD only NEW Brain-specific rules not already present',
+                            '  - REMOVE nothing unless explicitly obsolete',
+                            '  - Compare rule IDs to avoid duplicates',
+                        ], [
+                            'FRESH MODE: handle() is empty/skeleton - add all Brain-specific rules',
+                        ]),
+                        'Focus on Brain-specific rules only (Common/Master rules already distributed):',
                         '  - Orchestration and delegation strategies',
                         '  - Agent selection criteria for this project',
                         '  - Response synthesis patterns',
                         '  - Brain-level validation gates',
-                        'If suggested new project includes exist, add them to #[Includes()] AFTER existing ones',
+                        'If suggested new project includes, add to #[Includes()] AFTER existing',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
                     ]),
-                    Operator::output('{brain_php_content: "...", preserved_variation: "...", changes_summary: {...}}'),
+                    Operator::output('{brain_php_content: "...", preserved_variation: "...", rules_kept: [...], rules_added: [...], rules_updated: [...]}'),
                 )
             )
             ->phase('Write enhanced Brain.php')
             ->phase(Store::as('ENHANCED_BRAIN_PHP'))
             ->phase(
                 Operator::note('Brain.php enhanced with Brain-specific configuration while preserving Variation')
+            );
+
+        // =====================================================
+        // PHASE 7.5: ENV CONFIGURATION EXTRACTION
+        // =====================================================
+
+        $this->guideline('phase7-5-env-configuration')
+            ->goal('Extract configurable settings to ' . Runtime::BRAIN_DIRECTORY('.env') . ' for easy tuning')
+            ->note([
+                'Centralizes all adjustable parameters in one place',
+                'Uses $this->var() in PHP code to read ENV values',
+                'Comments document each setting with variants and combinations',
+                'Prevents duplication - single source of truth for configurable values',
+            ])
+            ->example()
+            ->phase('Read existing .env if present')
+            ->phase(
+                Operator::if(Runtime::BRAIN_DIRECTORY('.env') . ' exists', [
+                    ReadTool::call(Runtime::BRAIN_DIRECTORY('.env')),
+                    Store::as('EXISTING_ENV'),
+                ], [
+                    Store::as('EXISTING_ENV', 'null'),
+                ])
+            )
+            ->phase(
+                AgentMaster::call(
+                    Operator::input(
+                        Store::get('EXISTING_ENV'),
+                        Store::get('PROJECT_CONTEXT'),
+                        Store::get('TECH_STACK'),
+                        Store::get('ENVIRONMENT_CONTEXT'),
+                        Store::get('ARCHITECTURE_PATTERNS'),
+                        Store::get('VECTOR_CRITICAL_INSIGHTS'),
+                    ),
+                    Operator::task([
+                        'Analyze ALL discovered project settings and identify CONFIGURABLE values',
+                        '',
+                        'EXTRACT settings that:',
+                        '  - May need adjustment per environment/project',
+                        '  - Control behavior that users might want to tweak',
+                        '  - Represent thresholds, limits, or toggles',
+                        '  - Are referenced in multiple places (DRY)',
+                        '',
+                        'CATEGORIES to consider:',
+                        '  - Model settings: DEFAULT_MODEL, FALLBACK_MODEL',
+                        '  - Limits: MAX_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS',
+                        '  - Toggles: ENABLE_VECTOR_MEMORY, ENABLE_WEB_RESEARCH',
+                        '  - Paths: DOCS_DIRECTORY, OUTPUT_DIRECTORY',
+                        '  - Project-specific: PHP_VERSION, NODE_VERSION, DATABASE_TYPE',
+                        '  - Quality gates: MIN_COVERAGE, PHPSTAN_LEVEL',
+                        '  - Agent behavior: AGENT_VERBOSITY, PARALLEL_AGENTS',
+                        '',
+                        'FOR EACH setting generate:',
+                        '  - UPPER_SNAKE_CASE name',
+                        '  - Default value (from project discovery)',
+                        '  - Comment with description (1 line)',
+                        '  - Comment with variants/options if applicable',
+                        '',
+                        'MERGE with EXISTING_ENV:',
+                        '  - PRESERVE user-modified values',
+                        '  - ADD new settings not present',
+                        '  - UPDATE comments if improved',
+                        '  - KEEP user comments intact',
+                    ]),
+                    Operator::output('{env_content: "...", settings_kept: [...], settings_added: [...], settings_updated: [...]}'),
+                )
+            )
+            ->phase(Store::as('ENV_CONFIGURATION'))
+            ->phase('Generate .env file content with structured comments')
+            ->phase(
+                PromptMaster::call(
+                    Operator::input(
+                        Store::get('ENV_CONFIGURATION'),
+                        Store::get('EXISTING_ENV'),
+                    ),
+                    Operator::task([
+                        'Generate well-structured .env file content',
+                        '',
+                        'FORMAT RULES:',
+                        '  - Group settings by category with section headers',
+                        '  - Each setting: # description\\n# variants: opt1 | opt2 | opt3\\nKEY=value',
+                        '  - Empty line between groups',
+                        '  - No quotes around simple values',
+                        '  - Quotes for values with spaces',
+                        '',
+                        'SECTION ORDER:',
+                        '  1. # ═══ BRAIN CORE ═══',
+                        '  2. # ═══ MODELS ═══',
+                        '  3. # ═══ LIMITS & THRESHOLDS ═══',
+                        '  4. # ═══ FEATURES ═══',
+                        '  5. # ═══ PROJECT ═══',
+                        '  6. # ═══ QUALITY GATES ═══',
+                        '  7. # ═══ PATHS ═══',
+                        '',
+                        'EXAMPLE FORMAT:',
+                        '# ═══ MODELS ═══',
+                        '',
+                        '# Default model for Brain orchestration',
+                        '# variants: sonnet | opus | haiku',
+                        'DEFAULT_MODEL=sonnet',
+                        '',
+                        '# Fallback model when primary unavailable',
+                        '# variants: haiku | sonnet',
+                        'FALLBACK_MODEL=haiku',
+                    ]),
+                    Operator::output('{formatted_env: "..."}'),
+                )
+            )
+            ->phase(Store::as('FORMATTED_ENV'))
+            ->phase('Backup existing .env and write new')
+            ->phase(
+                Operator::if('EXISTING_ENV !== null', [
+                    BashTool::describe(
+                        'cp ' . Runtime::BRAIN_DIRECTORY('.env') . ' ' . Runtime::BRAIN_DIRECTORY('.env.backup'),
+                        'Backup existing .env'
+                    ),
+                ])
+            )
+            ->phase('Write ' . Runtime::BRAIN_DIRECTORY('.env'))
+            ->phase(
+                Operator::note('.env generated with configurable settings - use $this->var(\"KEY\") in PHP')
             );
 
         // =====================================================
@@ -665,22 +917,19 @@ class InitBrainInclude extends IncludeArchetype
                     '═══════════════════════════════════════════════════════',
                     '',
                     Runtime::NODE_DIRECTORY('Common.php') . ' (Brain + ALL Agents):',
-                    '  Rules Added: {common_rules_count}',
-                    '  Guidelines Added: {common_guidelines_count}',
-                    '  Categories: Environment, Tech Stack, Coding Standards',
+                    '  Mode: {common_mode}',
+                    '  Kept: {common_rules_kept} | Added: {common_rules_added} | Updated: {common_rules_updated}',
                     '  Backup: ' . Runtime::NODE_DIRECTORY('Common.php.backup'),
                     '',
                     Runtime::NODE_DIRECTORY('Master.php') . ' (ALL Agents only):',
-                    '  Rules Added: {master_rules_count}',
-                    '  Guidelines Added: {master_guidelines_count}',
-                    '  Categories: Execution Patterns, Tool Usage, Task Handling',
+                    '  Mode: {master_mode}',
+                    '  Kept: {master_rules_kept} | Added: {master_rules_added} | Updated: {master_rules_updated}',
                     '  Backup: ' . Runtime::NODE_DIRECTORY('Master.php.backup'),
                     '',
                     Runtime::NODE_DIRECTORY('Brain.php') . ' (Brain only):',
                     '  Variation: {existing_variation_name} (PRESERVED)',
-                    '  Rules Added: {brain_rules_count}',
-                    '  Guidelines Added: {brain_guidelines_count}',
-                    '  Categories: Orchestration, Delegation, Synthesis',
+                    '  Mode: {brain_mode}',
+                    '  Kept: {brain_rules_kept} | Added: {brain_rules_added} | Updated: {brain_rules_updated}',
                     '  Backup: ' . Runtime::NODE_DIRECTORY('Brain.php.backup'),
                     '',
                     '═══════════════════════════════════════════════════════',
@@ -703,6 +952,13 @@ class InitBrainInclude extends IncludeArchetype
                     '  Domain Concepts: {domain_concepts_count}',
                     '  Requirements: {requirements_count}',
                     '',
+                    'Vector Memory Mining:',
+                    '  Total Mined: {vector_total_mined}',
+                    '  Critical Filtered: {vector_critical_count}',
+                    '  Added to Common: {vector_common_count}',
+                    '  Added to Master: {vector_master_count}',
+                    '  Added to Brain: {vector_brain_count}',
+                    '',
                     '═══════════════════════════════════════════════════════',
                     'OUTPUT FILES',
                     '═══════════════════════════════════════════════════════',
@@ -715,8 +971,13 @@ class InitBrainInclude extends IncludeArchetype
                     'Compiled Output:',
                     '  ' . Runtime::BRAIN_FILE,
                     '',
+                    'Configuration:',
+                    '  ' . Runtime::BRAIN_DIRECTORY('.env'),
+                    '  Settings: {env_settings_count} ({env_kept} kept, {env_added} added)',
+                    '',
                     'Backups:',
                     '  ' . Runtime::NODE_DIRECTORY('*.backup'),
+                    '  ' . Runtime::BRAIN_DIRECTORY('.env.backup') . ' (if existed)',
                     '',
                     '═══════════════════════════════════════════════════════',
                     'VECTOR MEMORY',
