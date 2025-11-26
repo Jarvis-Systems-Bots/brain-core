@@ -241,6 +241,9 @@ class DoValidateInclude extends IncludeArchetype
                 '',
                 '=== PHASE 4: QUICK FIXES ===',
             ]))
+            ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents for delegation'))
+            ->phase(Store::as('AVAILABLE_AGENTS', '{list of agents with their capabilities}'))
+            ->phase('Select appropriate agent for each fix type based on agent descriptions')
             ->phase(Operator::if('$MINOR_ISSUES not empty', [
                 'Filter fixable issues: single-file, <15min estimate, no architecture impact',
                 Store::as('FIXABLE_ISSUES', '{filtered minor issues}'),
