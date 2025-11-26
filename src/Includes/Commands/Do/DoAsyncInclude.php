@@ -159,7 +159,7 @@ class DoAsyncInclude extends IncludeArchetype
 
         // Phase 2: Requirements Analysis + Approval Gate
         $this->guideline('phase2-requirements-analysis-approval')
-            ->goal('Create requirements plan leveraging conversation + memory + GET USER APPROVAL')
+            ->goal('Create requirements plan leveraging conversation + memory + GET USER APPROVAL + START TASK')
             ->example()
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "patterns: {task_domain}", limit: 5, category: "learning,architecture"}'))
             ->phase(Store::as('IMPLEMENTATION_PATTERNS', 'Past patterns'))
@@ -177,7 +177,12 @@ class DoAsyncInclude extends IncludeArchetype
             ]))
             ->phase('WAIT for user approval')
             ->phase(Operator::verify('User approved'))
-            ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'));
+            ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'))
+            ->phase('IMMEDIATELY after approval - set task in_progress (research IS execution)')
+            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Research phase started after requirements approval", append_comment: true}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (research phase)']),
+            ]));
 
         // Phase 3: Material Gathering with Vector Storage
         $this->guideline('phase3-material-gathering')
@@ -250,10 +255,7 @@ class DoAsyncInclude extends IncludeArchetype
         $this->guideline('phase5-flexible-execution')
             ->goal('Execute plan with optimal mode (sequential OR parallel)')
             ->example()
-            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress"}'),
-                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started']),
-            ]))
+            ->phase('NOTE: Task already in_progress since Phase 2 approval (research is execution)')
             ->phase('Initialize: current_step = 1')
             ->phase(Operator::if('$EXECUTION_PLAN.execution_mode === "sequential"', [
                 'SEQUENTIAL MODE: Execute steps one-by-one',

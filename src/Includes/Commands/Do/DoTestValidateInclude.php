@@ -106,16 +106,52 @@ class DoTestValidateInclude extends IncludeArchetype
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
             ]));
 
-        // Phase 0: Test Context Setup
-        $this->guideline('phase0-context-setup')
-            ->goal('Set task to in_progress and gather test-related context from vector memory')
+        // Phase 0: Test Validation Preview
+        $this->guideline('phase0-validation-preview')
+            ->goal('Preview test validation scope and get user approval before starting')
             ->example()
             ->phase(Operator::output([
-                '=== PHASE 0: TEST VALIDATION CONTEXT ===',
+                '=== PHASE 0: TEST VALIDATION PREVIEW ===',
             ]))
+            ->phase(VectorMemoryMcp::call('search_memories', '{query: "tests for: {$TASK_DESCRIPTION}", limit: 3, category: "code-solution"}'))
+            ->phase(Store::as('TEST_PREVIEW', 'Test preview'))
+            ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 5}'))
+            ->phase(Store::as('RELATED_TEST_TASKS_PREVIEW', 'Related test tasks preview'))
+            ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from $TASK_DESCRIPTION}'), 'Get documentation INDEX preview'))
+            ->phase(Store::as('DOCS_PREVIEW', 'Documentation files available'))
+            ->phase(Operator::output([
+                'Task: {$TASK_DESCRIPTION}',
+                'Related test memories: {$TEST_PREVIEW.count}',
+                'Related test tasks: {$RELATED_TEST_TASKS_PREVIEW.count}',
+                'Documentation files: {$DOCS_PREVIEW.count}',
+                '',
+                'Test validation will check:',
+                '1. Requirements coverage by tests',
+                '2. Test quality (no bloat)',
+                '3. Workflow coverage (end-to-end)',
+                '4. Test consistency',
+                '5. Test isolation',
+                '6. Test execution status',
+                '',
+                '⚠️  APPROVAL REQUIRED',
+                '✅ approved/yes - start test validation | ❌ no/modifications',
+            ]))
+            ->phase('WAIT for user approval')
+            ->phase(Operator::verify('User approved'))
+            ->phase(Operator::if('rejected', 'Accept modifications → Re-present → WAIT'))
+            ->phase('IMMEDIATELY after approval - set task in_progress (test validation IS execution)')
             ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Test validation started", append_comment: true}'),
-                Operator::output(['Task #{$VECTOR_TASK_ID} set to in_progress for test validation']),
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Test validation started after approval", append_comment: true}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (test validation phase)']),
+            ]));
+
+        // Phase 1: Deep Test Context Gathering
+        $this->guideline('phase1-context-gathering')
+            ->goal('Gather test-related context from vector memory after approval')
+            ->example()
+            ->phase(Operator::output([
+                '',
+                '=== PHASE 1: DEEP TEST CONTEXT ===',
             ]))
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "tests for: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution"}'))
             ->phase(Store::as('TEST_HISTORY', 'Past test implementations'))
@@ -130,7 +166,7 @@ class DoTestValidateInclude extends IncludeArchetype
                 '- Related test tasks: {$RELATED_TEST_TASKS.count} tasks',
             ]));
 
-        // Phase 1: Documentation Requirements Extraction
+        // Phase 2: Documentation Requirements Extraction
         $this->guideline('phase1-documentation-extraction')
             ->goal('Extract ALL testable requirements from .docs/ via DocumentationMaster')
             ->example()

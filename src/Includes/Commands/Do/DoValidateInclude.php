@@ -106,16 +106,51 @@ class DoValidateInclude extends IncludeArchetype
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
             ]));
 
-        // Phase 0: Validation Context Setup
-        $this->guideline('phase0-context-setup')
-            ->goal('Set task to in_progress and gather maximum context from vector memory')
+        // Phase 0: Validation Context Preview
+        $this->guideline('phase0-context-preview')
+            ->goal('Preview validation scope and get user approval before starting')
             ->example()
             ->phase(Operator::output([
-                '=== PHASE 0: VALIDATION CONTEXT ===',
+                '=== PHASE 0: VALIDATION PREVIEW ===',
             ]))
+            ->phase(VectorMemoryMcp::call('search_memories', '{query: "implementation: {$TASK_DESCRIPTION}", limit: 3, category: "code-solution"}'))
+            ->phase(Store::as('IMPLEMENTATION_PREVIEW', 'Implementation preview'))
+            ->phase(VectorTaskMcp::call('task_list', '{query: "{$TASK_DESCRIPTION}", limit: 5}'))
+            ->phase(Store::as('RELATED_TASKS_PREVIEW', 'Related tasks preview'))
+            ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from $TASK_DESCRIPTION}'), 'Get documentation INDEX preview'))
+            ->phase(Store::as('DOCS_PREVIEW', 'Documentation files available'))
+            ->phase(Operator::output([
+                'Task: {$TASK_DESCRIPTION}',
+                'Related memories: {$IMPLEMENTATION_PREVIEW.count}',
+                'Related tasks: {$RELATED_TASKS_PREVIEW.count}',
+                'Documentation files: {$DOCS_PREVIEW.count}',
+                '',
+                'Validation will check:',
+                '1. Requirements coverage from documentation',
+                '2. Code consistency and quality',
+                '3. Test coverage',
+                '4. Documentation sync',
+                '5. Dependencies',
+                '',
+                '⚠️  APPROVAL REQUIRED',
+                '✅ approved/yes - start validation | ❌ no/modifications',
+            ]))
+            ->phase('WAIT for user approval')
+            ->phase(Operator::verify('User approved'))
+            ->phase(Operator::if('rejected', 'Accept modifications → Re-present → WAIT'))
+            ->phase('IMMEDIATELY after approval - set task in_progress (validation IS execution)')
             ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Validation started", append_comment: true}'),
-                Operator::output(['Task #{$VECTOR_TASK_ID} set to in_progress for validation']),
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Validation started after approval", append_comment: true}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (validation phase)']),
+            ]));
+
+        // Phase 1: Deep Context Gathering
+        $this->guideline('phase1-context-gathering')
+            ->goal('Gather maximum context from vector memory after approval')
+            ->example()
+            ->phase(Operator::output([
+                '',
+                '=== PHASE 1: DEEP CONTEXT GATHERING ===',
             ]))
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "implementation: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution"}'))
             ->phase(Store::as('IMPLEMENTATION_HISTORY', 'Past implementations'))
@@ -130,7 +165,7 @@ class DoValidateInclude extends IncludeArchetype
                 '- Related tasks: {$RELATED_TASKS.count} tasks',
             ]));
 
-        // Phase 1: Documentation Requirements Extraction
+        // Phase 2: Documentation Requirements Extraction
         $this->guideline('phase1-documentation-extraction')
             ->goal('Extract ALL requirements from .docs/ via DocumentationMaster')
             ->example()

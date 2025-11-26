@@ -157,16 +157,18 @@ class DoSyncInclude extends IncludeArchetype
             ]))
             ->phase('WAIT for user approval')
             ->phase(Operator::verify('User approved'))
-            ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'));
+            ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'))
+            ->phase('IMMEDIATELY after approval - set task in_progress (exploration/gathering IS execution)')
+            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
+                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Execution started after plan approval", append_comment: true}'),
+                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started']),
+            ]));
 
         // Phase 3: Direct Execution
         $this->guideline('phase3-direct-execution')
             ->goal('Execute plan directly using Brain tools - no delegation')
             ->example()
-            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress"}'),
-                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started']),
-            ]))
+            ->phase('NOTE: Task already in_progress since Phase 2 approval')
             ->phase(Operator::forEach('step in $PLAN', [
                 Operator::output(['▶️ Step {N}: {step.description}']),
                 Operator::if('step.action === "read"', [
