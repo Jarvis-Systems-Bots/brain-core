@@ -106,13 +106,15 @@ class DoTestValidateInclude extends IncludeArchetype
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
             ]));
 
-        // Phase 0: Test Validation Preview
+        // Phase 0: Agent Discovery and Test Validation Preview
         $this->guideline('phase0-validation-preview')
-            ->goal('Preview test validation scope and get user approval before starting')
+            ->goal('Discover available agents and preview test validation scope')
             ->example()
             ->phase(Operator::output([
                 '=== PHASE 0: TEST VALIDATION PREVIEW ===',
             ]))
+            ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents with capabilities'))
+            ->phase(Store::as('AVAILABLE_AGENTS', '{agent_id: description mapping}'))
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "tests for: {$TASK_DESCRIPTION}", limit: 3, category: "code-solution"}'))
             ->phase(Store::as('TEST_PREVIEW', 'Test preview'))
             ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 5}'))
@@ -189,42 +191,59 @@ class DoTestValidateInclude extends IncludeArchetype
                 '{requirements summary with test types}',
             ]));
 
-        // Phase 2: Test Discovery
+        // Phase 2: Test Discovery via Dynamic Agent Selection
         $this->guideline('phase2-test-discovery')
-            ->goal('Discover all existing tests related to the task')
+            ->goal('Select best agent from $AVAILABLE_AGENTS and discover all existing tests')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 2: TEST DISCOVERY ===',
             ]))
-            ->phase(TaskTool::agent('explore', 'Find ALL test files related to "{$TASK_DESCRIPTION}". Search in: tests/, spec/, __tests__. Include: unit tests, feature tests, integration tests, e2e tests. Return: [{test_file, test_type, test_classes: [...], test_methods: [...], related_source_files: [...]}]. Store to vector memory.'))
+            ->phase('SELECT AGENT for test discovery from $AVAILABLE_AGENTS (prefer explore for codebase scanning)')
+            ->phase(Store::as('DISCOVERY_AGENT', '{selected agent_id based on descriptions}'))
+            ->phase(TaskTool::agent('{$DISCOVERY_AGENT}', 'DEEP RESEARCH - TEST DISCOVERY for "{$TASK_DESCRIPTION}": 1) Search vector memory for past test patterns and locations 2) Scan codebase for test directories (tests/, spec/, __tests__) 3) Find ALL related test files: unit, feature, integration, e2e 4) Analyze test structure and coverage 5) Return: [{test_file, test_type, test_classes, test_methods, related_source_files}]. Store findings to vector memory.'))
             ->phase(Store::as('DISCOVERED_TESTS', '{list of test files with metadata}'))
             ->phase(Operator::output([
-                'Tests discovered: {$DISCOVERED_TESTS.count} files',
+                'Tests discovered via {$DISCOVERY_AGENT}: {$DISCOVERED_TESTS.count} files',
                 '{test files summary by type}',
             ]));
 
-        // Phase 3: Parallel Test Validation
+        // Phase 3: Dynamic Agent Selection and Parallel Test Validation
         $this->guideline('phase3-parallel-validation')
-            ->goal('Launch 6 parallel agents to validate different test aspects simultaneously')
+            ->goal('Select best agents from $AVAILABLE_AGENTS and launch parallel test validation')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 3: PARALLEL TEST VALIDATION ===',
+            ]))
+            ->phase('AGENT SELECTION: Analyze $AVAILABLE_AGENTS descriptions and select BEST agent for each test validation aspect:')
+            ->phase(Operator::do([
+                'ASPECT 1 - REQUIREMENTS COVERAGE: Select agent for requirements-to-test mapping (vector-master for memory, explore for codebase)',
+                'ASPECT 2 - TEST QUALITY: Select agent for code quality analysis (explore for pattern detection)',
+                'ASPECT 3 - WORKFLOW COVERAGE: Select agent for workflow analysis (explore for flow tracing)',
+                'ASPECT 4 - TEST CONSISTENCY: Select agent for consistency analysis (explore for pattern matching)',
+                'ASPECT 5 - TEST ISOLATION: Select agent for isolation analysis (explore for dependency scanning)',
+                'ASPECT 6 - TEST EXECUTION: Select agent capable of running tests (explore with bash access)',
+            ]))
+            ->phase(Store::as('SELECTED_AGENTS', '{aspect: agent_id mapping based on $AVAILABLE_AGENTS}'))
+            ->phase(Operator::output([
+                'Selected agents for test validation:',
+                '{$SELECTED_AGENTS mapping}',
+                '',
                 'Launching test validation agents in parallel...',
             ]))
-            ->phase('PARALLEL BATCH 1: Launch ALL agents simultaneously')
+            ->phase('PARALLEL BATCH: Launch selected agents simultaneously with DEEP RESEARCH tasks')
             ->phase(Operator::do([
-                TaskTool::agent('explore', 'TEST AGENT 1 - REQUIREMENTS COVERAGE: Compare {$DOCUMENTATION_REQUIREMENTS} against {$DISCOVERED_TESTS}. For each requirement verify test exists. Return: [{requirement_id, coverage_status: covered|partial|missing, test_file: or null, test_method: or null, gap_description}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'TEST AGENT 2 - TEST QUALITY (NO BLOAT): Analyze {$DISCOVERED_TESTS} for bloat indicators: excessive mocking, testing implementation details, redundant assertions, copy-paste tests, testing getters/setters. Return: [{test_file, test_method, bloat_type, severity: minor|major, suggestion}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'TEST AGENT 3 - WORKFLOW COVERAGE: Verify {$DISCOVERED_TESTS} cover COMPLETE user workflows end-to-end. Check: happy path, error paths, edge cases, boundary conditions. Return: [{workflow, coverage_status, missing_scenarios: [...]}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'TEST AGENT 4 - TEST CONSISTENCY: Check {$DISCOVERED_TESTS} for consistency: naming conventions, structure patterns, assertion styles, fixture usage, setup/teardown patterns. Return: [{test_file, inconsistency_type, description, suggestion}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'TEST AGENT 5 - TEST ISOLATION: Verify {$DISCOVERED_TESTS} are properly isolated: no shared state, no order dependency, no external service calls without mocks, proper cleanup. Return: [{test_file, isolation_issue, severity, suggestion}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'TEST AGENT 6 - TEST EXECUTION: Run tests related to "{$TASK_DESCRIPTION}". Verify all pass. Identify flaky tests. Return: [{test_file, execution_status: pass|fail|flaky, error_message: if fail, execution_time}]. Store findings to vector memory.'),
+                TaskTool::agent('{$SELECTED_AGENTS.coverage}', 'DEEP RESEARCH - REQUIREMENTS COVERAGE for "{$TASK_DESCRIPTION}": 1) Search vector memory for past requirement-test mappings 2) Compare {$DOCUMENTATION_REQUIREMENTS} against {$DISCOVERED_TESTS} 3) For each requirement verify test exists 4) Return: [{requirement_id, coverage_status: covered|partial|missing, test_file, test_method, gap_description, memory_refs}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.quality}', 'DEEP RESEARCH - TEST QUALITY for "{$TASK_DESCRIPTION}": 1) Search memory for test quality standards 2) Analyze {$DISCOVERED_TESTS} for bloat indicators 3) Check: excessive mocking, implementation testing, redundant assertions, copy-paste 4) Return: [{test_file, test_method, bloat_type, severity, suggestion}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.workflow}', 'DEEP RESEARCH - WORKFLOW COVERAGE for "{$TASK_DESCRIPTION}": 1) Search memory for workflow patterns 2) Verify {$DISCOVERED_TESTS} cover complete user workflows 3) Check: happy path, error paths, edge cases, boundaries 4) Return: [{workflow, coverage_status, missing_scenarios}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.consistency}', 'DEEP RESEARCH - TEST CONSISTENCY for "{$TASK_DESCRIPTION}": 1) Search memory for project test conventions 2) Check {$DISCOVERED_TESTS} for consistency 3) Verify: naming, structure, assertions, fixtures, setup/teardown 4) Return: [{test_file, inconsistency_type, description, suggestion}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.isolation}', 'DEEP RESEARCH - TEST ISOLATION for "{$TASK_DESCRIPTION}": 1) Search memory for isolation issues 2) Verify {$DISCOVERED_TESTS} are properly isolated 3) Check: shared state, order dependency, external calls, cleanup 4) Return: [{test_file, isolation_issue, severity, suggestion}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.execution}', 'DEEP RESEARCH - TEST EXECUTION for "{$TASK_DESCRIPTION}": 1) Search memory for past test failures 2) Run tests related to task 3) Identify flaky tests 4) Return: [{test_file, execution_status: pass|fail|flaky, error_message, execution_time}]. Store findings.'),
             ]))
-            ->phase(Store::as('VALIDATION_BATCH_1', '{results from all 6 agents}'))
+            ->phase(Store::as('VALIDATION_BATCH_1', '{results from all agents}'))
             ->phase(Operator::output([
-                'Batch 1 complete: 6 test validation checks finished',
+                'Batch complete: {$SELECTED_AGENTS.count} test validation checks finished',
             ]));
 
         // Phase 4: Results Aggregation and Analysis

@@ -106,13 +106,15 @@ class DoValidateInclude extends IncludeArchetype
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
             ]));
 
-        // Phase 0: Validation Context Preview
+        // Phase 0: Agent Discovery and Validation Context Preview
         $this->guideline('phase0-context-preview')
-            ->goal('Preview validation scope and get user approval before starting')
+            ->goal('Discover available agents and preview validation scope')
             ->example()
             ->phase(Operator::output([
                 '=== PHASE 0: VALIDATION PREVIEW ===',
             ]))
+            ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents with capabilities'))
+            ->phase(Store::as('AVAILABLE_AGENTS', '{agent_id: description mapping}'))
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "implementation: {$TASK_DESCRIPTION}", limit: 3, category: "code-solution"}'))
             ->phase(Store::as('IMPLEMENTATION_PREVIEW', 'Implementation preview'))
             ->phase(VectorTaskMcp::call('task_list', '{query: "{$TASK_DESCRIPTION}", limit: 5}'))
@@ -188,26 +190,40 @@ class DoValidateInclude extends IncludeArchetype
                 '{requirements summary}',
             ]));
 
-        // Phase 2: Parallel Validation Orchestration
+        // Phase 2: Dynamic Agent Selection and Parallel Validation
         $this->guideline('phase2-parallel-validation')
-            ->goal('Launch 5-6 parallel agents to validate different aspects simultaneously')
+            ->goal('Select best agents from $AVAILABLE_AGENTS and launch parallel validation')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 2: PARALLEL VALIDATION ===',
+            ]))
+            ->phase('AGENT SELECTION: Analyze $AVAILABLE_AGENTS descriptions and select BEST agent for each validation aspect:')
+            ->phase(Operator::do([
+                'ASPECT 1 - COMPLETENESS: Select agent best suited for requirements verification (vector-master for memory research, explore for codebase)',
+                'ASPECT 2 - CODE CONSISTENCY: Select agent for code pattern analysis (explore for codebase scanning)',
+                'ASPECT 3 - TEST COVERAGE: Select agent for test analysis (explore for test file discovery)',
+                'ASPECT 4 - DOCUMENTATION SYNC: Select agent for documentation analysis (documentation-master if docs-focused, explore otherwise)',
+                'ASPECT 5 - DEPENDENCIES: Select agent for dependency analysis (explore for import scanning)',
+            ]))
+            ->phase(Store::as('SELECTED_AGENTS', '{aspect: agent_id mapping based on $AVAILABLE_AGENTS}'))
+            ->phase(Operator::output([
+                'Selected agents for validation:',
+                '{$SELECTED_AGENTS mapping}',
+                '',
                 'Launching validation agents in parallel...',
             ]))
-            ->phase('PARALLEL BATCH 1: Launch ALL agents simultaneously')
+            ->phase('PARALLEL BATCH: Launch selected agents simultaneously with DEEP RESEARCH tasks')
             ->phase(Operator::do([
-                TaskTool::agent('explore', 'VALIDATION AGENT 1 - COMPLETENESS CHECK: For task "{$TASK_DESCRIPTION}", verify ALL requirements from {$DOCUMENTATION_REQUIREMENTS} are implemented. Return: [{requirement_id, status: implemented|partial|missing, evidence: file:line}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'VALIDATION AGENT 2 - CODE CONSISTENCY: For task "{$TASK_DESCRIPTION}", check code consistency: naming conventions, patterns, architecture alignment. Scan related files. Return: [{file, issue_type, severity: minor|major|critical, description, suggestion}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'VALIDATION AGENT 3 - TEST COVERAGE: For task "{$TASK_DESCRIPTION}", verify test coverage exists and passes. Return: [{test_file, coverage_status, missing_scenarios: [...]}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'VALIDATION AGENT 4 - DOCUMENTATION SYNC: For task "{$TASK_DESCRIPTION}", verify code matches documentation. Check: docblocks, README, API docs, inline comments. Return: [{doc_type, sync_status, gaps: [...]}]. Store findings to vector memory.'),
-                TaskTool::agent('explore', 'VALIDATION AGENT 5 - DEPENDENCY CHECK: For task "{$TASK_DESCRIPTION}", verify no broken dependencies, unused imports, circular references. Return: [{file, dependency_issue, severity}]. Store findings to vector memory.'),
+                TaskTool::agent('{$SELECTED_AGENTS.completeness}', 'DEEP RESEARCH - COMPLETENESS: For "{$TASK_DESCRIPTION}": 1) Search vector memory for past implementations and requirements 2) Scan codebase for implementation evidence 3) Map each requirement from {$DOCUMENTATION_REQUIREMENTS} to code 4) Return: [{requirement_id, status: implemented|partial|missing, evidence: file:line, memory_refs: [...]}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.consistency}', 'DEEP RESEARCH - CODE CONSISTENCY: For "{$TASK_DESCRIPTION}": 1) Search memory for project coding standards 2) Scan related files for pattern violations 3) Check naming, architecture, style consistency 4) Return: [{file, issue_type, severity, description, suggestion}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.tests}', 'DEEP RESEARCH - TEST COVERAGE: For "{$TASK_DESCRIPTION}": 1) Search memory for test patterns 2) Discover all related test files 3) Analyze coverage gaps 4) Run tests if possible 5) Return: [{test_file, coverage_status, missing_scenarios}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.docs}', 'DEEP RESEARCH - DOCUMENTATION SYNC: For "{$TASK_DESCRIPTION}": 1) Search memory for documentation standards 2) Compare code vs documentation 3) Check docblocks, README, API docs 4) Return: [{doc_type, sync_status, gaps}]. Store findings.'),
+                TaskTool::agent('{$SELECTED_AGENTS.deps}', 'DEEP RESEARCH - DEPENDENCIES: For "{$TASK_DESCRIPTION}": 1) Search memory for dependency issues 2) Scan imports and dependencies 3) Check for broken/unused/circular refs 4) Return: [{file, dependency_issue, severity}]. Store findings.'),
             ]))
-            ->phase(Store::as('VALIDATION_BATCH_1', '{results from all 5 agents}'))
+            ->phase(Store::as('VALIDATION_BATCH_1', '{results from all agents}'))
             ->phase(Operator::output([
-                'Batch 1 complete: 5 validation checks finished',
+                'Batch complete: {$SELECTED_AGENTS.count} validation checks finished',
             ]));
 
         // Phase 3: Results Aggregation and Analysis
@@ -233,23 +249,26 @@ class DoValidateInclude extends IncludeArchetype
                 '- Missing requirements: {$MISSING_REQUIREMENTS.count}',
             ]));
 
-        // Phase 4: Quick Fixes via Delegation
+        // Phase 4: Quick Fixes via Dynamic Agent Delegation
         $this->guideline('phase4-quick-fixes')
-            ->goal('Fix minor issues immediately via agent delegation')
+            ->goal('Fix minor issues via dynamically selected agents from $AVAILABLE_AGENTS')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 4: QUICK FIXES ===',
             ]))
-            ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents for delegation'))
-            ->phase(Store::as('AVAILABLE_AGENTS', '{list of agents with their capabilities}'))
-            ->phase('Select appropriate agent for each fix type based on agent descriptions')
             ->phase(Operator::if('$MINOR_ISSUES not empty', [
                 'Filter fixable issues: single-file, <15min estimate, no architecture impact',
                 Store::as('FIXABLE_ISSUES', '{filtered minor issues}'),
                 Operator::forEach('issue in $FIXABLE_ISSUES', [
-                    Operator::output(['Fixing: {issue.description} in {issue.file}']),
-                    TaskTool::agent('explore', 'FIX ISSUE: {issue.description} in {issue.file}. Apply fix. Verify fix works. Store result to vector memory.'),
+                    'SELECT BEST AGENT from $AVAILABLE_AGENTS based on issue type:',
+                    '- Code style issues → agent with code formatting expertise',
+                    '- Documentation issues → documentation-master',
+                    '- Test issues → agent with test expertise',
+                    '- Other → explore for general fixes',
+                    Store::as('FIX_AGENT', '{selected agent_id}'),
+                    Operator::output(['Fixing via {$FIX_AGENT}: {issue.description} in {issue.file}']),
+                    TaskTool::agent('{$FIX_AGENT}', 'FIX ISSUE: {issue.description} in {issue.file}. 1) Search memory for similar fixes 2) Apply fix 3) Verify fix works 4) Store result to vector memory.'),
                     Store::as('FIX_RESULTS[{issue.id}]', 'Fixed'),
                 ]),
                 Operator::output(['Quick fixes applied: {$FIXABLE_ISSUES.count}']),
