@@ -317,13 +317,9 @@ class DoValidateInclude extends IncludeArchetype
                     VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "validated", comment: "Validation PASSED. All requirements implemented, no issues found.", append_comment: true}'),
                     Operator::output(['✅ Task #{$VECTOR_TASK_ID} marked as VALIDATED']),
                 ]),
-                Operator::if('$VALIDATION_STATUS === "PASSED" AND $CREATED_TASKS.count > 0', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Validation PASSED with minor fixes. Created {$CREATED_TASKS.count} follow-up tasks.", append_comment: true}'),
-                    Operator::output(['📋 Task #{$VECTOR_TASK_ID} marked as COMPLETED (minor tasks created)']),
-                ]),
-                Operator::if('$VALIDATION_STATUS === "NEEDS_WORK"', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Validation completed with findings. Created {$CREATED_TASKS.count} follow-up tasks. Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}", append_comment: true}'),
-                    Operator::output(['⚠️ Task #{$VECTOR_TASK_ID} marked as COMPLETED (needs follow-up)']),
+                Operator::if('$CREATED_TASKS.count > 0', [
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "pending", comment: "Validation completed. Created {$CREATED_TASKS.count} subtasks. Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}. Returning to pending until subtasks completed.", append_comment: true}'),
+                    Operator::output(['⏳ Task #{$VECTOR_TASK_ID} returned to PENDING ({$CREATED_TASKS.count} subtasks to complete)']),
                 ]),
             ]))
             ->phase(Operator::output([
