@@ -37,7 +37,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->onViolation('Abort any test writing. Create task instead.');
 
         $this->rule('completed-status-required')->critical()
-            ->text('For vector tasks: ONLY tasks with status "completed" can be test-validated. Pending/in_progress tasks MUST first be completed via do:async.')
+            ->text('For vector tasks: ONLY tasks with status "completed", "tested", or "validated" can be test-validated. Pending/in_progress/stopped tasks MUST first be completed via do:async.')
             ->why('Test validation audits finished work. Incomplete work cannot be validated.')
             ->onViolation('Report: "Task #{id} has status {status}. Complete via /do:async first."');
 
@@ -77,11 +77,11 @@ class DoTestValidateInclude extends IncludeArchetype
                 Store::as('VECTOR_TASK_ID', '{extracted_id}'),
                 VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'),
                 Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'),
-                Operator::if('$VECTOR_TASK.status !== "completed"', [
+                Operator::if('$VECTOR_TASK.status NOT IN (completed, tested, validated)', [
                     Operator::output([
                         '=== TEST VALIDATION BLOCKED ===',
                         'Task #{$VECTOR_TASK_ID} has status: {$VECTOR_TASK.status}',
-                        'Only COMPLETED tasks can be test-validated.',
+                        'Only COMPLETED/TESTED/VALIDATED tasks can be test-validated.',
                         'Run /do:async task {$VECTOR_TASK_ID} to complete first.',
                     ]),
                     'ABORT validation',
@@ -336,7 +336,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase(VectorMemoryMcp::call('store_memory', '{content: "Test validation of {$TASK_DESCRIPTION}\\n\\nStatus: {$VALIDATION_STATUS}\\nCoverage rate: {$COVERAGE_RATE}\\nTest health: {$TEST_HEALTH_SCORE}\\n\\nMissing coverage: {$MISSING_COVERAGE.count}\\nFailing tests: {$FAILING_TESTS.count}\\nBloated tests: {$BLOATED_TESTS.count}\\nTasks created: {$CREATED_TASKS.count}\\n\\nKey findings: {summary}", category: "code-solution", tags: ["test-validation", "audit"]}'))
             ->phase(Operator::if('$IS_VECTOR_TASK === true', [
                 Operator::if('$VALIDATION_STATUS === "PASSED"', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Test validation PASSED. All requirements covered, all tests passing, no critical issues.", append_comment: true}'),
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "tested", comment: "Test validation PASSED. All requirements covered, all tests passing, no critical issues. Status: tested.", append_comment: true}'),
                 ]),
                 Operator::if('$VALIDATION_STATUS === "NEEDS_WORK"', [
                     VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Test validation completed with findings. Coverage: {$COVERAGE_RATE}, Health: {$TEST_HEALTH_SCORE}. Created {$CREATED_TASKS.count} follow-up tasks.", append_comment: true}'),

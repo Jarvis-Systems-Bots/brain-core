@@ -36,8 +36,8 @@ class DoValidateInclude extends IncludeArchetype
             ->why('Validation is read-only audit. Execution belongs to do:async.')
             ->onViolation('Abort any implementation. Create task instead of fixing directly.');
 
-        $this->rule('completed-status-required')->critical()
-            ->text('For vector tasks: ONLY tasks with status "completed" can be validated. Pending/in_progress tasks MUST first be completed via do:async.')
+        $this->rule('validatable-status-required')->critical()
+            ->text('For vector tasks: ONLY tasks with status "completed", "tested", or "validated" can be validated. Pending/in_progress/stopped tasks MUST first be completed via do:async.')
             ->why('Validation audits finished work. Incomplete work cannot be validated.')
             ->onViolation('Report: "Task #{id} has status {status}. Complete via /do:async first."');
 
@@ -77,11 +77,11 @@ class DoValidateInclude extends IncludeArchetype
                 Store::as('VECTOR_TASK_ID', '{extracted_id}'),
                 VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'),
                 Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'),
-                Operator::if('$VECTOR_TASK.status !== "completed"', [
+                Operator::if('$VECTOR_TASK.status NOT IN ["completed", "tested", "validated"]', [
                     Operator::output([
                         '=== VALIDATION BLOCKED ===',
                         'Task #{$VECTOR_TASK_ID} has status: {$VECTOR_TASK.status}',
-                        'Only COMPLETED tasks can be validated.',
+                        'Only tasks with status completed/tested/validated can be validated.',
                         'Run /do:async task {$VECTOR_TASK_ID} to complete first.',
                     ]),
                     'ABORT validation',
@@ -311,11 +311,17 @@ class DoValidateInclude extends IncludeArchetype
             ->phase(Store::as('VALIDATION_STATUS', Operator::if('$CRITICAL_ISSUES.count === 0 AND $MISSING_REQUIREMENTS.count === 0', 'PASSED', 'NEEDS_WORK')))
             ->phase(VectorMemoryMcp::call('store_memory', '{content: "Validation of {$TASK_DESCRIPTION}\\n\\nStatus: {$VALIDATION_STATUS}\\nCritical: {$CRITICAL_ISSUES.count}\\nMajor: {$MAJOR_ISSUES.count}\\nMinor fixed: {$FIXABLE_ISSUES.count}\\nTasks created: {$CREATED_TASKS.count}\\n\\nFindings:\\n{summary of key findings}", category: "code-solution", tags: ["validation", "audit"]}'))
             ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                Operator::if('$VALIDATION_STATUS === "PASSED"', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Validation PASSED. All requirements implemented, no critical issues.", append_comment: true}'),
+                Operator::if('$VALIDATION_STATUS === "PASSED" AND $CREATED_TASKS.count === 0', [
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "validated", comment: "Validation PASSED. All requirements implemented, no issues found.", append_comment: true}'),
+                    Operator::output(['✅ Task #{$VECTOR_TASK_ID} marked as VALIDATED']),
+                ]),
+                Operator::if('$VALIDATION_STATUS === "PASSED" AND $CREATED_TASKS.count > 0', [
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Validation PASSED with minor fixes. Created {$CREATED_TASKS.count} follow-up tasks.", append_comment: true}'),
+                    Operator::output(['📋 Task #{$VECTOR_TASK_ID} marked as COMPLETED (minor tasks created)']),
                 ]),
                 Operator::if('$VALIDATION_STATUS === "NEEDS_WORK"', [
                     VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Validation completed with findings. Created {$CREATED_TASKS.count} follow-up tasks. Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}", append_comment: true}'),
+                    Operator::output(['⚠️ Task #{$VECTOR_TASK_ID} marked as COMPLETED (needs follow-up)']),
                 ]),
             ]))
             ->phase(Operator::output([
@@ -346,8 +352,8 @@ class DoValidateInclude extends IncludeArchetype
                 'Suggest: Check task ID with ' . VectorTaskMcp::method('task_list'),
                 'Abort validation',
             ])
-            ->phase()->if('vector task not completed', [
-                'Report: "Vector task #{id} status is {status}, not completed"',
+            ->phase()->if('vector task not in validatable status', [
+                'Report: "Vector task #{id} status is {status}, not completed/tested/validated"',
                 'Suggest: Run /do:async task #{id} first',
                 'Abort validation',
             ])
