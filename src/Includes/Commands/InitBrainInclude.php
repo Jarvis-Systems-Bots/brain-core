@@ -12,13 +12,11 @@ use BrainCore\Compilation\Runtime;
 use BrainCore\Compilation\Store;
 use BrainCore\Compilation\Tools\BashTool;
 use BrainCore\Compilation\Tools\ReadTool;
-use BrainCore\Compilation\Tools\WebSearchTool;
 use BrainNode\Agents\AgentMaster;
 use BrainNode\Agents\DocumentationMaster;
 use BrainNode\Agents\ExploreMaster;
 use BrainNode\Agents\PromptMaster;
 use BrainNode\Agents\VectorMaster;
-use BrainNode\Agents\WebResearchMaster;
 use BrainNode\Mcp\VectorMemoryMcp;
 
 #[Purpose('The InitBrain command automates smart distribution of project-specific configuration across Brain.php, Common.php, and Master.php based on project context discovery.')]
@@ -458,35 +456,10 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
-        // PHASE 4: BEST PRACTICES RESEARCH (PARALLEL)
+        // PHASE 4: PROJECT-SPECIFIC INCLUDES ANALYSIS
         // =====================================================
 
-        $this->guideline('phase4-best-practices-research')
-            ->goal('Research current best practices for discovered technologies')
-            ->example()
-            ->note('Execute research tasks in parallel for each major technology')
-            ->phase(
-                Operator::forEach(Store::get('TECH_STACK.frameworks'), [
-                    WebResearchMaster::call(
-                        Operator::input(Store::get('CURRENT_YEAR')),
-                        Operator::task([
-                            WebSearchTool::describe('{framework} best practices {current_year}'),
-                            WebSearchTool::describe('{framework} architectural patterns {current_year}'),
-                            WebSearchTool::describe('{framework} code organization {current_year}'),
-                            'Extract: recommended patterns, conventions, anti-patterns',
-                            'Identify: framework-specific Brain configuration needs',
-                        ]),
-                        Operator::output('{framework: "...", best_practices: [...], recommendations: [...]}'),
-                    ),
-                ])
-            )
-            ->phase(Store::as('BEST_PRACTICES', 'Collected results from all research tasks'));
-
-        // =====================================================
-        // PHASE 5: PROJECT-SPECIFIC INCLUDES ANALYSIS
-        // =====================================================
-
-        $this->guideline('phase5-project-includes')
+        $this->guideline('phase4-project-includes')
             ->goal('Analyze and suggest PROJECT-SPECIFIC includes only (NOT standard includes)')
             ->note([
                 'IMPORTANT: Brain already has a Variation with standard includes configured',
@@ -511,7 +484,6 @@ class InitBrainInclude extends IncludeArchetype
                         Store::get('EXISTING_PROJECT_INCLUDES'),
                         Store::get('PROJECT_CONTEXT'),
                         Store::get('DOCS_ANALYSIS'),
-                        Store::get('BEST_PRACTICES'),
                     ),
                     Operator::task([
                         'Analyze existing project-specific includes in ' . Runtime::NODE_DIRECTORY('Includes/'),
@@ -526,10 +498,10 @@ class InitBrainInclude extends IncludeArchetype
             ->phase(Store::as('PROJECT_INCLUDES_RECOMMENDATION'));
 
         // =====================================================
-        // PHASE 6: SMART DISTRIBUTION CATEGORIZATION
+        // PHASE 5: SMART DISTRIBUTION CATEGORIZATION
         // =====================================================
 
-        $this->guideline('phase6-smart-distribution')
+        $this->guideline('phase5-smart-distribution')
             ->goal('Categorize discovered rules/guidelines into Common, Master, or Brain files')
             ->note([
                 'CRITICAL: Each rule MUST go to exactly ONE file to avoid duplication',
@@ -544,7 +516,6 @@ class InitBrainInclude extends IncludeArchetype
                         Store::get('PROJECT_CONTEXT'),
                         Store::get('ENVIRONMENT_CONTEXT'),
                         Store::get('DOCS_ANALYSIS'),
-                        Store::get('BEST_PRACTICES'),
                         Store::get('ARCHITECTURE_PATTERNS'),
                         Store::get('VECTOR_CRITICAL_INSIGHTS'),
                     ),
@@ -585,10 +556,10 @@ class InitBrainInclude extends IncludeArchetype
             ->phase(Store::as('DISTRIBUTED_GUIDELINES'));
 
         // =====================================================
-        // PHASE 6A: COMMON.PHP ENHANCEMENT
+        // PHASE 5A: COMMON.PHP ENHANCEMENT
         // =====================================================
 
-        $this->guideline('phase6a-common-enhancement')
+        $this->guideline('phase5a-common-enhancement')
             ->goal('Enhance Common.php with shared project rules for Brain AND all Agents')
             ->note([
                 'Common.php is included by BOTH BrainIncludesTrait AND AgentIncludesTrait',
@@ -673,10 +644,10 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
-        // PHASE 6B: MASTER.PHP ENHANCEMENT
+        // PHASE 5B: MASTER.PHP ENHANCEMENT
         // =====================================================
 
-        $this->guideline('phase6b-master-enhancement')
+        $this->guideline('phase5b-master-enhancement')
             ->goal('Enhance Master.php with agent-specific rules shared by ALL Agents')
             ->note([
                 'Master.php is included by AgentIncludesTrait only (NOT Brain)',
@@ -754,10 +725,10 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
-        // PHASE 7: BRAIN.PHP ENHANCEMENT (PromptMaster)
+        // PHASE 6: BRAIN.PHP ENHANCEMENT (PromptMaster)
         // =====================================================
 
-        $this->guideline('phase7-brain-enhancement')
+        $this->guideline('phase6-brain-enhancement')
             ->goal('Enhance Brain.php with Brain-specific orchestration rules ONLY')
             ->note([
                 'CRITICAL: Preserve ALL existing #[Includes()] attributes - they define the Variation',
@@ -833,10 +804,10 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
-        // PHASE 8: COMPILATION AND VALIDATION
+        // PHASE 7: COMPILATION AND VALIDATION
         // =====================================================
 
-        $this->guideline('phase8-compilation')
+        $this->guideline('phase7-compilation')
             ->goal('Validate syntax and compile all enhanced files')
             ->example()
             ->phase('Validate PHP syntax for all modified files')
@@ -888,10 +859,10 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
-        // PHASE 9: KNOWLEDGE STORAGE
+        // PHASE 8: KNOWLEDGE STORAGE
         // =====================================================
 
-        $this->guideline('phase9-knowledge-storage')
+        $this->guideline('phase8-knowledge-storage')
             ->goal('Store all insights to vector memory for future reference')
             ->example()
             ->phase(
@@ -917,17 +888,17 @@ class InitBrainInclude extends IncludeArchetype
             )
             ->phase(
                 VectorMemoryMcp::call('store_memory', Operator::input(
-                    'content: "Best Practices Research - Frameworks: {frameworks}, Recommendations: {best_practices}, Date: {current_date}"',
+                    'content: "Vector Memory Mining - Common: {vector_common_count}, Master: {vector_master_count}, Brain: {vector_brain_count}, Total validated: {vector_total_validated}, Date: {current_date}"',
                     'category: "learning"',
-                    'tags: ["init-brain", "best-practices", "research"]',
+                    'tags: ["init-brain", "vector-mining", "insights"]',
                 ))
             );
 
         // =====================================================
-        // PHASE 10: REPORT GENERATION
+        // PHASE 9: REPORT GENERATION
         // =====================================================
 
-        $this->guideline('phase10-report')
+        $this->guideline('phase9-report')
             ->goal('Generate comprehensive initialization report with smart distribution summary')
             ->example()
             ->phase(
@@ -1043,9 +1014,9 @@ class InitBrainInclude extends IncludeArchetype
                 'Use manual fallback detection',
                 'Analyze file extensions and structure',
             ])
-            ->phase()->if('web research fails', [
-                'Use cached knowledge from vector memory',
-                'Continue with available information',
+            ->phase()->if('vector memory research fails', [
+                'Continue with codebase-only discovery',
+                'Log: Vector memory unavailable',
             ])
             ->phase()->if(BrainCLI::LIST_INCLUDES . ' fails', [
                 'Use hardcoded standard includes list',
@@ -1091,7 +1062,7 @@ class InitBrainInclude extends IncludeArchetype
             ->phase('Discovery: Laravel 11, PHP 8.3, MySQL, Redis, Queue, Sanctum')
             ->phase('Environment: Docker (Sail), GitHub Actions CI/CD, PHPStan L8')
             ->phase('Docs: 15 .md files with architecture, requirements, domain logic')
-            ->phase('Research: Laravel 2025 best practices, service container patterns')
+            ->phase('Vector Mining: 12 insights found, 8 validated for distribution')
             ->phase('')
             ->phase('SMART DISTRIBUTION:')
             ->phase('  Common.php: Docker/Sail environment rules, PHP 8.3 type constraints, MySQL conventions')
@@ -1107,7 +1078,7 @@ class InitBrainInclude extends IncludeArchetype
             ->phase('Discovery: Node.js 20, Express, TypeScript, MongoDB')
             ->phase('Environment: Docker Compose, GitLab CI, ESLint + Prettier')
             ->phase('Docs: None found - codebase analysis only')
-            ->phase('Research: Express 2025 patterns, TypeScript best practices')
+            ->phase('Vector Mining: 7 insights found, 5 validated for distribution')
             ->phase('')
             ->phase('SMART DISTRIBUTION:')
             ->phase('  Common.php: Docker network rules, Node 20 constraints, ESLint compliance')
@@ -1123,7 +1094,7 @@ class InitBrainInclude extends IncludeArchetype
             ->phase('Discovery: Laravel API + React SPA + Docker + Kafka')
             ->phase('Environment: Kubernetes, GitHub Actions, PHPStan + ESLint')
             ->phase('Docs: ADRs, API specs, deployment docs, domain model')
-            ->phase('Research: Microservices patterns, event-driven architecture')
+            ->phase('Vector Mining: 18 insights found, 12 validated for distribution')
             ->phase('')
             ->phase('SMART DISTRIBUTION:')
             ->phase('  Common.php: K8s service discovery, cross-service authentication, Kafka topic naming')
