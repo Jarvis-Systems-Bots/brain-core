@@ -106,34 +106,26 @@ class DoTestValidateInclude extends IncludeArchetype
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
             ]));
 
-        // Phase 0: Agent Discovery and Test Validation Preview
+        // Phase 0: Agent Discovery and Test Validation Scope Preview
         $this->guideline('phase0-validation-preview')
-            ->goal('Discover available agents and preview test validation scope')
+            ->goal('Discover available agents and present test validation scope for approval')
             ->example()
             ->phase(Operator::output([
                 '=== PHASE 0: TEST VALIDATION PREVIEW ===',
             ]))
             ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents with capabilities'))
             ->phase(Store::as('AVAILABLE_AGENTS', '{agent_id: description mapping}'))
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "tests for: {$TASK_DESCRIPTION}", limit: 3, category: "code-solution"}'))
-            ->phase(Store::as('TEST_PREVIEW', 'Test preview'))
-            ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 5}'))
-            ->phase(Store::as('RELATED_TEST_TASKS_PREVIEW', 'Related test tasks preview'))
             ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from $TASK_DESCRIPTION}'), 'Get documentation INDEX preview'))
             ->phase(Store::as('DOCS_PREVIEW', 'Documentation files available'))
             ->phase(Operator::output([
                 'Task: {$TASK_DESCRIPTION}',
-                'Related test memories: {$TEST_PREVIEW.count}',
-                'Related test tasks: {$RELATED_TEST_TASKS_PREVIEW.count}',
+                'Available agents: {$AVAILABLE_AGENTS.count}',
                 'Documentation files: {$DOCS_PREVIEW.count}',
                 '',
-                'Test validation will check:',
-                '1. Requirements coverage by tests',
-                '2. Test quality (no bloat)',
-                '3. Workflow coverage (end-to-end)',
-                '4. Test consistency',
-                '5. Test isolation',
-                '6. Test execution status',
+                'Test validation will delegate to agents:',
+                '1. VectorMaster - deep memory research for test context',
+                '2. DocumentationMaster - testable requirements extraction',
+                '3. Selected agents - test discovery + parallel validation (6 aspects)',
                 '',
                 '⚠️  APPROVAL REQUIRED',
                 '✅ approved/yes - start test validation | ❌ no/modifications',
@@ -147,25 +139,25 @@ class DoTestValidateInclude extends IncludeArchetype
                 Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (test validation phase)']),
             ]));
 
-        // Phase 1: Deep Test Context Gathering
+        // Phase 1: Deep Test Context Gathering via VectorMaster Agent
         $this->guideline('phase1-context-gathering')
-            ->goal('Gather test-related context from vector memory after approval')
+            ->goal('Delegate deep test context research to VectorMaster agent')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 1: DEEP TEST CONTEXT ===',
+                'Delegating to VectorMaster for deep memory research...',
             ]))
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "tests for: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution"}'))
-            ->phase(Store::as('TEST_HISTORY', 'Past test implementations'))
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "test patterns: {$TASK_DESCRIPTION}", limit: 5, category: "learning"}'))
-            ->phase(Store::as('TEST_PATTERNS', 'Test patterns and best practices'))
+            ->phase('SELECT vector-master from $AVAILABLE_AGENTS')
+            ->phase(Store::as('CONTEXT_AGENT', '{vector-master agent_id}'))
+            ->phase(TaskTool::agent('{$CONTEXT_AGENT}', 'DEEP MEMORY RESEARCH for test validation of "{$TASK_DESCRIPTION}": 1) Multi-probe search: past test implementations, test patterns, testing best practices, test failures, coverage gaps 2) Search across categories: code-solution, learning, bug-fix 3) Extract test-specific insights: what worked, what failed, patterns used 4) Return: {test_history: [...], test_patterns: [...], past_failures: [...], quality_standards: [...], key_insights: [...]}. Store consolidated test context.'))
+            ->phase(Store::as('TEST_MEMORY_CONTEXT', '{VectorMaster agent results}'))
             ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 10}'))
             ->phase(Store::as('RELATED_TEST_TASKS', 'Related test tasks'))
             ->phase(Operator::output([
-                'Context gathered:',
-                '- Test history: {$TEST_HISTORY.count} memories',
-                '- Test patterns: {$TEST_PATTERNS.count} memories',
-                '- Related test tasks: {$RELATED_TEST_TASKS.count} tasks',
+                'Context gathered via {$CONTEXT_AGENT}:',
+                '- Test insights: {$TEST_MEMORY_CONTEXT.key_insights.count}',
+                '- Related test tasks: {$RELATED_TEST_TASKS.count}',
             ]));
 
         // Phase 2: Documentation Requirements Extraction

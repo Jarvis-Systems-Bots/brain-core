@@ -106,33 +106,26 @@ class DoValidateInclude extends IncludeArchetype
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
             ]));
 
-        // Phase 0: Agent Discovery and Validation Context Preview
+        // Phase 0: Agent Discovery and Validation Scope Preview
         $this->guideline('phase0-context-preview')
-            ->goal('Discover available agents and preview validation scope')
+            ->goal('Discover available agents and present validation scope for approval')
             ->example()
             ->phase(Operator::output([
                 '=== PHASE 0: VALIDATION PREVIEW ===',
             ]))
             ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents with capabilities'))
             ->phase(Store::as('AVAILABLE_AGENTS', '{agent_id: description mapping}'))
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "implementation: {$TASK_DESCRIPTION}", limit: 3, category: "code-solution"}'))
-            ->phase(Store::as('IMPLEMENTATION_PREVIEW', 'Implementation preview'))
-            ->phase(VectorTaskMcp::call('task_list', '{query: "{$TASK_DESCRIPTION}", limit: 5}'))
-            ->phase(Store::as('RELATED_TASKS_PREVIEW', 'Related tasks preview'))
             ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from $TASK_DESCRIPTION}'), 'Get documentation INDEX preview'))
             ->phase(Store::as('DOCS_PREVIEW', 'Documentation files available'))
             ->phase(Operator::output([
                 'Task: {$TASK_DESCRIPTION}',
-                'Related memories: {$IMPLEMENTATION_PREVIEW.count}',
-                'Related tasks: {$RELATED_TASKS_PREVIEW.count}',
+                'Available agents: {$AVAILABLE_AGENTS.count}',
                 'Documentation files: {$DOCS_PREVIEW.count}',
                 '',
-                'Validation will check:',
-                '1. Requirements coverage from documentation',
-                '2. Code consistency and quality',
-                '3. Test coverage',
-                '4. Documentation sync',
-                '5. Dependencies',
+                'Validation will delegate to agents:',
+                '1. VectorMaster - deep memory research for context',
+                '2. DocumentationMaster - requirements extraction',
+                '3. Selected agents - parallel validation (5 aspects)',
                 '',
                 '⚠️  APPROVAL REQUIRED',
                 '✅ approved/yes - start validation | ❌ no/modifications',
@@ -146,25 +139,25 @@ class DoValidateInclude extends IncludeArchetype
                 Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (validation phase)']),
             ]));
 
-        // Phase 1: Deep Context Gathering
+        // Phase 1: Deep Context Gathering via VectorMaster Agent
         $this->guideline('phase1-context-gathering')
-            ->goal('Gather maximum context from vector memory after approval')
+            ->goal('Delegate deep memory research to VectorMaster agent')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 1: DEEP CONTEXT GATHERING ===',
+                'Delegating to VectorMaster for deep memory research...',
             ]))
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "implementation: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution"}'))
-            ->phase(Store::as('IMPLEMENTATION_HISTORY', 'Past implementations'))
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "requirements: {$TASK_DESCRIPTION}", limit: 5, category: "architecture"}'))
-            ->phase(Store::as('REQUIREMENTS_HISTORY', 'Past requirements'))
+            ->phase('SELECT vector-master from $AVAILABLE_AGENTS')
+            ->phase(Store::as('CONTEXT_AGENT', '{vector-master agent_id}'))
+            ->phase(TaskTool::agent('{$CONTEXT_AGENT}', 'DEEP MEMORY RESEARCH for validation of "{$TASK_DESCRIPTION}": 1) Multi-probe search: implementation patterns, requirements, architecture decisions, past validations, bug fixes 2) Search across categories: code-solution, architecture, learning, bug-fix 3) Extract actionable insights for validation 4) Return: {implementations: [...], requirements: [...], patterns: [...], past_validations: [...], key_insights: [...]}. Store consolidated context.'))
+            ->phase(Store::as('MEMORY_CONTEXT', '{VectorMaster agent results}'))
             ->phase(VectorTaskMcp::call('task_list', '{query: "{$TASK_DESCRIPTION}", limit: 10}'))
             ->phase(Store::as('RELATED_TASKS', 'Related vector tasks'))
             ->phase(Operator::output([
-                'Context gathered:',
-                '- Implementation history: {$IMPLEMENTATION_HISTORY.count} memories',
-                '- Requirements history: {$REQUIREMENTS_HISTORY.count} memories',
-                '- Related tasks: {$RELATED_TASKS.count} tasks',
+                'Context gathered via {$CONTEXT_AGENT}:',
+                '- Memory insights: {$MEMORY_CONTEXT.key_insights.count}',
+                '- Related tasks: {$RELATED_TASKS.count}',
             ]));
 
         // Phase 2: Documentation Requirements Extraction
