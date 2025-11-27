@@ -93,6 +93,7 @@ class DoTestValidateInclude extends IncludeArchetype
                 VectorTaskMcp::call('task_list', '{parent_id: $VECTOR_TASK_ID, limit: 50}'),
                 Store::as('SUBTASKS', '{list of subtasks}'),
                 Store::as('TASK_DESCRIPTION', '$VECTOR_TASK.title + $VECTOR_TASK.content'),
+                Store::as('TASK_PARENT_ID', '$VECTOR_TASK_ID'),
                 Operator::output([
                     '=== VECTOR TASK LOADED ===',
                     'Task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}',
@@ -104,6 +105,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase(Operator::if('$ARGUMENTS is plain description', [
                 Store::as('IS_VECTOR_TASK', 'false'),
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
+                Store::as('TASK_PARENT_ID', 'null'),
             ]));
 
         // Phase 0: Agent Discovery and Test Validation Scope Preview
@@ -281,7 +283,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase('Create tasks for MISSING COVERAGE (highest priority)')
             ->phase(Operator::forEach('req in $MISSING_COVERAGE', [
                 Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Write tests: {req.description}", content: "Missing test coverage found during test validation.\\n\\nRequirement: {req.description}\\nTestable scenarios: {req.testable_scenarios}\\nAcceptance criteria: {req.acceptance_criteria}\\nExpected test type: {req.expected_test_type}\\n\\nFocus on BEHAVIOR, not implementation details.", priority: "high", tags: ["test-coverage", "missing"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Write tests: {req.description}", content: "Missing test coverage found during test validation.\\n\\nRequirement: {req.description}\\nTestable scenarios: {req.testable_scenarios}\\nAcceptance criteria: {req.acceptance_criteria}\\nExpected test type: {req.expected_test_type}\\n\\nFocus on BEHAVIOR, not implementation details.", priority: "high", tags: ["test-coverage", "missing"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task: Write tests for {req.description}']),
                 ]),
@@ -289,7 +291,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase('Create tasks for FAILING TESTS (high priority)')
             ->phase(Operator::forEach('test in $FAILING_TESTS', [
                 Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Fix failing test: {test.test_file}", content: "Failing/flaky test found during test validation.\\n\\nFile: {test.test_file}\\nStatus: {test.execution_status}\\nError: {test.error_message}\\n\\nInvestigate root cause and fix.", priority: "high", tags: ["test-fix", "failing"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Fix failing test: {test.test_file}", content: "Failing/flaky test found during test validation.\\n\\nFile: {test.test_file}\\nStatus: {test.execution_status}\\nError: {test.error_message}\\n\\nInvestigate root cause and fix.", priority: "high", tags: ["test-fix", "failing"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task: Fix {test.test_file}']),
                 ]),
@@ -297,7 +299,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase('Create tasks for BLOATED TESTS (medium priority)')
             ->phase(Operator::forEach('test in $BLOATED_TESTS where severity === "major"', [
                 Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Refactor bloated test: {test.test_file}:{test.test_method}", content: "Bloated test found during test validation.\\n\\nFile: {test.test_file}\\nMethod: {test.test_method}\\nBloat type: {test.bloat_type}\\nSuggestion: {test.suggestion}\\n\\nSimplify to test BEHAVIOR, not implementation.", priority: "medium", tags: ["test-refactor", "bloat"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Refactor bloated test: {test.test_file}:{test.test_method}", content: "Bloated test found during test validation.\\n\\nFile: {test.test_file}\\nMethod: {test.test_method}\\nBloat type: {test.bloat_type}\\nSuggestion: {test.suggestion}\\n\\nSimplify to test BEHAVIOR, not implementation.", priority: "medium", tags: ["test-refactor", "bloat"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task: Refactor bloated test {test.test_method}']),
                 ]),
@@ -305,7 +307,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase('Create tasks for MISSING WORKFLOWS (medium priority)')
             ->phase(Operator::forEach('workflow in $MISSING_WORKFLOWS', [
                 Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Add workflow test: {workflow.workflow}", content: "Missing end-to-end workflow test found during validation.\\n\\nWorkflow: {workflow.workflow}\\nMissing scenarios: {workflow.missing_scenarios}\\n\\nWrite tests that cover complete user journey.", priority: "medium", tags: ["test-coverage", "workflow"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Add workflow test: {workflow.workflow}", content: "Missing end-to-end workflow test found during validation.\\n\\nWorkflow: {workflow.workflow}\\nMissing scenarios: {workflow.missing_scenarios}\\n\\nWrite tests that cover complete user journey.", priority: "medium", tags: ["test-coverage", "workflow"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task: Add workflow test for {workflow.workflow}']),
                 ]),
@@ -313,7 +315,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase('Create tasks for ISOLATION ISSUES (medium priority)')
             ->phase(Operator::forEach('test in $ISOLATION_ISSUES where severity === "major"', [
                 Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Fix test isolation: {test.test_file}", content: "Test isolation issue found during validation.\\n\\nFile: {test.test_file}\\nIssue: {test.isolation_issue}\\nSuggestion: {test.suggestion}\\n\\nEnsure test can run independently.", priority: "medium", tags: ["test-fix", "isolation"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Fix test isolation: {test.test_file}", content: "Test isolation issue found during validation.\\n\\nFile: {test.test_file}\\nIssue: {test.isolation_issue}\\nSuggestion: {test.suggestion}\\n\\nEnsure test can run independently.", priority: "medium", tags: ["test-fix", "isolation"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task: Fix isolation in {test.test_file}']),
                 ]),

@@ -93,6 +93,7 @@ class DoValidateInclude extends IncludeArchetype
                 VectorTaskMcp::call('task_list', '{parent_id: $VECTOR_TASK_ID, limit: 50}'),
                 Store::as('SUBTASKS', '{list of subtasks}'),
                 Store::as('TASK_DESCRIPTION', '$VECTOR_TASK.title + $VECTOR_TASK.content'),
+                Store::as('TASK_PARENT_ID', '$VECTOR_TASK_ID'),
                 Operator::output([
                     '=== VECTOR TASK LOADED ===',
                     'Task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}',
@@ -104,6 +105,7 @@ class DoValidateInclude extends IncludeArchetype
             ->phase(Operator::if('$ARGUMENTS is plain description', [
                 Store::as('IS_VECTOR_TASK', 'false'),
                 Store::as('TASK_DESCRIPTION', '$ARGUMENTS'),
+                Store::as('TASK_PARENT_ID', 'null'),
             ]));
 
         // Phase 0: Agent Discovery and Validation Scope Preview
@@ -283,14 +285,14 @@ class DoValidateInclude extends IncludeArchetype
             ->phase(Store::as('EXISTING_FIX_TASKS', 'Existing fix tasks'))
             ->phase(Operator::forEach('issue in $CRITICAL_ISSUES + $MAJOR_ISSUES', [
                 Operator::if('NOT exists in $EXISTING_FIX_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Fix: {issue.description}", content: "Issue found during validation of {$TASK_DESCRIPTION}.\\n\\nDetails:\\n- File: {issue.file}\\n- Type: {issue.type}\\n- Severity: {issue.severity}\\n\\nSuggestion: {issue.suggestion}", priority: "{issue.severity === critical ? high : medium}", tags: ["validation-fix", "{issue.type}"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Fix: {issue.description}", content: "Issue found during validation of {$TASK_DESCRIPTION}.\\n\\nDetails:\\n- File: {issue.file}\\n- Type: {issue.type}\\n- Severity: {issue.severity}\\n\\nSuggestion: {issue.suggestion}", priority: "{issue.severity === critical ? high : medium}", tags: ["validation-fix", "{issue.type}"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task for: {issue.description}']),
                 ]),
             ]))
             ->phase(Operator::forEach('req in $MISSING_REQUIREMENTS', [
                 Operator::if('NOT exists in $EXISTING_FIX_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Implement: {req.description}", content: "Missing requirement found during validation.\\n\\nRequirement: {req.description}\\nAcceptance criteria: {req.acceptance_criteria}\\nRelated files: {req.related_files}", priority: "{req.priority}", tags: ["validation-missing", "requirement"], parent_id: $VECTOR_TASK_ID or null}'),
+                    VectorTaskMcp::call('task_create', '{title: "Implement: {req.description}", content: "Missing requirement found during validation.\\n\\nRequirement: {req.description}\\nAcceptance criteria: {req.acceptance_criteria}\\nRelated files: {req.related_files}", priority: "{req.priority}", tags: ["validation-missing", "requirement"], parent_id: $TASK_PARENT_ID}'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
                     Operator::output(['Created task for missing requirement: {req.description}']),
                 ]),
