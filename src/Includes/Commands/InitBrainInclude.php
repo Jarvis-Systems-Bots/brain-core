@@ -106,6 +106,17 @@ class InitBrainInclude extends IncludeArchetype
             ->why('Preserves manual customizations and avoids losing valuable existing configuration')
             ->onViolation('Valuable existing configuration lost, manual work discarded');
 
+        $this->rule('extract-to-env-variables')->critical()
+            ->text([
+                'ALL configurable values MUST use $this->var("KEY", default) in generated code',
+                'Simultaneously collect variables to ' . Runtime::BRAIN_DIRECTORY('.env'),
+                'Variable candidates: thresholds, limits, toggles, versions, paths, model names',
+                'Each variable: UPPER_SNAKE_CASE name, sensible default, descriptive comment',
+                'DRY: If value used in multiple places - MUST be a variable',
+            ])
+            ->why('Centralizes configuration, enables tuning without code changes, prevents magic values')
+            ->onViolation('Hardcoded values scattered across files, impossible to configure');
+
         // =====================================================
         // PHASE 1: TEMPORAL CONTEXT INITIALIZATION
         // =====================================================
@@ -555,9 +566,17 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Tech stack version constraints',
                         '  - Universal coding conventions',
                         '  - Shared infrastructure knowledge',
+                        '',
+                        'VARIABLE EXTRACTION (simultaneous with code generation):',
+                        '  - For ANY configurable value use: $this->var("KEY", default)',
+                        '  - COLLECT each variable: {name, default, description, variants}',
+                        '  - Candidates: PHP_VERSION, NODE_VERSION, DATABASE_TYPE, DOCKER_ENABLED',
+                        '  - Candidates: PHPSTAN_LEVEL, TEST_COVERAGE_MIN, MAX_LINE_LENGTH',
+                        '  - DO NOT hardcode values that may differ per project',
+                        '',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
                     ]),
-                    Operator::output('{common_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...]}'),
+                    Operator::output('{common_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...], env_vars: [{name, default, description, variants}]}'),
                 )
             )
             ->phase('Write enhanced Common.php')
@@ -614,9 +633,17 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Code generation conventions',
                         '  - Test writing patterns',
                         '  - Quality gates before task completion',
+                        '',
+                        'VARIABLE EXTRACTION (simultaneous with code generation):',
+                        '  - For ANY configurable value use: $this->var("KEY", default)',
+                        '  - COLLECT each variable: {name, default, description, variants}',
+                        '  - Candidates: MAX_TASK_ESTIMATE_HOURS, DEFAULT_AGENT_MODEL, PARALLEL_TASKS',
+                        '  - Candidates: REQUIRE_TESTS, MIN_COVERAGE, CODE_REVIEW_ENABLED',
+                        '  - DO NOT hardcode values that may differ per project',
+                        '',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
                     ]),
-                    Operator::output('{master_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...]}'),
+                    Operator::output('{master_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...], env_vars: [{name, default, description, variants}]}'),
                 )
             )
             ->phase('Write enhanced Master.php')
@@ -671,10 +698,18 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Agent selection criteria for this project',
                         '  - Response synthesis patterns',
                         '  - Brain-level validation gates',
+                        '',
+                        'VARIABLE EXTRACTION (simultaneous with code generation):',
+                        '  - For ANY configurable value use: $this->var("KEY", default)',
+                        '  - COLLECT each variable: {name, default, description, variants}',
+                        '  - Candidates: DEFAULT_MODEL, MAX_DELEGATION_DEPTH, VALIDATION_THRESHOLD',
+                        '  - Candidates: ENABLE_PARALLEL_AGENTS, MAX_RETRIES, RESPONSE_MAX_TOKENS',
+                        '  - DO NOT hardcode values that may differ per project',
+                        '',
                         'If suggested new project includes, add to #[Includes()] AFTER existing',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
                     ]),
-                    Operator::output('{brain_php_content: "...", preserved_variation: "...", rules_kept: [...], rules_added: [...], rules_updated: [...]}'),
+                    Operator::output('{brain_php_content: "...", preserved_variation: "...", rules_kept: [...], rules_added: [...], rules_updated: [...], env_vars: [{name, default, description, variants}]}'),
                 )
             )
             ->phase('Write enhanced Brain.php')
@@ -688,12 +723,12 @@ class InitBrainInclude extends IncludeArchetype
         // =====================================================
 
         $this->guideline('phase7-5-env-configuration')
-            ->goal('Extract configurable settings to ' . Runtime::BRAIN_DIRECTORY('.env') . ' for easy tuning')
+            ->goal('Merge collected variables from all 3 files into ' . Runtime::BRAIN_DIRECTORY('.env'))
             ->note([
-                'Centralizes all adjustable parameters in one place',
-                'Uses $this->var() in PHP code to read ENV values',
+                'Variables already collected during file generation (env_vars in output)',
+                'This phase MERGES variables from Common.php, Master.php, Brain.php',
+                'Preserves existing user-modified values in .env',
                 'Comments document each setting with variants and combinations',
-                'Prevents duplication - single source of truth for configurable values',
             ])
             ->example()
             ->phase('Read existing .env if present')
@@ -705,47 +740,36 @@ class InitBrainInclude extends IncludeArchetype
                     Store::as('EXISTING_ENV', 'null'),
                 ])
             )
+            ->phase('Merge env_vars from all generated files')
             ->phase(
-                AgentMaster::call(
+                Operator::task([
+                    'COLLECT env_vars from:',
+                    '  - ENHANCED_COMMON_PHP.env_vars (environment, tech stack)',
+                    '  - ENHANCED_MASTER_PHP.env_vars (agent behavior)',
+                    '  - ENHANCED_BRAIN_PHP.env_vars (orchestration)',
+                    '',
+                    'MERGE all collected variables:',
+                    '  - Deduplicate by variable name',
+                    '  - Keep first occurrence if duplicate (Common > Master > Brain priority)',
+                    Store::as('ALL_ENV_VARS'),
+                ])
+            )
+            ->phase(
+                PromptMaster::call(
                     Operator::input(
+                        Store::get('ALL_ENV_VARS'),
                         Store::get('EXISTING_ENV'),
-                        Store::get('PROJECT_CONTEXT'),
-                        Store::get('TECH_STACK'),
-                        Store::get('ENVIRONMENT_CONTEXT'),
-                        Store::get('ARCHITECTURE_PATTERNS'),
-                        Store::get('VECTOR_CRITICAL_INSIGHTS'),
                     ),
                     Operator::task([
-                        'Analyze ALL discovered project settings and identify CONFIGURABLE values',
+                        'MERGE collected variables with EXISTING_ENV:',
+                        '  - PRESERVE existing values if user modified (value differs from default)',
+                        '  - ADD new variables not in existing .env',
+                        '  - UPDATE comments if improved (keep existing values)',
+                        '  - KEEP user custom comments intact',
                         '',
-                        'EXTRACT settings that:',
-                        '  - May need adjustment per environment/project',
-                        '  - Control behavior that users might want to tweak',
-                        '  - Represent thresholds, limits, or toggles',
-                        '  - Are referenced in multiple places (DRY)',
-                        '',
-                        'CATEGORIES to consider:',
-                        '  - Model settings: DEFAULT_MODEL, FALLBACK_MODEL',
-                        '  - Limits: MAX_TOKENS, MAX_RETRIES, TIMEOUT_SECONDS',
-                        '  - Toggles: ENABLE_VECTOR_MEMORY, ENABLE_WEB_RESEARCH',
-                        '  - Paths: DOCS_DIRECTORY, OUTPUT_DIRECTORY',
-                        '  - Project-specific: PHP_VERSION, NODE_VERSION, DATABASE_TYPE',
-                        '  - Quality gates: MIN_COVERAGE, PHPSTAN_LEVEL',
-                        '  - Agent behavior: AGENT_VERBOSITY, PARALLEL_AGENTS',
-                        '',
-                        'FOR EACH setting generate:',
-                        '  - UPPER_SNAKE_CASE name',
-                        '  - Default value (from project discovery)',
-                        '  - Comment with description (1 line)',
-                        '  - Comment with variants/options if applicable',
-                        '',
-                        'MERGE with EXISTING_ENV:',
-                        '  - PRESERVE user-modified values',
-                        '  - ADD new settings not present',
-                        '  - UPDATE comments if improved',
-                        '  - KEEP user comments intact',
+                        'Generate well-structured .env file content',
                     ]),
-                    Operator::output('{env_content: "...", settings_kept: [...], settings_added: [...], settings_updated: [...]}'),
+                    Operator::output('{merged_vars: [...], kept_count: N, added_count: N}'),
                 )
             )
             ->phase(Store::as('ENV_CONFIGURATION'))
