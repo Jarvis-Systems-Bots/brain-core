@@ -49,11 +49,6 @@ class InitBrainInclude extends IncludeArchetype
             ->why('Prevents generic configurations that do not match project reality')
             ->onViolation('Speculation leads to misaligned Brain behavior');
 
-        $this->rule('preserve-existing')->critical()
-            ->text(['Backup existing', Runtime::NODE_DIRECTORY('Brain.php'), 'before modifications'])
-            ->why('Prevents data loss and enables rollback if needed')
-            ->onViolation('Data loss and inability to recover previous configuration');
-
         $this->rule('vector-memory-storage')->high()
             ->text('Store all significant insights to vector memory with semantic tags')
             ->why('Enables future context retrieval and knowledge accumulation')
@@ -108,14 +103,17 @@ class InitBrainInclude extends IncludeArchetype
 
         $this->rule('extract-to-env-variables')->critical()
             ->text([
-                'ALL configurable values MUST use $this->var("KEY", default) in generated code',
-                'Simultaneously collect variables to ' . Runtime::BRAIN_DIRECTORY('.env'),
+                'ALL configurable values in generated code MUST use $this->var("KEY", default)',
+                'WORKFLOW per file generation (6a, 6b, 7):',
+                '  1. READ existing ' . Runtime::BRAIN_DIRECTORY('.env') . ' to get current variables',
+                '  2. GENERATE code using $this->var("KEY", default) for configurable values',
+                '  3. APPEND new variables to .env with # description and # variants: comments',
                 'Variable candidates: thresholds, limits, toggles, versions, paths, model names',
-                'Each variable: UPPER_SNAKE_CASE name, sensible default, descriptive comment',
-                'DRY: If value used in multiple places - MUST be a variable',
+                'Each variable: UPPER_SNAKE_CASE, sensible default, description, variants if applicable',
+                'NEVER create empty/dummy variables - only those ACTUALLY USED in generated code',
             ])
             ->why('Centralizes configuration, enables tuning without code changes, prevents magic values')
-            ->onViolation('Hardcoded values scattered across files, impossible to configure');
+            ->onViolation('Hardcoded values in code OR unused variables in .env');
 
         // =====================================================
         // PHASE 1: TEMPORAL CONTEXT INITIALIZATION
@@ -531,15 +529,17 @@ class InitBrainInclude extends IncludeArchetype
                 'Focus: environment, tech stack, coding standards, shared configuration',
             ])
             ->example()
-            ->phase('Backup existing Common.php')
+            ->phase('Read existing Common.php and .env')
             ->phase(
-                BashTool::describe(
-                    'cp ' . Runtime::NODE_DIRECTORY('Common.php') . ' ' . Runtime::NODE_DIRECTORY('Common.php.backup'),
-                    'Create backup before modification'
-                )
-            )
-            ->phase(
-                ReadTool::call(Runtime::NODE_DIRECTORY('Common.php'))
+                Operator::task([
+                    ReadTool::call(Runtime::NODE_DIRECTORY('Common.php')),
+                    Operator::if(Runtime::BRAIN_DIRECTORY('.env') . ' exists', [
+                        ReadTool::call(Runtime::BRAIN_DIRECTORY('.env')),
+                        Store::as('EXISTING_ENV'),
+                    ], [
+                        Store::as('EXISTING_ENV', ''),
+                    ]),
+                ])
             )
             ->phase(Store::as('CURRENT_COMMON_CONFIG'))
             ->phase(
@@ -567,22 +567,42 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Universal coding conventions',
                         '  - Shared infrastructure knowledge',
                         '',
-                        'VARIABLE EXTRACTION (simultaneous with code generation):',
-                        '  - For ANY configurable value use: $this->var("KEY", default)',
-                        '  - COLLECT each variable: {name, default, description, variants}',
-                        '  - Candidates: PHP_VERSION, NODE_VERSION, DATABASE_TYPE, DOCKER_ENABLED',
-                        '  - Candidates: PHPSTAN_LEVEL, TEST_COVERAGE_MIN, MAX_LINE_LENGTH',
-                        '  - DO NOT hardcode values that may differ per project',
+                        'CRITICAL - GENERATE CODE WITH $this->var() IMMEDIATELY:',
+                        '  WRONG: ->text("PHP version must be 8.3")',
+                        '  RIGHT: ->text(["PHP version must be", $this->var("PHP_VERSION", "8.3")])',
+                        '  WRONG: $limit = 100;',
+                        '  RIGHT: $limit = $this->var("MAX_LINE_LENGTH", 100);',
+                        '',
+                        '  For EACH configurable value in generated code:',
+                        '    1. USE $this->var("KEY", default) IN THE CODE IMMEDIATELY',
+                        '    2. COLLECT to env_vars: {name: "KEY", default: "value", description: "...", variants: "..."}',
+                        '',
+                        '  Candidates: PHP_VERSION, NODE_VERSION, DATABASE_TYPE, DOCKER_ENABLED',
+                        '  Candidates: PHPSTAN_LEVEL, TEST_COVERAGE_MIN, MAX_LINE_LENGTH',
                         '',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
                     ]),
                     Operator::output('{common_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...], env_vars: [{name, default, description, variants}]}'),
                 )
             )
-            ->phase('Write enhanced Common.php')
+            ->phase('Brain receives PromptMaster response with content + env_vars')
             ->phase(Store::as('ENHANCED_COMMON_PHP'))
             ->phase(
-                Operator::note('Common.php enhanced with shared project configuration')
+                Operator::task([
+                    'Write ' . Runtime::NODE_DIRECTORY('Common.php') . ' from ENHANCED_COMMON_PHP.common_php_content',
+                    Operator::if('ENHANCED_COMMON_PHP.env_vars not empty', [
+                        'APPEND to ' . Runtime::BRAIN_DIRECTORY('.env') . ':',
+                        '  # ═══ COMMON ═══ (if not already present)',
+                        '  For EACH env_var in ENHANCED_COMMON_PHP.env_vars:',
+                        '    IF var.name NOT in EXISTING_ENV:',
+                        '      # {var.description}',
+                        '      # variants: {var.variants}',
+                        '      {var.name}={var.default}',
+                    ]),
+                ])
+            )
+            ->phase(
+                Operator::note('Common.php written + new env vars appended to .env')
             );
 
         // =====================================================
@@ -597,13 +617,7 @@ class InitBrainInclude extends IncludeArchetype
                 'Focus: execution patterns, tool usage, task handling, code generation',
             ])
             ->example()
-            ->phase('Backup existing Master.php')
-            ->phase(
-                BashTool::describe(
-                    'cp ' . Runtime::NODE_DIRECTORY('Master.php') . ' ' . Runtime::NODE_DIRECTORY('Master.php.backup'),
-                    'Create backup before modification'
-                )
-            )
+            ->phase('Read existing Master.php')
             ->phase(
                 ReadTool::call(Runtime::NODE_DIRECTORY('Master.php'))
             )
@@ -634,22 +648,42 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Test writing patterns',
                         '  - Quality gates before task completion',
                         '',
-                        'VARIABLE EXTRACTION (simultaneous with code generation):',
-                        '  - For ANY configurable value use: $this->var("KEY", default)',
-                        '  - COLLECT each variable: {name, default, description, variants}',
-                        '  - Candidates: MAX_TASK_ESTIMATE_HOURS, DEFAULT_AGENT_MODEL, PARALLEL_TASKS',
-                        '  - Candidates: REQUIRE_TESTS, MIN_COVERAGE, CODE_REVIEW_ENABLED',
-                        '  - DO NOT hardcode values that may differ per project',
+                        'CRITICAL - GENERATE CODE WITH $this->var() IMMEDIATELY:',
+                        '  WRONG: ->text("Max task estimate is 8 hours")',
+                        '  RIGHT: ->text(["Max task estimate is", $this->var("MAX_TASK_ESTIMATE_HOURS", 8), "hours"])',
+                        '  WRONG: $model = "sonnet";',
+                        '  RIGHT: $model = $this->var("DEFAULT_AGENT_MODEL", "sonnet");',
+                        '',
+                        '  For EACH configurable value in generated code:',
+                        '    1. USE $this->var("KEY", default) IN THE CODE IMMEDIATELY',
+                        '    2. COLLECT to env_vars: {name: "KEY", default: "value", description: "...", variants: "..."}',
+                        '',
+                        '  Candidates: MAX_TASK_ESTIMATE_HOURS, DEFAULT_AGENT_MODEL, PARALLEL_TASKS',
+                        '  Candidates: REQUIRE_TESTS, MIN_COVERAGE, CODE_REVIEW_ENABLED',
                         '',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
                     ]),
                     Operator::output('{master_php_content: "...", rules_kept: [...], rules_added: [...], rules_updated: [...], env_vars: [{name, default, description, variants}]}'),
                 )
             )
-            ->phase('Write enhanced Master.php')
+            ->phase('Brain receives PromptMaster response with content + env_vars')
             ->phase(Store::as('ENHANCED_MASTER_PHP'))
             ->phase(
-                Operator::note('Master.php enhanced with agent-specific project configuration')
+                Operator::task([
+                    'Write ' . Runtime::NODE_DIRECTORY('Master.php') . ' from ENHANCED_MASTER_PHP.master_php_content',
+                    Operator::if('ENHANCED_MASTER_PHP.env_vars not empty', [
+                        'APPEND to ' . Runtime::BRAIN_DIRECTORY('.env') . ':',
+                        '  # ═══ MASTER ═══ (if not already present)',
+                        '  For EACH env_var in ENHANCED_MASTER_PHP.env_vars:',
+                        '    IF var.name NOT in EXISTING_ENV:',
+                        '      # {var.description}',
+                        '      # variants: {var.variants}',
+                        '      {var.name}={var.default}',
+                    ]),
+                ])
+            )
+            ->phase(
+                Operator::note('Master.php written + new env vars appended to .env')
             );
 
         // =====================================================
@@ -664,13 +698,6 @@ class InitBrainInclude extends IncludeArchetype
                 'Common rules go to Common.php, agent rules go to Master.php',
             ])
             ->example()
-            ->phase('Backup existing Brain.php')
-            ->phase(
-                BashTool::describe(
-                    'cp ' . Runtime::NODE_DIRECTORY('Brain.php') . ' ' . Runtime::NODE_DIRECTORY('Brain.php.backup'),
-                    'Create backup before modification'
-                )
-            )
             ->phase('Enhance handle() method with Brain-specific content only')
             ->phase(
                 PromptMaster::call(
@@ -699,12 +726,18 @@ class InitBrainInclude extends IncludeArchetype
                         '  - Response synthesis patterns',
                         '  - Brain-level validation gates',
                         '',
-                        'VARIABLE EXTRACTION (simultaneous with code generation):',
-                        '  - For ANY configurable value use: $this->var("KEY", default)',
-                        '  - COLLECT each variable: {name, default, description, variants}',
-                        '  - Candidates: DEFAULT_MODEL, MAX_DELEGATION_DEPTH, VALIDATION_THRESHOLD',
-                        '  - Candidates: ENABLE_PARALLEL_AGENTS, MAX_RETRIES, RESPONSE_MAX_TOKENS',
-                        '  - DO NOT hardcode values that may differ per project',
+                        'CRITICAL - GENERATE CODE WITH $this->var() IMMEDIATELY:',
+                        '  WRONG: ->text("Default model is sonnet")',
+                        '  RIGHT: ->text(["Default model is", $this->var("DEFAULT_MODEL", "sonnet")])',
+                        '  WRONG: $depth = 2;',
+                        '  RIGHT: $depth = $this->var("MAX_DELEGATION_DEPTH", 2);',
+                        '',
+                        '  For EACH configurable value in generated code:',
+                        '    1. USE $this->var("KEY", default) IN THE CODE IMMEDIATELY',
+                        '    2. COLLECT to env_vars: {name: "KEY", default: "value", description: "...", variants: "..."}',
+                        '',
+                        '  Candidates: DEFAULT_MODEL, MAX_DELEGATION_DEPTH, VALIDATION_THRESHOLD',
+                        '  Candidates: ENABLE_PARALLEL_AGENTS, MAX_RETRIES, RESPONSE_MAX_TOKENS',
                         '',
                         'If suggested new project includes, add to #[Includes()] AFTER existing',
                         'Apply prompt engineering: clarity, brevity, token efficiency',
@@ -712,120 +745,24 @@ class InitBrainInclude extends IncludeArchetype
                     Operator::output('{brain_php_content: "...", preserved_variation: "...", rules_kept: [...], rules_added: [...], rules_updated: [...], env_vars: [{name, default, description, variants}]}'),
                 )
             )
-            ->phase('Write enhanced Brain.php')
+            ->phase('Brain receives PromptMaster response with content + env_vars')
             ->phase(Store::as('ENHANCED_BRAIN_PHP'))
             ->phase(
-                Operator::note('Brain.php enhanced with Brain-specific configuration while preserving Variation')
-            );
-
-        // =====================================================
-        // PHASE 7.5: ENV CONFIGURATION EXTRACTION
-        // =====================================================
-
-        $this->guideline('phase7-5-env-configuration')
-            ->goal('Merge collected variables from all 3 files into ' . Runtime::BRAIN_DIRECTORY('.env'))
-            ->note([
-                'Variables already collected during file generation (env_vars in output)',
-                'This phase MERGES variables from Common.php, Master.php, Brain.php',
-                'Preserves existing user-modified values in .env',
-                'Comments document each setting with variants and combinations',
-            ])
-            ->example()
-            ->phase('Read existing .env if present')
-            ->phase(
-                Operator::if(Runtime::BRAIN_DIRECTORY('.env') . ' exists', [
-                    ReadTool::call(Runtime::BRAIN_DIRECTORY('.env')),
-                    Store::as('EXISTING_ENV'),
-                ], [
-                    Store::as('EXISTING_ENV', 'null'),
-                ])
-            )
-            ->phase('Merge env_vars from all generated files')
-            ->phase(
                 Operator::task([
-                    'COLLECT env_vars from:',
-                    '  - ENHANCED_COMMON_PHP.env_vars (environment, tech stack)',
-                    '  - ENHANCED_MASTER_PHP.env_vars (agent behavior)',
-                    '  - ENHANCED_BRAIN_PHP.env_vars (orchestration)',
-                    '',
-                    'MERGE all collected variables:',
-                    '  - Deduplicate by variable name',
-                    '  - Keep first occurrence if duplicate (Common > Master > Brain priority)',
-                    Store::as('ALL_ENV_VARS'),
+                    'Write ' . Runtime::NODE_DIRECTORY('Brain.php') . ' from ENHANCED_BRAIN_PHP.brain_php_content',
+                    Operator::if('ENHANCED_BRAIN_PHP.env_vars not empty', [
+                        'APPEND to ' . Runtime::BRAIN_DIRECTORY('.env') . ':',
+                        '  # ═══ BRAIN ═══ (if not already present)',
+                        '  For EACH env_var in ENHANCED_BRAIN_PHP.env_vars:',
+                        '    IF var.name NOT in EXISTING_ENV:',
+                        '      # {var.description}',
+                        '      # variants: {var.variants}',
+                        '      {var.name}={var.default}',
+                    ]),
                 ])
             )
             ->phase(
-                PromptMaster::call(
-                    Operator::input(
-                        Store::get('ALL_ENV_VARS'),
-                        Store::get('EXISTING_ENV'),
-                    ),
-                    Operator::task([
-                        'MERGE collected variables with EXISTING_ENV:',
-                        '  - PRESERVE existing values if user modified (value differs from default)',
-                        '  - ADD new variables not in existing .env',
-                        '  - UPDATE comments if improved (keep existing values)',
-                        '  - KEEP user custom comments intact',
-                        '',
-                        'Generate well-structured .env file content',
-                    ]),
-                    Operator::output('{merged_vars: [...], kept_count: N, added_count: N}'),
-                )
-            )
-            ->phase(Store::as('ENV_CONFIGURATION'))
-            ->phase('Generate .env file content with structured comments')
-            ->phase(
-                PromptMaster::call(
-                    Operator::input(
-                        Store::get('ENV_CONFIGURATION'),
-                        Store::get('EXISTING_ENV'),
-                    ),
-                    Operator::task([
-                        'Generate well-structured .env file content',
-                        '',
-                        'FORMAT RULES:',
-                        '  - Group settings by category with section headers',
-                        '  - Each setting: # description\\n# variants: opt1 | opt2 | opt3\\nKEY=value',
-                        '  - Empty line between groups',
-                        '  - No quotes around simple values',
-                        '  - Quotes for values with spaces',
-                        '',
-                        'SECTION ORDER:',
-                        '  1. # ═══ BRAIN CORE ═══',
-                        '  2. # ═══ MODELS ═══',
-                        '  3. # ═══ LIMITS & THRESHOLDS ═══',
-                        '  4. # ═══ FEATURES ═══',
-                        '  5. # ═══ PROJECT ═══',
-                        '  6. # ═══ QUALITY GATES ═══',
-                        '  7. # ═══ PATHS ═══',
-                        '',
-                        'EXAMPLE FORMAT:',
-                        '# ═══ MODELS ═══',
-                        '',
-                        '# Default model for Brain orchestration',
-                        '# variants: sonnet | opus | haiku',
-                        'DEFAULT_MODEL=sonnet',
-                        '',
-                        '# Fallback model when primary unavailable',
-                        '# variants: haiku | sonnet',
-                        'FALLBACK_MODEL=haiku',
-                    ]),
-                    Operator::output('{formatted_env: "..."}'),
-                )
-            )
-            ->phase(Store::as('FORMATTED_ENV'))
-            ->phase('Backup existing .env and write new')
-            ->phase(
-                Operator::if('EXISTING_ENV !== null', [
-                    BashTool::describe(
-                        'cp ' . Runtime::BRAIN_DIRECTORY('.env') . ' ' . Runtime::BRAIN_DIRECTORY('.env.backup'),
-                        'Backup existing .env'
-                    ),
-                ])
-            )
-            ->phase('Write ' . Runtime::BRAIN_DIRECTORY('.env'))
-            ->phase(
-                Operator::note('.env generated with configurable settings - use $this->var(\"KEY\") in PHP')
+                Operator::note('Brain.php written + new env vars appended to .env')
             );
 
         // =====================================================
@@ -854,12 +791,9 @@ class InitBrainInclude extends IncludeArchetype
             )
             ->phase(
                 Operator::if('any syntax validation failed', [
-                    'Restore all backups',
-                    BashTool::call('mv ' . Runtime::NODE_DIRECTORY('Common.php.backup') . ' ' . Runtime::NODE_DIRECTORY('Common.php')),
-                    BashTool::call('mv ' . Runtime::NODE_DIRECTORY('Master.php.backup') . ' ' . Runtime::NODE_DIRECTORY('Master.php')),
-                    BashTool::call('mv ' . Runtime::NODE_DIRECTORY('Brain.php.backup') . ' ' . Runtime::NODE_DIRECTORY('Brain.php')),
-                    'Report syntax errors',
-                    Operator::output('Syntax validation failed - all backups restored'),
+                    'Report syntax errors with file:line details',
+                    'Provide fix suggestions',
+                    Operator::output('Syntax validation failed - review errors above'),
                 ])
             )
             ->phase('Compile Brain ecosystem')
@@ -880,12 +814,9 @@ class InitBrainInclude extends IncludeArchetype
             )
             ->phase(
                 Operator::if('compilation failed', [
-                    'Restore all backups',
-                    BashTool::call('mv ' . Runtime::NODE_DIRECTORY('Common.php.backup') . ' ' . Runtime::NODE_DIRECTORY('Common.php')),
-                    BashTool::call('mv ' . Runtime::NODE_DIRECTORY('Master.php.backup') . ' ' . Runtime::NODE_DIRECTORY('Master.php')),
-                    BashTool::call('mv ' . Runtime::NODE_DIRECTORY('Brain.php.backup') . ' ' . Runtime::NODE_DIRECTORY('Brain.php')),
-                    'Report compilation errors',
-                    Operator::output('Compilation failed - all backups restored'),
+                    'Report compilation errors with details',
+                    'Provide fix suggestions',
+                    Operator::output('Compilation failed - review errors above'),
                 ])
             );
 
@@ -943,18 +874,18 @@ class InitBrainInclude extends IncludeArchetype
                     Runtime::NODE_DIRECTORY('Common.php') . ' (Brain + ALL Agents):',
                     '  Mode: {common_mode}',
                     '  Kept: {common_rules_kept} | Added: {common_rules_added} | Updated: {common_rules_updated}',
-                    '  Backup: ' . Runtime::NODE_DIRECTORY('Common.php.backup'),
+                    '  ENV vars: {common_env_count}',
                     '',
                     Runtime::NODE_DIRECTORY('Master.php') . ' (ALL Agents only):',
                     '  Mode: {master_mode}',
                     '  Kept: {master_rules_kept} | Added: {master_rules_added} | Updated: {master_rules_updated}',
-                    '  Backup: ' . Runtime::NODE_DIRECTORY('Master.php.backup'),
+                    '  ENV vars: {master_env_count}',
                     '',
                     Runtime::NODE_DIRECTORY('Brain.php') . ' (Brain only):',
                     '  Variation: {existing_variation_name} (PRESERVED)',
                     '  Mode: {brain_mode}',
                     '  Kept: {brain_rules_kept} | Added: {brain_rules_added} | Updated: {brain_rules_updated}',
-                    '  Backup: ' . Runtime::NODE_DIRECTORY('Brain.php.backup'),
+                    '  ENV vars: {brain_env_count}',
                     '',
                     '═══════════════════════════════════════════════════════',
                     'DISCOVERY RESULTS',
@@ -997,11 +928,7 @@ class InitBrainInclude extends IncludeArchetype
                     '',
                     'Configuration:',
                     '  ' . Runtime::BRAIN_DIRECTORY('.env'),
-                    '  Settings: {env_settings_count} ({env_kept} kept, {env_added} added)',
-                    '',
-                    'Backups:',
-                    '  ' . Runtime::NODE_DIRECTORY('*.backup'),
-                    '  ' . Runtime::BRAIN_DIRECTORY('.env.backup') . ' (if existed)',
+                    '  Variables: {env_settings_count} ({env_kept} kept, {env_added} added)',
                     '',
                     '═══════════════════════════════════════════════════════',
                     'VECTOR MEMORY',
@@ -1058,14 +985,12 @@ class InitBrainInclude extends IncludeArchetype
                 'Log: Include discovery failed',
             ])
             ->phase()->if('Brain.php generation fails', [
-                'Preserve backup',
-                'Report detailed error',
-                'Provide manual configuration guidance',
+                'Report detailed error with file:line',
+                'Provide manual fix guidance',
             ])
             ->phase()->if(BrainCLI::COMPILE . ' fails', [
-                'Restore backup',
                 'Analyze compilation errors',
-                'Suggest fixes',
+                'Provide fix suggestions',
             ])
             ->phase()->if('vector memory storage fails', [
                 'Continue without storage',
@@ -1083,7 +1008,7 @@ class InitBrainInclude extends IncludeArchetype
             ->example('Gate 3: Environment discovery completed (Docker, CI/CD, Dev Tools)')
             ->example('Gate 4: At least one discovery task succeeded (docs OR codebase)')
             ->example('Gate 5: Smart distribution categorization completed (Common/Master/Brain)')
-            ->example('Gate 6: All backups created (Common.php.backup, Master.php.backup, Brain.php.backup)')
+            ->example('Gate 6: All enhanced files written successfully')
             ->example('Gate 7: All enhanced files pass PHP syntax validation')
             ->example('Gate 8: Compilation completes without errors')
             ->example('Gate 9: Compiled output exists at ' . Runtime::BRAIN_FILE)
