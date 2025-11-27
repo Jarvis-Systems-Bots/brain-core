@@ -33,9 +33,9 @@ abstract class ArchitectureAbstract extends Dto
         });
     }
 
-    public function varIs(string $name, mixed $value, bool $strinct = true): bool
+    public function varIs(string $name, mixed $value, bool $strict = true): bool
     {
-        if ($strinct) {
+        if ($strict) {
             return $this->var($name) === $value;
         }
         return $this->var($name) == $value;
@@ -48,7 +48,7 @@ abstract class ArchitectureAbstract extends Dto
 
     public function varIsNegative(string $name): bool
     {
-        return ! $this->varIsPositive($name);
+        return $this->varIs($name, false, false);
     }
 
     /**

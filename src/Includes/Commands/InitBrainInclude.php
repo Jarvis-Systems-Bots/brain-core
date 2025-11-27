@@ -17,6 +17,7 @@ use BrainNode\Agents\AgentMaster;
 use BrainNode\Agents\DocumentationMaster;
 use BrainNode\Agents\ExploreMaster;
 use BrainNode\Agents\PromptMaster;
+use BrainNode\Agents\VectorMaster;
 use BrainNode\Agents\WebResearchMaster;
 use BrainNode\Mcp\VectorMemoryMcp;
 
@@ -305,89 +306,155 @@ class InitBrainInclude extends IncludeArchetype
             );
 
         // =====================================================
-        // PHASE 3.5: VECTOR MEMORY CRITICAL INSIGHTS MINING
+        // PHASE 3.5: VECTOR MEMORY DEEP RESEARCH (3 PARALLEL AGENTS)
         // =====================================================
 
-        $this->guideline('phase3-5-vector-memory-mining')
-            ->goal('Extract CRITICAL accumulated knowledge from vector memory that MUST be in instructions')
+        $this->guideline('phase3-5-vector-memory-research')
+            ->goal('Deep research of vector memory via specialized VectorMaster agents for each target file')
             ->note([
-                'Vector memory may contain crucial insights discovered over time',
-                'NOT everything - only HIGH-VALUE knowledge that cannot be found via normal search',
-                'Focus: architectural decisions, gotchas, patterns that prevent repeated mistakes',
+                'Vector memory may be LARGE - simple search is insufficient',
+                'Each file needs DEEP recursive semantic research by dedicated agent',
+                'VectorMaster performs multi-probe strategy: DECOMPOSE → MULTI-SEARCH → ANALYZE',
+                'Focus: knowledge that CANNOT be found via codebase exploration',
             ])
             ->example()
             ->phase()
-            ->name('parallel-vector-mining')
+            ->name('parallel-vector-research-agents')
             ->do(
                 Operator::task([
-                    // Mining 1: Architecture Decisions & Constraints
-                    VectorMemoryMcp::call('search_memories', Operator::input(
-                        'query: "architecture decision critical constraint must always never"',
-                        'category: "architecture"',
-                        'limit: 10',
-                    )),
-                    Store::as('ARCH_DECISIONS'),
+                    // Agent 1: VectorMaster for Common.php research
+                    VectorMaster::call(
+                        Operator::context([
+                            'Target file: ' . Runtime::NODE_DIRECTORY('Common.php'),
+                            'This file is shared by Brain AND all Agents',
+                        ]),
+                        Operator::task([
+                            'DEEP RESEARCH vector memory for Common.php guidelines',
+                            '',
+                            'Search domains (multi-probe each):',
+                            '  - Environment constraints: Docker, CI/CD, containerization rules',
+                            '  - Tech stack: PHP version, Node version, database conventions',
+                            '  - Universal coding standards: naming, structure, organization',
+                            '  - Shared configuration: env vars, paths, external services',
+                            '  - Development tooling: linters, formatters, analyzers',
+                            '  - Infrastructure patterns: services, networking, deployment',
+                            '',
+                            'For EACH domain:',
+                            '  1. Decompose into 2-3 semantic probes',
+                            '  2. Execute searches with different query angles',
+                            '  3. Cross-reference findings',
+                            '  4. Extract ACTIONABLE insights only',
+                            '',
+                            'FILTER criteria:',
+                            '  - Must apply to BOTH Brain AND Agents (universal)',
+                            '  - Cannot be discovered via normal codebase search',
+                            '  - Represents hard-won knowledge or critical constraints',
+                            '',
+                            'OUTPUT: Detailed recommendations for Common.php rules/guidelines',
+                        ]),
+                        Operator::output('{recommendations: [...], insights_found: N, domains_covered: [...], confidence: high|medium|low}'),
+                    ),
+                    Store::as('VECTOR_COMMON_RESEARCH'),
 
-                    // Mining 2: Critical Bug Fixes & Gotchas
-                    VectorMemoryMcp::call('search_memories', Operator::input(
-                        'query: "critical bug gotcha always remember never forget important"',
-                        'category: "bug-fix"',
-                        'limit: 10',
-                    )),
-                    Store::as('CRITICAL_GOTCHAS'),
+                    // Agent 2: VectorMaster for Master.php research
+                    VectorMaster::call(
+                        Operator::context([
+                            'Target file: ' . Runtime::NODE_DIRECTORY('Master.php'),
+                            'This file is shared by ALL Agents only (NOT Brain)',
+                        ]),
+                        Operator::task([
+                            'DEEP RESEARCH vector memory for Master.php guidelines',
+                            '',
+                            'Search domains (multi-probe each):',
+                            '  - Agent execution patterns: how agents should approach tasks',
+                            '  - Tool usage constraints: when to use which tools, anti-patterns',
+                            '  - Task handling: decomposition, estimation, status flow',
+                            '  - Code generation patterns: templates, scaffolding, conventions',
+                            '  - Test writing conventions: test structure, coverage, mocking',
+                            '  - Quality gates: validation before completion, review criteria',
+                            '',
+                            'For EACH domain:',
+                            '  1. Decompose into 2-3 semantic probes',
+                            '  2. Execute searches with different query angles',
+                            '  3. Cross-reference findings',
+                            '  4. Extract ACTIONABLE insights only',
+                            '',
+                            'FILTER criteria:',
+                            '  - Must apply to Agents execution (not Brain orchestration)',
+                            '  - Cannot be discovered via normal codebase search',
+                            '  - Represents patterns that prevent repeated mistakes',
+                            '',
+                            'OUTPUT: Detailed recommendations for Master.php rules/guidelines',
+                        ]),
+                        Operator::output('{recommendations: [...], insights_found: N, domains_covered: [...], confidence: high|medium|low}'),
+                    ),
+                    Store::as('VECTOR_MASTER_RESEARCH'),
 
-                    // Mining 3: Project-Specific Patterns
-                    VectorMemoryMcp::call('search_memories', Operator::input(
-                        'query: "project pattern convention always use must follow"',
-                        'category: "code-solution"',
-                        'limit: 10',
-                    )),
-                    Store::as('PROJECT_PATTERNS'),
-
-                    // Mining 4: Lessons Learned
-                    VectorMemoryMcp::call('search_memories', Operator::input(
-                        'query: "lesson learned important insight discovery realization"',
-                        'category: "learning"',
-                        'limit: 10',
-                    )),
-                    Store::as('LESSONS_LEARNED'),
+                    // Agent 3: VectorMaster for Brain.php research
+                    VectorMaster::call(
+                        Operator::context([
+                            'Target file: ' . Runtime::NODE_DIRECTORY('Brain.php'),
+                            'This file is Brain-specific only (orchestration layer)',
+                        ]),
+                        Operator::task([
+                            'DEEP RESEARCH vector memory for Brain.php guidelines',
+                            '',
+                            'Search domains (multi-probe each):',
+                            '  - Orchestration rules: delegation strategies, agent selection',
+                            '  - Brain policies: approval chains, escalation patterns',
+                            '  - Workflow coordination: multi-agent orchestration, sequencing',
+                            '  - Response synthesis: how to merge agent results, validation',
+                            '  - Brain-level validation: quality gates, trust management',
+                            '  - Context management: memory limits, compaction triggers',
+                            '',
+                            'For EACH domain:',
+                            '  1. Decompose into 2-3 semantic probes',
+                            '  2. Execute searches with different query angles',
+                            '  3. Cross-reference findings',
+                            '  4. Extract ACTIONABLE insights only',
+                            '',
+                            'FILTER criteria:',
+                            '  - Must apply to Brain orchestration (not agent execution)',
+                            '  - Cannot be discovered via normal codebase search',
+                            '  - Represents critical coordination knowledge',
+                            '',
+                            'OUTPUT: Detailed recommendations for Brain.php rules/guidelines',
+                        ]),
+                        Operator::output('{recommendations: [...], insights_found: N, domains_covered: [...], confidence: high|medium|low}'),
+                    ),
+                    Store::as('VECTOR_BRAIN_RESEARCH'),
                 ])
             )
+            ->phase('Merge and validate all VectorMaster research results')
             ->phase(
                 AgentMaster::call(
                     Operator::input(
-                        Store::get('ARCH_DECISIONS'),
-                        Store::get('CRITICAL_GOTCHAS'),
-                        Store::get('PROJECT_PATTERNS'),
-                        Store::get('LESSONS_LEARNED'),
+                        Store::get('VECTOR_COMMON_RESEARCH'),
+                        Store::get('VECTOR_MASTER_RESEARCH'),
+                        Store::get('VECTOR_BRAIN_RESEARCH'),
                     ),
                     Operator::task([
-                        'Analyze ALL mined vector memory insights',
-                        'FILTER: Keep ONLY insights meeting CRITICAL criteria:',
-                        '  - Would cause significant issues if forgotten',
-                        '  - Cannot be easily discovered via normal search',
-                        '  - Represents hard-won knowledge or painful lessons',
-                        '  - Applies broadly across multiple tasks/agents',
+                        'VALIDATE and CONSOLIDATE VectorMaster research results',
                         '',
-                        'EXCLUDE:',
-                        '  - Generic information easily searchable',
-                        '  - One-time fixes without broader applicability',
-                        '  - Outdated or superseded knowledge',
-                        '  - Already covered by standard includes',
+                        'For EACH file research result:',
+                        '  1. Verify recommendations are correctly categorized (Common/Master/Brain)',
+                        '  2. Check for cross-file duplicates - keep in most appropriate file',
+                        '  3. Validate insights are truly unique (not in standard includes)',
+                        '  4. Assess confidence level of each recommendation',
                         '',
-                        'CATEGORIZE filtered insights for distribution:',
-                        '  - COMMON: Universal constraints (all components need)',
-                        '  - MASTER: Agent execution patterns (agents need)',
-                        '  - BRAIN: Orchestration insights (Brain needs)',
+                        'QUALITY GATES:',
+                        '  - Reject low-confidence insights without strong evidence',
+                        '  - Reject generic insights that apply everywhere (noise)',
+                        '  - Reject outdated or superseded knowledge',
                         '',
-                        'Generate concise rule/guideline code for each critical insight',
+                        'OUTPUT: Validated insights ready for Phase 6 distribution',
                     ]),
-                    Operator::output('{critical_common: [...], critical_master: [...], critical_brain: [...], filtered_count: N, reason: {...}}'),
+                    Operator::output('{critical_common: [...], critical_master: [...], critical_brain: [...], total_found: N, total_validated: N, rejected: N, rejection_reasons: [...]}'),
                 )
             )
             ->phase(Store::as('VECTOR_CRITICAL_INSIGHTS'))
             ->phase(
-                Operator::note('Critical vector insights will be merged into DISTRIBUTED_GUIDELINES in Phase 6')
+                Operator::note('Validated vector insights will be merged into DISTRIBUTED_GUIDELINES in Phase 6')
             );
 
         // =====================================================
