@@ -32,6 +32,11 @@ class TaskDecomposeInclude extends IncludeArchetype
             ->why('Tasks >8h are too large for effective tracking, estimation accuracy, and focus')
             ->onViolation('Decompose further until ALL subtasks meet 5-8h. Flag for recursive /task:decompose.');
 
+        $this->rule('max-subtasks-limit')->critical()
+            ->text('Maximum 10 subtasks per parent task. NEVER create more than 10 direct children.')
+            ->why('Too many subtasks indicate insufficient grouping. Cognitive overload, tracking nightmare.')
+            ->onViolation('Group related work into larger subtasks (each 5-8h), mark them [needs-decomposition] for recursive /task:decompose.');
+
         $this->rule('parallel-agent-execution')->critical()
             ->text('Launch INDEPENDENT research agents in PARALLEL (multiple Task calls in single response)')
             ->why('Maximizes research coverage, comprehensive decomposition context')
@@ -277,6 +282,7 @@ class TaskDecomposeInclude extends IncludeArchetype
                 'Step 4: Estimate effort per group (MUST be <=5-8h)',
                 'Step 5: Determine optimal execution order',
                 'Step 6: Flag any subtask >8h for recursive decomposition',
+                'Step 7: COUNT subtasks - if >10, GROUP into larger chunks (5-8h each) with [needs-decomposition] tag',
             ])
             ->phase(Store::as('DECOMPOSITION_PLAN', '[{title, scope, files, estimate, dependencies, order}]'));
 
@@ -437,6 +443,26 @@ class TaskDecomposeInclude extends IncludeArchetype
             ->example('6-8h: Complex feature, architectural piece')->key('l')
             ->example('>8h: VIOLATION - decompose further!')->key('violation');
 
+        $this->guideline('grouping-strategy')
+            ->text('When initial decomposition yields >10 subtasks, GROUP into larger chunks')
+            ->example()
+            ->phase('TRIGGER: count($DECOMPOSITION_PLAN) > 10')
+            ->do([
+                'Step 1: Identify logical clusters (by feature, layer, or dependency chain)',
+                'Step 2: Merge related subtasks into parent chunks (5-8h each)',
+                'Step 3: Each chunk gets [needs-decomposition] tag',
+                'Step 4: Final count MUST be ≤10 subtasks',
+                'Step 5: Recommend /task:decompose for each chunk after creation',
+            ])
+            ->phase('EXAMPLE:')
+            ->do([
+                '15 subtasks → group into 6-8 chunks:',
+                '  - "API Layer" (auth + validation + routes) → 7h [needs-decomposition]',
+                '  - "Service Layer" (logic + handlers) → 8h [needs-decomposition]',
+                '  - "Data Layer" (models + migrations + seeders) → 6h [needs-decomposition]',
+                '  - "Testing" (unit + integration) → 7h [needs-decomposition]',
+            ]);
+
         $this->guideline('parallel-pattern')
             ->text('Parallel agent execution pattern')
             ->example('WRONG: Sequential agent calls → slow, incomplete')
@@ -445,6 +471,6 @@ class TaskDecomposeInclude extends IncludeArchetype
             ->example('Synthesize ALL results before decomposition');
 
         $this->guideline('directive')
-            ->text('PARALLEL agents! DEEP research! 5-8h GOLDEN RULE! User approval! STOP after create!');
+            ->text('PARALLEL agents! DEEP research! 5-8h GOLDEN RULE! MAX 10 subtasks! User approval! STOP after create!');
     }
 }
