@@ -272,34 +272,79 @@ class DoValidateInclude extends IncludeArchetype
                 Operator::output(['No minor issues to fix']),
             ]));
 
-        // Phase 5: Task Creation for Complex Issues
+        // Phase 5: Task Creation for Complex Issues (Consolidated 5-8h Tasks)
         $this->guideline('phase5-task-creation')
-            ->goal('Create tasks for complex issues and missing requirements')
+            ->goal('Create consolidated tasks (5-8h each) for issues with comprehensive context')
             ->example()
             ->phase(Operator::output([
                 '',
-                '=== PHASE 5: TASK CREATION ===',
+                '=== PHASE 5: TASK CREATION (CONSOLIDATED) ===',
             ]))
             ->phase('Check existing tasks to avoid duplicates')
             ->phase(VectorTaskMcp::call('task_list', '{query: "fix issues {$TASK_DESCRIPTION}", limit: 20}'))
             ->phase(Store::as('EXISTING_FIX_TASKS', 'Existing fix tasks'))
-            ->phase(Operator::forEach('issue in $CRITICAL_ISSUES + $MAJOR_ISSUES', [
-                Operator::if('NOT exists in $EXISTING_FIX_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Fix: {issue.description}", content: "Issue found during validation of {$TASK_DESCRIPTION}.\\n\\nDetails:\\n- File: {issue.file}\\n- Type: {issue.type}\\n- Severity: {issue.severity}\\n\\nSuggestion: {issue.suggestion}", priority: "{issue.severity === critical ? high : medium}", tags: ["validation-fix", "{issue.type}"], parent_id: $TASK_PARENT_ID}'),
+            ->phase('CONSOLIDATION STRATEGY: Group issues into 5-8 hour task batches')
+            ->phase(Operator::do([
+                'Calculate total estimate for ALL issues:',
+                '- Critical issues: ~2h per issue (investigation + fix + test)',
+                '- Major issues: ~1.5h per issue (fix + verify)',
+                '- Missing requirements: ~4h per requirement (implement + test)',
+                Store::as('TOTAL_ESTIMATE', '{sum of all issue estimates in hours}'),
+            ]))
+            ->phase(Operator::if('$TOTAL_ESTIMATE <= 8', [
+                'ALL issues fit into ONE consolidated task (5-8h range)',
+                Operator::if('($CRITICAL_ISSUES.count + $MAJOR_ISSUES.count + $MISSING_REQUIREMENTS.count) > 0 AND NOT exists similar in $EXISTING_FIX_TASKS', [
+                    VectorTaskMcp::call('task_create', '{
+                        title: "Validation fixes: {$TASK_DESCRIPTION}",
+                        content: "Consolidated validation findings for {$TASK_DESCRIPTION}.\\n\\nTotal estimate: {$TOTAL_ESTIMATE}h\\n\\n## Critical Issues ({$CRITICAL_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Major Issues ({$MAJOR_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Missing Requirements ({$MISSING_REQUIREMENTS.count})\\n{FOR each req: - {req.description}\\n  Acceptance criteria: {req.acceptance_criteria}\\n  Related files: {req.related_files}\\n  Priority: {req.priority}\\n}\\n\\n## Context References\\n- Parent task: #{$VECTOR_TASK_ID}\\n- Memory IDs: {$MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}\\n- Validation agents used: {$SELECTED_AGENTS}",
+                        priority: "{$CRITICAL_ISSUES.count > 0 ? high : medium}",
+                        estimate: {$TOTAL_ESTIMATE},
+                        tags: ["validation-fix", "consolidated"],
+                        parent_id: $TASK_PARENT_ID
+                    }'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task for: {issue.description}']),
+                    Operator::output(['Created consolidated task: Validation fixes ({$TOTAL_ESTIMATE}h, {issues_count} issues)']),
                 ]),
             ]))
-            ->phase(Operator::forEach('req in $MISSING_REQUIREMENTS', [
-                Operator::if('NOT exists in $EXISTING_FIX_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Implement: {req.description}", content: "Missing requirement found during validation.\\n\\nRequirement: {req.description}\\nAcceptance criteria: {req.acceptance_criteria}\\nRelated files: {req.related_files}", priority: "{req.priority}", tags: ["validation-missing", "requirement"], parent_id: $TASK_PARENT_ID}'),
-                    Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task for missing requirement: {req.description}']),
+            ->phase(Operator::if('$TOTAL_ESTIMATE > 8', [
+                'Split into multiple 5-8h task batches',
+                Store::as('BATCH_SIZE', '6'),
+                Store::as('NUM_BATCHES', '{ceil($TOTAL_ESTIMATE / 6)}'),
+                'Group issues by priority (critical first) into batches of ~6h each',
+                Operator::forEach('batch_index in range(1, $NUM_BATCHES)', [
+                    Store::as('BATCH_ISSUES', '{slice of issues for this batch, ~6h worth, priority-ordered}'),
+                    Store::as('BATCH_ESTIMATE', '{sum of batch issue estimates}'),
+                    Store::as('BATCH_CRITICAL', '{count of critical issues in batch}'),
+                    Store::as('BATCH_MAJOR', '{count of major issues in batch}'),
+                    Store::as('BATCH_MISSING', '{count of missing requirements in batch}'),
+                    Operator::if('NOT exists similar in $EXISTING_FIX_TASKS', [
+                        VectorTaskMcp::call('task_create', '{
+                            title: "Validation fixes batch {batch_index}/{$NUM_BATCHES}: {$TASK_DESCRIPTION}",
+                            content: "Validation batch {batch_index} of {$NUM_BATCHES} for {$TASK_DESCRIPTION}.\\n\\nBatch estimate: {$BATCH_ESTIMATE}h\\nBatch composition: {$BATCH_CRITICAL} critical, {$BATCH_MAJOR} major, {$BATCH_MISSING} missing reqs\\n\\n## Issues in this batch\\n{FOR each issue in $BATCH_ISSUES:\\n### [{issue.severity}] {issue.title}\\n- File: {issue.file}:{issue.line}\\n- Type: {issue.type}\\n- Description: {issue.description}\\n- Suggestion: {issue.suggestion}\\n- Evidence: {issue.evidence}\\n- Memory refs: {issue.memory_refs}\\n}\\n\\n## Full Context References\\n- Parent task: #{$VECTOR_TASK_ID}\\n- Memory IDs: {$MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}\\n- Total batches: {$NUM_BATCHES} ({$TOTAL_ESTIMATE}h total)\\n- Validation agents: {$SELECTED_AGENTS}",
+                            priority: "{$BATCH_CRITICAL > 0 ? high : medium}",
+                            estimate: {$BATCH_ESTIMATE},
+                            tags: ["validation-fix", "batch-{batch_index}"],
+                            parent_id: $TASK_PARENT_ID
+                        }'),
+                        Store::as('CREATED_TASKS[]', '{task_id}'),
+                        Operator::output(['Created batch {batch_index}/{$NUM_BATCHES}: {$BATCH_ESTIMATE}h ({$BATCH_ISSUES.count} issues)']),
+                    ]),
                 ]),
             ]))
             ->phase(Operator::output([
-                'Tasks created: {$CREATED_TASKS.count}',
+                'Tasks created: {$CREATED_TASKS.count} (total estimate: {$TOTAL_ESTIMATE}h)',
             ]));
+
+        // Task Consolidation Rules
+        $this->rule('task-size-5-8h')->high()
+            ->text('Each created task MUST have estimate between 5-8 hours. Never create tasks < 5h (consolidate) or > 8h (split).')
+            ->why('Optimal task size for focused work sessions. Too small = context switching overhead. Too large = hard to track progress.')
+            ->onViolation('Merge small issues into consolidated task OR split large task into 5-8h batches.');
+
+        $this->rule('task-comprehensive-context')->critical()
+            ->text('Each task MUST include: all file:line references, memory IDs, related task IDs, documentation paths, detailed issue descriptions with suggestions, evidence from validation.')
+            ->why('Enables full context restoration without re-exploration. Saves agent time on task pickup.')
+            ->onViolation('Add missing context references before creating task.');
 
         // Phase 6: Validation Completion
         $this->guideline('phase6-completion')

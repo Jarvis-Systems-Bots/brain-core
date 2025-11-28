@@ -269,60 +269,78 @@ class DoTestValidateInclude extends IncludeArchetype
                 '- Failing/flaky tests: {$FAILING_TESTS.count} tests',
             ]));
 
-        // Phase 5: Task Creation for Test Gaps
+        // Phase 5: Task Creation for Test Gaps (Consolidated 5-8h Tasks)
         $this->guideline('phase5-task-creation')
-            ->goal('Create tasks for missing tests, refactoring needs, and fixes')
+            ->goal('Create consolidated tasks (5-8h each) for test gaps with comprehensive context')
             ->example()
             ->phase(Operator::output([
                 '',
-                '=== PHASE 5: TASK CREATION ===',
+                '=== PHASE 5: TASK CREATION (CONSOLIDATED) ===',
             ]))
             ->phase('Check existing tasks to avoid duplicates')
             ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 20}'))
             ->phase(Store::as('EXISTING_TEST_TASKS', 'Existing test tasks'))
-            ->phase('Create tasks for MISSING COVERAGE (highest priority)')
-            ->phase(Operator::forEach('req in $MISSING_COVERAGE', [
-                Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Write tests: {req.description}", content: "Missing test coverage found during test validation.\\n\\nRequirement: {req.description}\\nTestable scenarios: {req.testable_scenarios}\\nAcceptance criteria: {req.acceptance_criteria}\\nExpected test type: {req.expected_test_type}\\n\\nFocus on BEHAVIOR, not implementation details.", priority: "high", tags: ["test-coverage", "missing"], parent_id: $TASK_PARENT_ID}'),
+            ->phase('CONSOLIDATION STRATEGY: Group issues into 5-8 hour task batches')
+            ->phase(Operator::do([
+                'Calculate total estimate for ALL issues:',
+                '- Missing coverage: ~2h per requirement (tests + assertions)',
+                '- Failing tests: ~1h per test (debug + fix)',
+                '- Bloated tests: ~1.5h per test (refactor + verify)',
+                '- Missing workflows: ~3h per workflow (e2e test suite)',
+                '- Isolation issues: ~1h per test (refactor + verify)',
+                Store::as('TOTAL_ESTIMATE', '{sum of all issue estimates in hours}'),
+            ]))
+            ->phase(Operator::if('$TOTAL_ESTIMATE <= 8', [
+                'ALL issues fit into ONE consolidated task (5-8h range)',
+                Operator::if('$ALL_TEST_ISSUES.count > 0 AND NOT exists similar in $EXISTING_TEST_TASKS', [
+                    VectorTaskMcp::call('task_create', '{
+                        title: "Test fixes: {$TASK_DESCRIPTION}",
+                        content: "Consolidated test validation findings for {$TASK_DESCRIPTION}.\\n\\nTotal estimate: {$TOTAL_ESTIMATE}h\\n\\n## Missing Coverage ({$MISSING_COVERAGE.count})\\n{FOR each req: - {req.description} | Type: {req.expected_test_type} | File: {req.related_file}:{req.line} | Scenarios: {req.testable_scenarios}}\\n\\n## Failing Tests ({$FAILING_TESTS.count})\\n{FOR each test: - {test.test_file}:{test.test_method} | Error: {test.error_message} | Status: {test.execution_status}}\\n\\n## Bloated Tests ({$BLOATED_TESTS.count})\\n{FOR each test: - {test.test_file}:{test.test_method} | Bloat: {test.bloat_type} | Suggestion: {test.suggestion}}\\n\\n## Missing Workflows ({$MISSING_WORKFLOWS.count})\\n{FOR each wf: - {wf.workflow} | Missing: {wf.missing_scenarios}}\\n\\n## Isolation Issues ({$ISOLATION_ISSUES.count})\\n{FOR each test: - {test.test_file} | Issue: {test.isolation_issue} | Fix: {test.suggestion}}\\n\\n## Context References\\n- Memory IDs: {$TEST_MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TEST_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}",
+                        priority: "high",
+                        estimate: {$TOTAL_ESTIMATE},
+                        tags: ["test-validation", "consolidated"],
+                        parent_id: $TASK_PARENT_ID
+                    }'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task: Write tests for {req.description}']),
+                    Operator::output(['Created consolidated task: Test fixes ({$TOTAL_ESTIMATE}h, {$ALL_TEST_ISSUES.count} issues)']),
                 ]),
             ]))
-            ->phase('Create tasks for FAILING TESTS (high priority)')
-            ->phase(Operator::forEach('test in $FAILING_TESTS', [
-                Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Fix failing test: {test.test_file}", content: "Failing/flaky test found during test validation.\\n\\nFile: {test.test_file}\\nStatus: {test.execution_status}\\nError: {test.error_message}\\n\\nInvestigate root cause and fix.", priority: "high", tags: ["test-fix", "failing"], parent_id: $TASK_PARENT_ID}'),
-                    Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task: Fix {test.test_file}']),
-                ]),
-            ]))
-            ->phase('Create tasks for BLOATED TESTS (medium priority)')
-            ->phase(Operator::forEach('test in $BLOATED_TESTS where severity === "major"', [
-                Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Refactor bloated test: {test.test_file}:{test.test_method}", content: "Bloated test found during test validation.\\n\\nFile: {test.test_file}\\nMethod: {test.test_method}\\nBloat type: {test.bloat_type}\\nSuggestion: {test.suggestion}\\n\\nSimplify to test BEHAVIOR, not implementation.", priority: "medium", tags: ["test-refactor", "bloat"], parent_id: $TASK_PARENT_ID}'),
-                    Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task: Refactor bloated test {test.test_method}']),
-                ]),
-            ]))
-            ->phase('Create tasks for MISSING WORKFLOWS (medium priority)')
-            ->phase(Operator::forEach('workflow in $MISSING_WORKFLOWS', [
-                Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Add workflow test: {workflow.workflow}", content: "Missing end-to-end workflow test found during validation.\\n\\nWorkflow: {workflow.workflow}\\nMissing scenarios: {workflow.missing_scenarios}\\n\\nWrite tests that cover complete user journey.", priority: "medium", tags: ["test-coverage", "workflow"], parent_id: $TASK_PARENT_ID}'),
-                    Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task: Add workflow test for {workflow.workflow}']),
-                ]),
-            ]))
-            ->phase('Create tasks for ISOLATION ISSUES (medium priority)')
-            ->phase(Operator::forEach('test in $ISOLATION_ISSUES where severity === "major"', [
-                Operator::if('NOT exists in $EXISTING_TEST_TASKS', [
-                    VectorTaskMcp::call('task_create', '{title: "Fix test isolation: {test.test_file}", content: "Test isolation issue found during validation.\\n\\nFile: {test.test_file}\\nIssue: {test.isolation_issue}\\nSuggestion: {test.suggestion}\\n\\nEnsure test can run independently.", priority: "medium", tags: ["test-fix", "isolation"], parent_id: $TASK_PARENT_ID}'),
-                    Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created task: Fix isolation in {test.test_file}']),
+            ->phase(Operator::if('$TOTAL_ESTIMATE > 8', [
+                'Split into multiple 5-8h task batches',
+                Store::as('BATCH_SIZE', '6'),
+                Store::as('NUM_BATCHES', '{ceil($TOTAL_ESTIMATE / 6)}'),
+                'Group issues by priority and type into batches of ~6h each',
+                Operator::forEach('batch_index in range(1, $NUM_BATCHES)', [
+                    Store::as('BATCH_ISSUES', '{slice of issues for this batch, ~6h worth}'),
+                    Store::as('BATCH_ESTIMATE', '{sum of batch issue estimates}'),
+                    Operator::if('NOT exists similar in $EXISTING_TEST_TASKS', [
+                        VectorTaskMcp::call('task_create', '{
+                            title: "Test fixes batch {batch_index}/{$NUM_BATCHES}: {$TASK_DESCRIPTION}",
+                            content: "Test validation batch {batch_index} of {$NUM_BATCHES} for {$TASK_DESCRIPTION}.\\n\\nBatch estimate: {$BATCH_ESTIMATE}h\\n\\n## Issues in this batch\\n{FOR each issue in $BATCH_ISSUES:\\n### {issue.type}: {issue.title}\\n- File: {issue.file}:{issue.line}\\n- Description: {issue.description}\\n- Severity: {issue.severity}\\n- Suggestion: {issue.suggestion}\\n- Related memory: {issue.memory_refs}\\n}\\n\\n## Full Context References\\n- Parent task: #{$VECTOR_TASK_ID}\\n- Memory IDs: {$TEST_MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TEST_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}\\n- Total batches: {$NUM_BATCHES} ({$TOTAL_ESTIMATE}h total)",
+                            priority: "{batch_index === 1 ? high : medium}",
+                            estimate: {$BATCH_ESTIMATE},
+                            tags: ["test-validation", "batch-{batch_index}"],
+                            parent_id: $TASK_PARENT_ID
+                        }'),
+                        Store::as('CREATED_TASKS[]', '{task_id}'),
+                        Operator::output(['Created batch {batch_index}/{$NUM_BATCHES}: {$BATCH_ESTIMATE}h']),
+                    ]),
                 ]),
             ]))
             ->phase(Operator::output([
-                'Tasks created: {$CREATED_TASKS.count}',
+                'Tasks created: {$CREATED_TASKS.count} (total estimate: {$TOTAL_ESTIMATE}h)',
             ]));
+
+        // Task Consolidation Rules
+        $this->rule('task-size-5-8h')->high()
+            ->text('Each created task MUST have estimate between 5-8 hours. Never create tasks < 5h (consolidate) or > 8h (split).')
+            ->why('Optimal task size for focused work sessions. Too small = context switching overhead. Too large = hard to track progress.')
+            ->onViolation('Merge small issues into consolidated task OR split large task into 5-8h batches.');
+
+        $this->rule('task-comprehensive-context')->critical()
+            ->text('Each task MUST include: all file:line references, memory IDs, related task IDs, documentation paths, detailed issue descriptions with suggestions.')
+            ->why('Enables full context restoration without re-exploration. Saves agent time on task pickup.')
+            ->onViolation('Add missing context references before creating task.');
 
         // Phase 6: Test Validation Completion
         $this->guideline('phase6-completion')
