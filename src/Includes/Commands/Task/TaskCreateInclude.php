@@ -6,10 +6,8 @@ namespace BrainCore\Includes\Commands\Task;
 
 use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
-use BrainCore\Compilation\BrainCLI;
 use BrainCore\Compilation\Operator;
 use BrainCore\Compilation\Store;
-use BrainCore\Compilation\Tools\BashTool;
 use BrainCore\Compilation\Tools\TaskTool;
 use BrainNode\Mcp\SequentialThinkingMcp;
 use BrainNode\Mcp\VectorMemoryMcp;
@@ -75,6 +73,11 @@ class TaskCreateInclude extends IncludeArchetype
             ->why('Prevents duplicate tasks, identifies potential parent tasks, reveals blocked/blocking relationships.')
             ->onViolation('Execute ' . VectorTaskMcp::call('task_list', '{query: "{objective}", limit: 10}') . ' and analyze results.');
 
+        $this->rule('mandatory-agent-delegation')->critical()
+            ->text('ALL research steps (existing tasks, vector memory, codebase, documentation) MUST be delegated to specialized agents. NEVER execute research directly.')
+            ->why('Direct execution consumes command context. Agents have dedicated context for deep research and return concise structured reports.')
+            ->onViolation('STOP. Delegate to: vector-master (tasks/memory), explore (codebase), documentation-master (docs). Never use direct MCP/Glob/Grep calls for research.');
+
         // Workflow Step 0 - Parse Arguments
         $this->guideline('workflow-step0')
             ->text('STEP 0 - Parse an input task and Understand')
@@ -88,32 +91,38 @@ class TaskCreateInclude extends IncludeArchetype
                 Store::as('TASK_TEXT', 'full original user description from phase parse')
             );
 
-        // Workflow Step 1 - Search Existing Tasks (MANDATORY)
+        // Workflow Step 1 - Search Existing Tasks (MANDATORY - DELEGATED)
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Search Existing Tasks for Duplicates/Related Work (MANDATORY)')
             ->example()
-            ->phase('action-1', VectorTaskMcp::call('task_list', '{query: "{objective}", limit: 10}'))
-            ->phase('action-2', VectorTaskMcp::call('task_list', '{query: "{task_domain}", limit: 5}'))
-            ->phase('action-3', VectorTaskMcp::call('task_list', '{status: "pending", limit: 10}'))
-            ->phase('analyze-duplicates', 'Check: is this task already exists? Is there a parent task this should be subtask of?')
-            ->phase('analyze-dependencies', 'Identify: blocked by, blocks, related tasks')
+            ->phase('delegate', TaskTool::agent(
+                'vector-master',
+                'Search existing tasks for potential duplicates or related work. ' .
+                'Task objective: {' . Store::get('TASK_SCOPE') . '}. ' .
+                'Search by: 1) objective keywords, 2) domain terms, 3) pending tasks. ' .
+                'Analyze: duplicates, potential parent tasks, dependencies (blocked-by, blocks). ' .
+                'Return: structured report with task IDs, relationships, recommendation (create new / update existing / make subtask).'
+            ))
             ->phase('decision', Operator::if(
-                'duplicate task found',
+                'duplicate task found in agent report',
                 'STOP. Inform user about existing task ID and ask: update existing or create new?',
                 'Continue to next step'
             ))
-            ->phase('output', Store::as('EXISTING_TASKS', 'related task IDs, potential parent, dependencies'));
+            ->phase('output', Store::as('EXISTING_TASKS', 'agent report: related task IDs, potential parent, dependencies'));
 
-        // Workflow Step 2 - Search Vector Memory (MANDATORY)
+        // Workflow Step 2 - Search Vector Memory (MANDATORY - DELEGATED)
         $this->guideline('workflow-step2')
             ->text('STEP 2 - Deep Search Vector Memory for Prior Knowledge (MANDATORY)')
             ->example()
-            ->phase('action-1', VectorMemoryMcp::call('search_memories', '{query: "{task_domain} {objective}", limit: 5, category: "code-solution"}'))
-            ->phase('action-2', VectorMemoryMcp::call('search_memories', '{query: "{task_domain} implementation", limit: 5, category: "architecture"}'))
-            ->phase('action-3', VectorMemoryMcp::call('search_memories', '{query: "{task_domain} bug fix error", limit: 3, category: "bug-fix"}'))
-            ->phase('action-4', VectorMemoryMcp::call('search_memories', '{query: "{task_domain} lesson learned", limit: 3, category: "learning"}'))
-            ->phase('analyze', 'Extract: relevant insights, reusable patterns, approaches to avoid, past mistakes')
-            ->phase('output', Store::as('PRIOR_WORK', 'memory IDs, insights, recommendations, warnings'));
+            ->phase('delegate', TaskTool::agent(
+                'vector-master',
+                'Deep multi-probe search for prior knowledge related to task. ' .
+                'Task context: {' . Store::get('TASK_SCOPE') . '}. ' .
+                'Search categories: code-solution, architecture, bug-fix, learning. ' .
+                'Use decomposed queries: 1) domain + objective, 2) implementation patterns, 3) known bugs/errors, 4) lessons learned. ' .
+                'Return: structured report with memory IDs, key insights, reusable patterns, approaches to avoid, past mistakes.'
+            ))
+            ->phase('output', Store::as('PRIOR_WORK', 'agent report: memory IDs, insights, recommendations, warnings'));
 
         // Workflow Step 3 - Codebase Exploration (for code-related tasks)
         $this->guideline('workflow-step3')
@@ -129,19 +138,22 @@ class TaskCreateInclude extends IncludeArchetype
             ))
             ->phase('output', Store::as('CODEBASE_CONTEXT', 'relevant files, patterns, dependencies, integration points'));
 
-        // Workflow Step 4 - Documentation Research
+        // Workflow Step 4 - Documentation Research (DELEGATED)
         $this->guideline('workflow-step4')
             ->text('STEP 4 - Documentation Research (if relevant)')
             ->example()
             ->phase('decision', Operator::if(
                 'task involves architecture, API, or external integrations',
-                Operator::do(
-                    BashTool::call(BrainCLI::DOCS, '{domain}') . ' → scan project documentation',
-                    'Review relevant .docs/ files for context'
+                TaskTool::agent(
+                    'documentation-master',
+                    'Research documentation for task context. ' .
+                    'Domain: {' . Store::get('TASK_SCOPE') . '}. ' .
+                    'Search: 1) project .docs/ via brain docs command, 2) relevant package docs if external deps. ' .
+                    'Return: structured report with doc paths, API specs, architectural decisions, relevant sections.'
                 ),
                 Operator::skip('Documentation scan not needed for this task type')
             ))
-            ->phase('output', Store::as('DOC_CONTEXT', 'documentation references, API specs, architectural decisions'));
+            ->phase('output', Store::as('DOC_CONTEXT', 'agent report: documentation references, API specs, architectural decisions'));
 
         // Workflow Step 5 - Deep Analysis
         $this->guideline('workflow-step5')
