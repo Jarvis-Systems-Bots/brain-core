@@ -56,10 +56,10 @@ class DoValidateInclude extends IncludeArchetype
             ->why('Validation without documentation requirements is incomplete audit.')
             ->onViolation('Delegate to @agent-documentation-master first.');
 
-        $this->rule('simple-fix-via-delegation')->high()
-            ->text('Simple inconsistencies (typos, formatting, minor fixes) CAN be fixed via agent delegation during validation. Complex issues MUST become tasks.')
-            ->why('Balances efficiency (quick fixes) with traceability (complex issues tracked).')
-            ->onViolation('Evaluate complexity: <15min fix = delegate, >15min = create task.');
+        $this->rule('no-direct-fixes')->critical()
+            ->text('VALIDATION command NEVER fixes issues directly. ALL issues (critical, major, minor) MUST become tasks. No exceptions.')
+            ->why('Traceability and audit trail. Every change must be tracked via task system.')
+            ->onViolation('Create task for the issue instead of fixing directly.');
 
         $this->rule('vector-memory-mandatory')->high()
             ->text('ALL validation results MUST be stored to vector memory. Search memory BEFORE creating duplicate tasks.')
@@ -244,41 +244,13 @@ class DoValidateInclude extends IncludeArchetype
                 '- Missing requirements: {$MISSING_REQUIREMENTS.count}',
             ]));
 
-        // Phase 4: Quick Fixes via Dynamic Agent Delegation
-        $this->guideline('phase4-quick-fixes')
-            ->goal('Fix minor issues via dynamically selected agents from $AVAILABLE_AGENTS')
-            ->example()
-            ->phase(Operator::output([
-                '',
-                '=== PHASE 4: QUICK FIXES ===',
-            ]))
-            ->phase(Operator::if('$MINOR_ISSUES not empty', [
-                'Filter fixable issues: single-file, <15min estimate, no architecture impact',
-                Store::as('FIXABLE_ISSUES', '{filtered minor issues}'),
-                Operator::forEach('issue in $FIXABLE_ISSUES', [
-                    'SELECT BEST AGENT from $AVAILABLE_AGENTS based on issue type:',
-                    '- Code style issues → agent with code formatting expertise',
-                    '- Documentation issues → documentation-master',
-                    '- Test issues → agent with test expertise',
-                    '- Other → explore for general fixes',
-                    Store::as('FIX_AGENT', '{selected agent_id}'),
-                    Operator::output(['Fixing via {$FIX_AGENT}: {issue.description} in {issue.file}']),
-                    TaskTool::agent('{$FIX_AGENT}', 'FIX ISSUE: {issue.description} in {issue.file}. 1) Search memory for similar fixes 2) Apply fix 3) Verify fix works 4) Store result to vector memory.'),
-                    Store::as('FIX_RESULTS[{issue.id}]', 'Fixed'),
-                ]),
-                Operator::output(['Quick fixes applied: {$FIXABLE_ISSUES.count}']),
-            ]))
-            ->phase(Operator::if('$MINOR_ISSUES empty', [
-                Operator::output(['No minor issues to fix']),
-            ]));
-
-        // Phase 5: Task Creation for Complex Issues (Consolidated 5-8h Tasks)
-        $this->guideline('phase5-task-creation')
+        // Phase 4: Task Creation for ALL Issues (Consolidated 5-8h Tasks)
+        $this->guideline('phase4-task-creation')
             ->goal('Create consolidated tasks (5-8h each) for issues with comprehensive context')
             ->example()
             ->phase(Operator::output([
                 '',
-                '=== PHASE 5: TASK CREATION (CONSOLIDATED) ===',
+                '=== PHASE 4: TASK CREATION (CONSOLIDATED) ===',
             ]))
             ->phase('Check existing tasks to avoid duplicates')
             ->phase(VectorTaskMcp::call('task_list', '{query: "fix issues {$TASK_DESCRIPTION}", limit: 20}'))
@@ -288,15 +260,16 @@ class DoValidateInclude extends IncludeArchetype
                 'Calculate total estimate for ALL issues:',
                 '- Critical issues: ~2h per issue (investigation + fix + test)',
                 '- Major issues: ~1.5h per issue (fix + verify)',
+                '- Minor issues: ~0.5h per issue (fix + verify)',
                 '- Missing requirements: ~4h per requirement (implement + test)',
                 Store::as('TOTAL_ESTIMATE', '{sum of all issue estimates in hours}'),
             ]))
             ->phase(Operator::if('$TOTAL_ESTIMATE <= 8', [
                 'ALL issues fit into ONE consolidated task (5-8h range)',
-                Operator::if('($CRITICAL_ISSUES.count + $MAJOR_ISSUES.count + $MISSING_REQUIREMENTS.count) > 0 AND NOT exists similar in $EXISTING_FIX_TASKS', [
+                Operator::if('($CRITICAL_ISSUES.count + $MAJOR_ISSUES.count + $MINOR_ISSUES.count + $MISSING_REQUIREMENTS.count) > 0 AND NOT exists similar in $EXISTING_FIX_TASKS', [
                     VectorTaskMcp::call('task_create', '{
                         title: "Validation fixes: {$TASK_DESCRIPTION}",
-                        content: "Consolidated validation findings for {$TASK_DESCRIPTION}.\\n\\nTotal estimate: {$TOTAL_ESTIMATE}h\\n\\n## Critical Issues ({$CRITICAL_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Major Issues ({$MAJOR_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Missing Requirements ({$MISSING_REQUIREMENTS.count})\\n{FOR each req: - {req.description}\\n  Acceptance criteria: {req.acceptance_criteria}\\n  Related files: {req.related_files}\\n  Priority: {req.priority}\\n}\\n\\n## Context References\\n- Parent task: #{$VECTOR_TASK_ID}\\n- Memory IDs: {$MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}\\n- Validation agents used: {$SELECTED_AGENTS}",
+                        content: "Consolidated validation findings for {$TASK_DESCRIPTION}.\\n\\nTotal estimate: {$TOTAL_ESTIMATE}h\\n\\n## Critical Issues ({$CRITICAL_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Major Issues ({$MAJOR_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Minor Issues ({$MINOR_ISSUES.count})\\n{FOR each issue: - [{issue.severity}] {issue.description}\\n  File: {issue.file}:{issue.line}\\n  Type: {issue.type}\\n  Suggestion: {issue.suggestion}\\n  Memory refs: {issue.memory_refs}\\n}\\n\\n## Missing Requirements ({$MISSING_REQUIREMENTS.count})\\n{FOR each req: - {req.description}\\n  Acceptance criteria: {req.acceptance_criteria}\\n  Related files: {req.related_files}\\n  Priority: {req.priority}\\n}\\n\\n## Context References\\n- Parent task: #{$VECTOR_TASK_ID}\\n- Memory IDs: {$MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}\\n- Validation agents used: {$SELECTED_AGENTS}",
                         priority: "{$CRITICAL_ISSUES.count > 0 ? high : medium}",
                         estimate: {$TOTAL_ESTIMATE},
                         tags: ["validation-fix", "consolidated"],
@@ -346,24 +319,24 @@ class DoValidateInclude extends IncludeArchetype
             ->why('Enables full context restoration without re-exploration. Saves agent time on task pickup.')
             ->onViolation('Add missing context references before creating task.');
 
-        // Phase 6: Validation Completion
-        $this->guideline('phase6-completion')
+        // Phase 5: Validation Completion
+        $this->guideline('phase5-completion')
             ->goal('Complete validation, update task status, store summary to memory')
             ->example()
             ->phase(Operator::output([
                 '',
-                '=== PHASE 6: VALIDATION COMPLETE ===',
+                '=== PHASE 5: VALIDATION COMPLETE ===',
             ]))
-            ->phase(Store::as('VALIDATION_SUMMARY', '{all_issues_count, fixed_count, tasks_created_count, pass_rate}'))
+            ->phase(Store::as('VALIDATION_SUMMARY', '{all_issues_count, tasks_created_count, pass_rate}'))
             ->phase(Store::as('VALIDATION_STATUS', Operator::if('$CRITICAL_ISSUES.count === 0 AND $MISSING_REQUIREMENTS.count === 0', 'PASSED', 'NEEDS_WORK')))
-            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Validation of {$TASK_DESCRIPTION}\\n\\nStatus: {$VALIDATION_STATUS}\\nCritical: {$CRITICAL_ISSUES.count}\\nMajor: {$MAJOR_ISSUES.count}\\nMinor fixed: {$FIXABLE_ISSUES.count}\\nTasks created: {$CREATED_TASKS.count}\\n\\nFindings:\\n{summary of key findings}", category: "code-solution", tags: ["validation", "audit"]}'))
+            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Validation of {$TASK_DESCRIPTION}\\n\\nStatus: {$VALIDATION_STATUS}\\nCritical: {$CRITICAL_ISSUES.count}\\nMajor: {$MAJOR_ISSUES.count}\\nMinor: {$MINOR_ISSUES.count}\\nTasks created: {$CREATED_TASKS.count}\\n\\nFindings:\\n{summary of key findings}", category: "code-solution", tags: ["validation", "audit"]}'))
             ->phase(Operator::if('$IS_VECTOR_TASK === true', [
                 Operator::if('$VALIDATION_STATUS === "PASSED" AND $CREATED_TASKS.count === 0', [
                     VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "validated", comment: "Validation PASSED. All requirements implemented, no issues found.", append_comment: true}'),
                     Operator::output(['✅ Task #{$VECTOR_TASK_ID} marked as VALIDATED']),
                 ]),
                 Operator::if('$CREATED_TASKS.count > 0', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "pending", comment: "Validation completed. Created {$CREATED_TASKS.count} subtasks. Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}. Returning to pending until subtasks completed.", append_comment: true}'),
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "pending", comment: "Validation completed. Created {$CREATED_TASKS.count} subtasks. Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Minor: {$MINOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}. Returning to pending until subtasks completed.", append_comment: true}'),
                     Operator::output(['⏳ Task #{$VECTOR_TASK_ID} returned to PENDING ({$CREATED_TASKS.count} subtasks to complete)']),
                 ]),
             ]))
@@ -377,9 +350,9 @@ class DoValidateInclude extends IncludeArchetype
                 '|--------|-------|',
                 '| Critical issues | {$CRITICAL_ISSUES.count} |',
                 '| Major issues | {$MAJOR_ISSUES.count} |',
-                '| Minor issues fixed | {$FIXABLE_ISSUES.count} |',
-                '| Tasks created | {$CREATED_TASKS.count} |',
+                '| Minor issues | {$MINOR_ISSUES.count} |',
                 '| Missing requirements | {$MISSING_REQUIREMENTS.count} |',
+                '| Tasks created | {$CREATED_TASKS.count} |',
                 '',
                 '{IF $CREATED_TASKS.count > 0: "Follow-up tasks: {$CREATED_TASKS}"}',
                 '',
@@ -420,7 +393,6 @@ class DoValidateInclude extends IncludeArchetype
             ->text('Validation constraints and limits')
             ->example()
             ->phase('Max 6 parallel validation agents per batch')
-            ->phase('Max 10 quick fixes per validation run')
             ->phase('Max 20 tasks created per validation run')
             ->phase('Validation timeout: 5 minutes per agent')
             ->phase(Operator::verify([
@@ -428,6 +400,7 @@ class DoValidateInclude extends IncludeArchetype
                 'parallel_agents_used = true',
                 'documentation_checked = true',
                 'results_stored_to_memory = true',
+                'no_direct_fixes = true',
             ]));
 
         // Examples
@@ -436,14 +409,14 @@ class DoValidateInclude extends IncludeArchetype
             ->example()
             ->phase('input', '"task 15" or "validate task:15"')
             ->phase('detection', 'Task #15 loaded, status: completed')
-            ->phase('flow', 'Task Detection → Context → Docs → Parallel Validation (5 agents) → Aggregate → Quick Fixes → Create Tasks → Complete')
+            ->phase('flow', 'Task Detection → Context → Docs → Parallel Validation (5 agents) → Aggregate → Create Tasks → Complete')
             ->phase('result', 'Validation PASSED/NEEDS_WORK, N tasks created');
 
         $this->guideline('example-plain-request')
             ->scenario('Validate work by description')
             ->example()
             ->phase('input', '"validate user authentication implementation"')
-            ->phase('flow', 'Context from memory → Docs requirements → Parallel Validation → Aggregate → Quick Fixes → Create Tasks → Report')
+            ->phase('flow', 'Context from memory → Docs requirements → Parallel Validation → Aggregate → Create Tasks → Report')
             ->phase('result', 'Validation report with findings and created tasks');
 
         $this->guideline('example-rerun')
