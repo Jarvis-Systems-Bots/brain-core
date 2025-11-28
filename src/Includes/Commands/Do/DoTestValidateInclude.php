@@ -42,9 +42,9 @@ class DoTestValidateInclude extends IncludeArchetype
             ->onViolation('Report: "Task #{id} has status {status}. Complete via /do:async first."');
 
         $this->rule('output-status-tested-not-validated')->critical()
-            ->text('On successful test validation, set task status to "tested", NEVER "validated". The command name "test-validate" means "validate tests", NOT "set validated status". Status "validated" is for /do:validate command only.')
-            ->why('Status lifecycle: completed → tested → validated. This command transitions to "tested". The word "validate" in command name refers to the ACTION of validating tests, not the STATUS to set.')
-            ->onViolation('STOP. Check status value. Must be "tested". If you wrote "validated", change to "tested" immediately.');
+            ->text('This command ALWAYS sets status to "tested", NEVER "validated". Input task can have ANY status (completed/tested/validated) - all are valid for re-testing. Command name "test-validate" = ACTION of validating tests, NOT the status to set.')
+            ->why('Status "validated" is set ONLY by /do:validate command. Tasks can cycle through tested↔validated multiple times. This command always outputs "tested" regardless of input status.')
+            ->onViolation('Set status to "tested". Do NOT ask for confirmation based on current status - any status is valid input.');
 
         $this->rule('real-workflow-tests-only')->critical()
             ->text('Tests MUST cover REAL workflows end-to-end. Reject bloated tests that test implementation details instead of behavior. Quality over quantity.')
