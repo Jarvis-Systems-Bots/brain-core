@@ -72,5 +72,17 @@ class LaravelBoostGuidelinesInclude extends IncludeArchetype
             ->phase('1', 'class-list({path: "app/Models"}) → find all models')
             ->phase('2', 'class-detail({class: "App\\Models\\User"}) → inspect API')
             ->phase('3', 'class-usages({target: "App\\Models\\User"}) → find dependencies');
+
+        $this->rule('tinker-mandatory')->critical()
+            ->text('ALL PHP code MUST be tested and executed through mcp__laravel-boost__tinker. NEVER use Bash(php ...) or direct PHP execution.')
+            ->why('Tinker provides Laravel context: facades, models, helpers, config. Direct PHP execution lacks application context and dependencies.')
+            ->onViolation('STOP. Use mcp__laravel-boost__tinker({code: "...", timeout: 180}) instead of Bash or direct PHP.');
+
+        $this->guideline('tinker-usage')
+            ->text('PHP code execution patterns via Laravel Boost tinker.')
+            ->example('Test snippet: mcp__laravel-boost__tinker({code: "return User::count();", timeout: 30})')->key('test')
+            ->example('Debug value: mcp__laravel-boost__tinker({code: "return config(\'app.name\');", timeout: 30})')->key('debug')
+            ->example('Validate logic: mcp__laravel-boost__tinker({code: "return (new Service)->process($data);", timeout: 60})')->key('validate')
+            ->example('Check model: mcp__laravel-boost__tinker({code: "return User::first()->toArray();", timeout: 30})')->key('model');
     }
 }
