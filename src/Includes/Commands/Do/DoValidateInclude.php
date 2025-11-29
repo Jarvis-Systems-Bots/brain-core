@@ -336,8 +336,14 @@ class DoValidateInclude extends IncludeArchetype
                     Operator::output(['✅ Task #{$VECTOR_TASK_ID} marked as VALIDATED']),
                 ]),
                 Operator::if('$CREATED_TASKS.count > 0', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "pending", comment: "Validation completed. Created {$CREATED_TASKS.count} subtasks. Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Minor: {$MINOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}. Returning to pending until subtasks completed.", append_comment: true}'),
-                    Operator::output(['⏳ Task #{$VECTOR_TASK_ID} returned to PENDING ({$CREATED_TASKS.count} subtasks to complete)']),
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Validation found issues. Created {$CREATED_TASKS.count} subtasks: Critical: {$CRITICAL_ISSUES.count}, Major: {$MAJOR_ISSUES.count}, Minor: {$MINOR_ISSUES.count}, Missing: {$MISSING_REQUIREMENTS.count}. Task stays COMPLETED for re-validation after subtasks done. Flow: do:async subtasks → do:validate again → repeat until PASSED.", append_comment: true}'),
+                    Operator::output([
+                        '🔄 Task #{$VECTOR_TASK_ID} stays COMPLETED (re-validatable)',
+                        '   Next steps:',
+                        '   1. /do:async subtasks to fix issues',
+                        '   2. /do:validate task #{$VECTOR_TASK_ID} again',
+                        '   3. Repeat until PASSED → then /do:test-validate',
+                    ]),
                 ]),
             ]))
             ->phase(Operator::output([
