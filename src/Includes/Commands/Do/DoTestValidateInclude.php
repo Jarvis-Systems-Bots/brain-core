@@ -365,8 +365,8 @@ class DoTestValidateInclude extends IncludeArchetype
                     Operator::output(['✅ Task #{$VECTOR_TASK_ID} marked as TESTED']),
                 ]),
                 Operator::if('$CREATED_TASKS.count > 0', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Test validation completed. Coverage: {$COVERAGE_RATE}, Health: {$TEST_HEALTH_SCORE}. Created {$CREATED_TASKS.count} subtasks. Returning to completed - subtasks must be done before re-testing.", append_comment: true}'),
-                    Operator::output(['⏳ Task #{$VECTOR_TASK_ID} returned to COMPLETED ({$CREATED_TASKS.count} subtasks to fix before re-testing)']),
+                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "pending", comment: "Test validation found issues. Coverage: {$COVERAGE_RATE}, Health: {$TEST_HEALTH_SCORE}. Created {$CREATED_TASKS.count} fix tasks. Returning to pending - fix tasks must be completed before re-testing.", append_comment: true}'),
+                    Operator::output(['⏳ Task #{$VECTOR_TASK_ID} returned to PENDING ({$CREATED_TASKS.count} fix tasks required before re-testing)']),
                 ]),
             ]))
             ->phase(Operator::output([
