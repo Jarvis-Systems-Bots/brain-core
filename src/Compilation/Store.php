@@ -12,11 +12,10 @@ class Store
 
     public static function as(string $name, ...$appropriate): string
     {
-        $var = puzzle('store-var', $name);
         $appropriate = static::exportedArray($appropriate, ' + ');
         return static::generateOperator(
             name: 'STORE-AS',
-            arguments: $var . (! empty($appropriate) ? " = $appropriate" : ''),
+            arguments: static::var($name) . (! empty($appropriate) ? " = $appropriate" : ''),
         );
     }
 
@@ -24,7 +23,12 @@ class Store
     {
         return static::generateOperator(
             name: 'STORE-GET',
-            arguments: puzzle('store-var', $name),
+            arguments: static::var($name),
         );
+    }
+
+    public static function var(string $name): string
+    {
+        return puzzle('store-var', $name);
     }
 }

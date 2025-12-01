@@ -41,10 +41,10 @@ class DoTestValidateInclude extends IncludeArchetype
             ->why('Test validation audits finished work. Incomplete work cannot be validated.')
             ->onViolation('Report: "Task #{id} has status {status}. Complete via /do:async first."');
 
-        $this->rule('output-status-tested-not-validated')->critical()
-            ->text('This command ALWAYS sets status to "tested", NEVER "validated". Input task can have ANY status (completed/tested/validated) - all are valid for re-testing. Command name "test-validate" = ACTION of validating tests, NOT the status to set.')
-            ->why('Status "validated" is set ONLY by /do:validate command. Tasks can cycle through tested↔validated multiple times. This command always outputs "tested" regardless of input status.')
-            ->onViolation('Set status to "tested". Do NOT ask for confirmation based on current status - any status is valid input.');
+        $this->rule('output-status-conditional')->critical()
+            ->text('Output status depends on validation outcome: 1) PASSED + no tasks created → "tested", 2) Tasks created for fixes → "pending". NEVER set "validated" - that status is set ONLY by /do:validate command.')
+            ->why('If fix tasks were created, work is NOT done - task returns to pending queue. Only when validation passes completely (no issues, no tasks) can status be "tested".')
+            ->onViolation('Check CREATED_TASKS.count: if > 0 → set "pending", if === 0 AND passed → set "tested". NEVER set "completed" or "tested" when fix tasks exist.');
 
         $this->rule('real-workflow-tests-only')->critical()
             ->text('Tests MUST cover REAL workflows end-to-end. Reject bloated tests that test implementation details instead of behavior. Quality over quantity.')
@@ -80,31 +80,31 @@ class DoTestValidateInclude extends IncludeArchetype
                 'Extract task_id from pattern',
                 Store::as('IS_VECTOR_TASK', 'true'),
                 Store::as('VECTOR_TASK_ID', '{extracted_id}'),
-                VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'),
+                VectorTaskMcp::call('task_get', '{task_id: ' . Store::var('VECTOR_TASK_ID') . '}'),
                 Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'),
-                Operator::if('$VECTOR_TASK.status NOT IN (completed, tested, validated)', [
+                Operator::if('{' . Store::var('VECTOR_TASK.status') . '} NOT IN (completed, tested, validated)', [
                     Operator::output([
                         '=== TEST VALIDATION BLOCKED ===',
-                        'Task #{$VECTOR_TASK_ID} has status: {$VECTOR_TASK.status}',
+                        'Task #{' . Store::var('VECTOR_TASK_ID') . '} has status: {' . Store::var('VECTOR_TASK.status') . '}',
                         'Only COMPLETED/TESTED/VALIDATED tasks can be test-validated.',
-                        'Run /do:async task {$VECTOR_TASK_ID} to complete first.',
+                        'Run /do:async task {' . Store::var('VECTOR_TASK_ID') . '} to complete first.',
                     ]),
                     'ABORT validation',
                 ]),
-                Operator::if('$VECTOR_TASK.parent_id !== null', [
-                    VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK.parent_id}'),
+                Operator::if('{' . Store::var('VECTOR_TASK.parent_id') . '} !== null', [
+                    VectorTaskMcp::call('task_get', '{task_id: ' . Store::var('VECTOR_TASK.parent_id') . '}'),
                     Store::as('PARENT_TASK', '{parent task for context}'),
                 ]),
-                VectorTaskMcp::call('task_list', '{parent_id: $VECTOR_TASK_ID, limit: 50}'),
+                VectorTaskMcp::call('task_list', '{parent_id: ' . Store::var('VECTOR_TASK_ID') . ', limit: 50}'),
                 Store::as('SUBTASKS', '{list of subtasks}'),
-                Store::as('TASK_DESCRIPTION', '$VECTOR_TASK.title + $VECTOR_TASK.content'),
-                Store::as('TASK_PARENT_ID', '$VECTOR_TASK_ID'),
+                Store::as('TASK_DESCRIPTION', '{' . Store::var('VECTOR_TASK.title') . ' + ' . Store::var('VECTOR_TASK.content') . '}'),
+                Store::as('TASK_PARENT_ID', Store::var('VECTOR_TASK_ID')),
                 Operator::output([
                     '=== VECTOR TASK LOADED ===',
-                    'Task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}',
-                    'Status: {$VECTOR_TASK.status} | Priority: {$VECTOR_TASK.priority}',
-                    'Parent: {$PARENT_TASK.title or "none"}',
-                    'Subtasks: {$SUBTASKS.count}',
+                    'Task #' . Store::var('VECTOR_TASK_ID') . ': {' . Store::var('VECTOR_TASK.title') . '}',
+                    'Status: {' . Store::var('VECTOR_TASK.status') . '} | Priority: {' . Store::var('VECTOR_TASK.priority') . '}',
+                    'Parent: {' . Store::var('PARENT_TASK.title') . ' or "none"}',
+                    'Subtasks: {' . Store::var('SUBTASKS.count') . '}',
                 ]),
             ]))
             ->phase(Operator::if('$ARGUMENTS is plain description', [
@@ -122,12 +122,12 @@ class DoTestValidateInclude extends IncludeArchetype
             ]))
             ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'Get available agents with capabilities'))
             ->phase(Store::as('AVAILABLE_AGENTS', '{agent_id: description mapping}'))
-            ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from $TASK_DESCRIPTION}'), 'Get documentation INDEX preview'))
+            ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from ' . Store::var('TASK_DESCRIPTION') . '}'), 'Get documentation INDEX preview'))
             ->phase(Store::as('DOCS_PREVIEW', 'Documentation files available'))
             ->phase(Operator::output([
-                'Task: {$TASK_DESCRIPTION}',
-                'Available agents: {$AVAILABLE_AGENTS.count}',
-                'Documentation files: {$DOCS_PREVIEW.count}',
+                'Task: {' . Store::var('TASK_DESCRIPTION') . '}',
+                'Available agents: {' . Store::var('AVAILABLE_AGENTS.count') . '}',
+                'Documentation files: {' . Store::var('DOCS_PREVIEW.count') . '}',
                 '',
                 'Test validation will delegate to agents:',
                 '1. VectorMaster - deep memory research for test context',
@@ -141,9 +141,9 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase(Operator::verify('User approved'))
             ->phase(Operator::if('rejected', 'Accept modifications → Re-present → WAIT'))
             ->phase('IMMEDIATELY after approval - set task in_progress (test validation IS execution)')
-            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Test validation started after approval", append_comment: true}'),
-                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (test validation phase)']),
+            ->phase(Operator::if('{' . Store::var('IS_VECTOR_TASK') . '} === true', [
+                VectorTaskMcp::call('task_update', '{task_id: ' . Store::var('VECTOR_TASK_ID') . ', status: "in_progress", comment: "Test validation started after approval", append_comment: true}'),
+                Operator::output(['📋 Vector task #' . Store::var('VECTOR_TASK_ID') . ' started (test validation phase)']),
             ]));
 
         // Phase 1: Deep Test Context Gathering via VectorMaster Agent
@@ -155,16 +155,16 @@ class DoTestValidateInclude extends IncludeArchetype
                 '=== PHASE 1: DEEP TEST CONTEXT ===',
                 'Delegating to VectorMaster for deep memory research...',
             ]))
-            ->phase('SELECT vector-master from $AVAILABLE_AGENTS')
+            ->phase('SELECT vector-master from ' . Store::var('AVAILABLE_AGENTS'))
             ->phase(Store::as('CONTEXT_AGENT', '{vector-master agent_id}'))
-            ->phase(TaskTool::agent('{$CONTEXT_AGENT}', 'DEEP MEMORY RESEARCH for test validation of "{$TASK_DESCRIPTION}": 1) Multi-probe search: past test implementations, test patterns, testing best practices, test failures, coverage gaps 2) Search across categories: code-solution, learning, bug-fix 3) Extract test-specific insights: what worked, what failed, patterns used 4) Return: {test_history: [...], test_patterns: [...], past_failures: [...], quality_standards: [...], key_insights: [...]}. Store consolidated test context.'))
+            ->phase(TaskTool::agent('{' . Store::var('CONTEXT_AGENT') . '}', 'DEEP MEMORY RESEARCH for test validation of "' . Store::var('TASK_DESCRIPTION') . '": 1) Multi-probe search: past test implementations, test patterns, testing best practices, test failures, coverage gaps 2) Search across categories: code-solution, learning, bug-fix 3) Extract test-specific insights: what worked, what failed, patterns used 4) Return: {test_history: [...], test_patterns: [...], past_failures: [...], quality_standards: [...], key_insights: [...]}. Store consolidated test context.'))
             ->phase(Store::as('TEST_MEMORY_CONTEXT', '{VectorMaster agent results}'))
-            ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 10}'))
+            ->phase(VectorTaskMcp::call('task_list', '{query: "test ' . Store::var('TASK_DESCRIPTION') . '", limit: 10}'))
             ->phase(Store::as('RELATED_TEST_TASKS', 'Related test tasks'))
             ->phase(Operator::output([
-                'Context gathered via {$CONTEXT_AGENT}:',
-                '- Test insights: {$TEST_MEMORY_CONTEXT.key_insights.count}',
-                '- Related test tasks: {$RELATED_TEST_TASKS.count}',
+                'Context gathered via {' . Store::var('CONTEXT_AGENT') . '}:',
+                '- Test insights: {' . Store::var('TEST_MEMORY_CONTEXT.key_insights.count') . '}',
+                '- Related test tasks: {' . Store::var('RELATED_TEST_TASKS.count') . '}',
             ]));
 
         // Phase 2: Documentation Requirements Extraction
@@ -175,47 +175,47 @@ class DoTestValidateInclude extends IncludeArchetype
                 '',
                 '=== PHASE 1: DOCUMENTATION REQUIREMENTS ===',
             ]))
-            ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from $TASK_DESCRIPTION}'), 'Get documentation INDEX'))
+            ->phase(BashTool::describe(BrainCLI::DOCS('{keywords from ' . Store::var('TASK_DESCRIPTION') . '}'), 'Get documentation INDEX'))
             ->phase(Store::as('DOCS_INDEX', 'Documentation file paths'))
-            ->phase(Operator::if('$DOCS_INDEX not empty', [
-                TaskTool::agent('documentation-master', 'Extract ALL TESTABLE requirements from documentation files: {$DOCS_INDEX paths}. For each requirement identify: [{requirement_id, description, testable_scenarios: [...], acceptance_criteria, expected_test_type: unit|feature|integration|e2e, priority}]. Focus on BEHAVIOR not implementation. Store to vector memory.'),
+            ->phase(Operator::if('{' . Store::var('DOCS_INDEX') . '} not empty', [
+                TaskTool::agent('documentation-master', 'Extract ALL TESTABLE requirements from documentation files: {' . Store::var('DOCS_INDEX') . ' paths}. For each requirement identify: [{requirement_id, description, testable_scenarios: [...], acceptance_criteria, expected_test_type: unit|feature|integration|e2e, priority}]. Focus on BEHAVIOR not implementation. Store to vector memory.'),
                 Store::as('DOCUMENTATION_REQUIREMENTS', '{structured testable requirements list}'),
             ]))
-            ->phase(Operator::if('$DOCS_INDEX empty', [
+            ->phase(Operator::if('{' . Store::var('DOCS_INDEX') . '} empty', [
                 Store::as('DOCUMENTATION_REQUIREMENTS', '[]'),
                 Operator::output(['WARNING: No documentation found. Test validation will be limited to existing tests only.']),
             ]))
             ->phase(Operator::output([
-                'Testable requirements extracted: {$DOCUMENTATION_REQUIREMENTS.count}',
+                'Testable requirements extracted: {' . Store::var('DOCUMENTATION_REQUIREMENTS.count') . '}',
                 '{requirements summary with test types}',
             ]));
 
         // Phase 2: Test Discovery via Dynamic Agent Selection
         $this->guideline('phase2-test-discovery')
-            ->goal('Select best agent from $AVAILABLE_AGENTS and discover all existing tests')
+            ->goal('Select best agent from ' . Store::var('AVAILABLE_AGENTS') . ' and discover all existing tests')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 2: TEST DISCOVERY ===',
             ]))
-            ->phase('SELECT AGENT for test discovery from $AVAILABLE_AGENTS (prefer explore for codebase scanning)')
+            ->phase('SELECT AGENT for test discovery from {' . Store::var('AVAILABLE_AGENTS') . '} (prefer explore for codebase scanning)')
             ->phase(Store::as('DISCOVERY_AGENT', '{selected agent_id based on descriptions}'))
-            ->phase(TaskTool::agent('{$DISCOVERY_AGENT}', 'DEEP RESEARCH - TEST DISCOVERY for "{$TASK_DESCRIPTION}": 1) Search vector memory for past test patterns and locations 2) Scan codebase for test directories (tests/, spec/, __tests__) 3) Find ALL related test files: unit, feature, integration, e2e 4) Analyze test structure and coverage 5) Return: [{test_file, test_type, test_classes, test_methods, related_source_files}]. Store findings to vector memory.'))
+            ->phase(TaskTool::agent('{' . Store::var('DISCOVERY_AGENT') . '}', 'DEEP RESEARCH - TEST DISCOVERY for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search vector memory for past test patterns and locations 2) Scan codebase for test directories (tests/, spec/, __tests__) 3) Find ALL related test files: unit, feature, integration, e2e 4) Analyze test structure and coverage 5) Return: [{test_file, test_type, test_classes, test_methods, related_source_files}]. Store findings to vector memory.'))
             ->phase(Store::as('DISCOVERED_TESTS', '{list of test files with metadata}'))
             ->phase(Operator::output([
-                'Tests discovered via {$DISCOVERY_AGENT}: {$DISCOVERED_TESTS.count} files',
+                'Tests discovered via {' . Store::var('DISCOVERY_AGENT') . '}: {' . Store::var('DISCOVERED_TESTS.count') . '} files',
                 '{test files summary by type}',
             ]));
 
         // Phase 3: Dynamic Agent Selection and Parallel Test Validation
         $this->guideline('phase3-parallel-validation')
-            ->goal('Select best agents from $AVAILABLE_AGENTS and launch parallel test validation')
+            ->goal('Select best agents from ' . Store::var('AVAILABLE_AGENTS') . ' and launch parallel test validation')
             ->example()
             ->phase(Operator::output([
                 '',
                 '=== PHASE 3: PARALLEL TEST VALIDATION ===',
             ]))
-            ->phase('AGENT SELECTION: Analyze $AVAILABLE_AGENTS descriptions and select BEST agent for each test validation aspect:')
+            ->phase('AGENT SELECTION: Analyze ' . Store::var('AVAILABLE_AGENTS') . ' descriptions and select BEST agent for each test validation aspect:')
             ->phase(Operator::do([
                 'ASPECT 1 - REQUIREMENTS COVERAGE: Select agent for requirements-to-test mapping (vector-master for memory, explore for codebase)',
                 'ASPECT 2 - TEST QUALITY: Select agent for code quality analysis (explore for pattern detection)',
@@ -224,25 +224,25 @@ class DoTestValidateInclude extends IncludeArchetype
                 'ASPECT 5 - TEST ISOLATION: Select agent for isolation analysis (explore for dependency scanning)',
                 'ASPECT 6 - TEST EXECUTION: Select agent capable of running tests (explore with bash access)',
             ]))
-            ->phase(Store::as('SELECTED_AGENTS', '{aspect: agent_id mapping based on $AVAILABLE_AGENTS}'))
+            ->phase(Store::as('SELECTED_AGENTS', '{aspect: agent_id mapping based on ' . Store::var('AVAILABLE_AGENTS') . '}'))
             ->phase(Operator::output([
                 'Selected agents for test validation:',
-                '{$SELECTED_AGENTS mapping}',
+                '{' . Store::var('SELECTED_AGENTS') . ' mapping}',
                 '',
                 'Launching test validation agents in parallel...',
             ]))
             ->phase('PARALLEL BATCH: Launch selected agents simultaneously with DEEP RESEARCH tasks')
             ->phase(Operator::do([
-                TaskTool::agent('{$SELECTED_AGENTS.coverage}', 'DEEP RESEARCH - REQUIREMENTS COVERAGE for "{$TASK_DESCRIPTION}": 1) Search vector memory for past requirement-test mappings 2) Compare {$DOCUMENTATION_REQUIREMENTS} against {$DISCOVERED_TESTS} 3) For each requirement verify test exists 4) Return: [{requirement_id, coverage_status: covered|partial|missing, test_file, test_method, gap_description, memory_refs}]. Store findings.'),
-                TaskTool::agent('{$SELECTED_AGENTS.quality}', 'DEEP RESEARCH - TEST QUALITY for "{$TASK_DESCRIPTION}": 1) Search memory for test quality standards 2) Analyze {$DISCOVERED_TESTS} for bloat indicators 3) Check: excessive mocking, implementation testing, redundant assertions, copy-paste 4) Return: [{test_file, test_method, bloat_type, severity, suggestion}]. Store findings.'),
-                TaskTool::agent('{$SELECTED_AGENTS.workflow}', 'DEEP RESEARCH - WORKFLOW COVERAGE for "{$TASK_DESCRIPTION}": 1) Search memory for workflow patterns 2) Verify {$DISCOVERED_TESTS} cover complete user workflows 3) Check: happy path, error paths, edge cases, boundaries 4) Return: [{workflow, coverage_status, missing_scenarios}]. Store findings.'),
-                TaskTool::agent('{$SELECTED_AGENTS.consistency}', 'DEEP RESEARCH - TEST CONSISTENCY for "{$TASK_DESCRIPTION}": 1) Search memory for project test conventions 2) Check {$DISCOVERED_TESTS} for consistency 3) Verify: naming, structure, assertions, fixtures, setup/teardown 4) Return: [{test_file, inconsistency_type, description, suggestion}]. Store findings.'),
-                TaskTool::agent('{$SELECTED_AGENTS.isolation}', 'DEEP RESEARCH - TEST ISOLATION for "{$TASK_DESCRIPTION}": 1) Search memory for isolation issues 2) Verify {$DISCOVERED_TESTS} are properly isolated 3) Check: shared state, order dependency, external calls, cleanup 4) Return: [{test_file, isolation_issue, severity, suggestion}]. Store findings.'),
-                TaskTool::agent('{$SELECTED_AGENTS.execution}', 'DEEP RESEARCH - TEST EXECUTION for "{$TASK_DESCRIPTION}": 1) Search memory for past test failures 2) Run tests related to task 3) Identify flaky tests 4) Return: [{test_file, execution_status: pass|fail|flaky, error_message, execution_time}]. Store findings.'),
+                TaskTool::agent('{' . Store::var('SELECTED_AGENTS.coverage') . '}', 'DEEP RESEARCH - REQUIREMENTS COVERAGE for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search vector memory for past requirement-test mappings 2) Compare {' . Store::var('DOCUMENTATION_REQUIREMENTS') . '} against {' . Store::var('DISCOVERED_TESTS') . '} 3) For each requirement verify test exists 4) Return: [{requirement_id, coverage_status: covered|partial|missing, test_file, test_method, gap_description, memory_refs}]. Store findings.'),
+                TaskTool::agent('{' . Store::var('SELECTED_AGENTS.quality') . '}', 'DEEP RESEARCH - TEST QUALITY for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search memory for test quality standards 2) Analyze {' . Store::var('DISCOVERED_TESTS') . '} for bloat indicators 3) Check: excessive mocking, implementation testing, redundant assertions, copy-paste 4) Return: [{test_file, test_method, bloat_type, severity, suggestion}]. Store findings.'),
+                TaskTool::agent('{' . Store::var('SELECTED_AGENTS.workflow') . '}', 'DEEP RESEARCH - WORKFLOW COVERAGE for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search memory for workflow patterns 2) Verify {' . Store::var('DISCOVERED_TESTS') . '} cover complete user workflows 3) Check: happy path, error paths, edge cases, boundaries 4) Return: [{workflow, coverage_status, missing_scenarios}]. Store findings.'),
+                TaskTool::agent('{' . Store::var('SELECTED_AGENTS.consistency') . '}', 'DEEP RESEARCH - TEST CONSISTENCY for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search memory for project test conventions 2) Check {' . Store::var('DISCOVERED_TESTS') . '} for consistency 3) Verify: naming, structure, assertions, fixtures, setup/teardown 4) Return: [{test_file, inconsistency_type, description, suggestion}]. Store findings.'),
+                TaskTool::agent('{' . Store::var('SELECTED_AGENTS.isolation') . '}', 'DEEP RESEARCH - TEST ISOLATION for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search memory for isolation issues 2) Verify {' . Store::var('DISCOVERED_TESTS') . '} are properly isolated 3) Check: shared state, order dependency, external calls, cleanup 4) Return: [{test_file, isolation_issue, severity, suggestion}]. Store findings.'),
+                TaskTool::agent('{' . Store::var('SELECTED_AGENTS.execution') . '}', 'DEEP RESEARCH - TEST EXECUTION for "' . Store::var('TASK_DESCRIPTION') . '": 1) Search memory for past test failures 2) Run tests related to task 3) Identify flaky tests 4) Return: [{test_file, execution_status: pass|fail|flaky, error_message, execution_time}]. Store findings.'),
             ]))
             ->phase(Store::as('VALIDATION_BATCH_1', '{results from all agents}'))
             ->phase(Operator::output([
-                'Batch complete: {$SELECTED_AGENTS.count} test validation checks finished',
+                'Batch complete: {' . Store::var('SELECTED_AGENTS.count') . '} test validation checks finished',
             ]));
 
         // Phase 4: Results Aggregation and Analysis
@@ -265,13 +265,13 @@ class DoTestValidateInclude extends IncludeArchetype
             ->phase(Store::as('FAILING_TESTS', '{tests that fail or are flaky}'))
             ->phase(Operator::output([
                 'Test validation results:',
-                '- Missing coverage: {$MISSING_COVERAGE.count} requirements',
-                '- Partial coverage: {$PARTIAL_COVERAGE.count} requirements',
-                '- Bloated tests: {$BLOATED_TESTS.count} tests',
-                '- Missing workflows: {$MISSING_WORKFLOWS.count} workflows',
-                '- Inconsistent tests: {$INCONSISTENT_TESTS.count} tests',
-                '- Isolation issues: {$ISOLATION_ISSUES.count} tests',
-                '- Failing/flaky tests: {$FAILING_TESTS.count} tests',
+                '- Missing coverage: {' . Store::var('MISSING_COVERAGE.count') . '} requirements',
+                '- Partial coverage: {' . Store::var('PARTIAL_COVERAGE.count') . '} requirements',
+                '- Bloated tests: {' . Store::var('BLOATED_TESTS.count') . '} tests',
+                '- Missing workflows: {' . Store::var('MISSING_WORKFLOWS.count') . '} workflows',
+                '- Inconsistent tests: {' . Store::var('INCONSISTENT_TESTS.count') . '} tests',
+                '- Isolation issues: {' . Store::var('ISOLATION_ISSUES.count') . '} tests',
+                '- Failing/flaky tests: {' . Store::var('FAILING_TESTS.count') . '} tests',
             ]));
 
         // Phase 5: Task Creation for Test Gaps (Consolidated 5-8h Tasks)
@@ -283,7 +283,7 @@ class DoTestValidateInclude extends IncludeArchetype
                 '=== PHASE 5: TASK CREATION (CONSOLIDATED) ===',
             ]))
             ->phase('Check existing tasks to avoid duplicates')
-            ->phase(VectorTaskMcp::call('task_list', '{query: "test {$TASK_DESCRIPTION}", limit: 20}'))
+            ->phase(VectorTaskMcp::call('task_list', '{query: "test ' . Store::var('TASK_DESCRIPTION') . '", limit: 20}'))
             ->phase(Store::as('EXISTING_TEST_TASKS', 'Existing test tasks'))
             ->phase('CONSOLIDATION STRATEGY: Group issues into 5-8 hour task batches')
             ->phase(Operator::do([
@@ -295,45 +295,45 @@ class DoTestValidateInclude extends IncludeArchetype
                 '- Isolation issues: ~1h per test (refactor + verify)',
                 Store::as('TOTAL_ESTIMATE', '{sum of all issue estimates in hours}'),
             ]))
-            ->phase(Operator::if('$TOTAL_ESTIMATE <= 8', [
+            ->phase(Operator::if('{' . Store::var('TOTAL_ESTIMATE') . '} <= 8', [
                 'ALL issues fit into ONE consolidated task (5-8h range)',
-                Operator::if('$ALL_TEST_ISSUES.count > 0 AND NOT exists similar in $EXISTING_TEST_TASKS', [
+                Operator::if('{' . Store::var('ALL_TEST_ISSUES.count') . '} > 0 AND NOT exists similar in ' . Store::var('EXISTING_TEST_TASKS'), [
                     VectorTaskMcp::call('task_create', '{
-                        title: "Test fixes: {$TASK_DESCRIPTION}",
-                        content: "Consolidated test validation findings for {$TASK_DESCRIPTION}.\\n\\nTotal estimate: {$TOTAL_ESTIMATE}h\\n\\n## Missing Coverage ({$MISSING_COVERAGE.count})\\n{FOR each req: - {req.description} | Type: {req.expected_test_type} | File: {req.related_file}:{req.line} | Scenarios: {req.testable_scenarios}}\\n\\n## Failing Tests ({$FAILING_TESTS.count})\\n{FOR each test: - {test.test_file}:{test.test_method} | Error: {test.error_message} | Status: {test.execution_status}}\\n\\n## Bloated Tests ({$BLOATED_TESTS.count})\\n{FOR each test: - {test.test_file}:{test.test_method} | Bloat: {test.bloat_type} | Suggestion: {test.suggestion}}\\n\\n## Missing Workflows ({$MISSING_WORKFLOWS.count})\\n{FOR each wf: - {wf.workflow} | Missing: {wf.missing_scenarios}}\\n\\n## Isolation Issues ({$ISOLATION_ISSUES.count})\\n{FOR each test: - {test.test_file} | Issue: {test.isolation_issue} | Fix: {test.suggestion}}\\n\\n## Context References\\n- Memory IDs: {$TEST_MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TEST_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}",
+                        title: "Test fixes: ' . Store::var('TASK_DESCRIPTION') . '",
+                        content: "Consolidated test validation findings for ' . Store::var('TASK_DESCRIPTION') . '.\\n\\nTotal estimate: {' . Store::var('TOTAL_ESTIMATE') . '}h\\n\\n## Missing Coverage ({' . Store::var('MISSING_COVERAGE.count') . '})\\n{FOR each req: - {req.description} | Type: {req.expected_test_type} | File: {req.related_file}:{req.line} | Scenarios: {req.testable_scenarios}}\\n\\n## Failing Tests ({' . Store::var('FAILING_TESTS.count') . '})\\n{FOR each test: - {test.test_file}:{test.test_method} | Error: {test.error_message} | Status: {test.execution_status}}\\n\\n## Bloated Tests ({' . Store::var('BLOATED_TESTS.count') . '})\\n{FOR each test: - {test.test_file}:{test.test_method} | Bloat: {test.bloat_type} | Suggestion: {test.suggestion}}\\n\\n## Missing Workflows ({' . Store::var('MISSING_WORKFLOWS.count') . '})\\n{FOR each wf: - {wf.workflow} | Missing: {wf.missing_scenarios}}\\n\\n## Isolation Issues ({' . Store::var('ISOLATION_ISSUES.count') . '})\\n{FOR each test: - {test.test_file} | Issue: {test.isolation_issue} | Fix: {test.suggestion}}\\n\\n## Context References\\n- Memory IDs: {' . Store::var('TEST_MEMORY_CONTEXT.memory_ids') . '}\\n- Related tasks: {' . Store::var('RELATED_TEST_TASKS.ids') . '}\\n- Documentation: {' . Store::var('DOCS_INDEX.paths') . '}",
                         priority: "high",
-                        estimate: {$TOTAL_ESTIMATE},
+                        estimate: ' . Store::var('TOTAL_ESTIMATE') . ',
                         tags: ["test-validation", "consolidated"],
-                        parent_id: $TASK_PARENT_ID
+                        parent_id: ' . Store::var('TASK_PARENT_ID') . '
                     }'),
                     Store::as('CREATED_TASKS[]', '{task_id}'),
-                    Operator::output(['Created consolidated task: Test fixes ({$TOTAL_ESTIMATE}h, {$ALL_TEST_ISSUES.count} issues)']),
+                    Operator::output(['Created consolidated task: Test fixes ({' . Store::var('TOTAL_ESTIMATE') . '}h, {' . Store::var('ALL_TEST_ISSUES.count') . '} issues)']),
                 ]),
             ]))
-            ->phase(Operator::if('$TOTAL_ESTIMATE > 8', [
+            ->phase(Operator::if('{' . Store::var('TOTAL_ESTIMATE') . '} > 8', [
                 'Split into multiple 5-8h task batches',
                 Store::as('BATCH_SIZE', '6'),
-                Store::as('NUM_BATCHES', '{ceil($TOTAL_ESTIMATE / 6)}'),
+                Store::as('NUM_BATCHES', '{ceil(' . Store::var('TOTAL_ESTIMATE') . ' / 6)}'),
                 'Group issues by priority and type into batches of ~6h each',
-                Operator::forEach('batch_index in range(1, $NUM_BATCHES)', [
+                Operator::forEach('batch_index in range(1, ' . Store::var('NUM_BATCHES') . ')', [
                     Store::as('BATCH_ISSUES', '{slice of issues for this batch, ~6h worth}'),
                     Store::as('BATCH_ESTIMATE', '{sum of batch issue estimates}'),
-                    Operator::if('NOT exists similar in $EXISTING_TEST_TASKS', [
+                    Operator::if('NOT exists similar in ' . Store::var('EXISTING_TEST_TASKS'), [
                         VectorTaskMcp::call('task_create', '{
-                            title: "Test fixes batch {batch_index}/{$NUM_BATCHES}: {$TASK_DESCRIPTION}",
-                            content: "Test validation batch {batch_index} of {$NUM_BATCHES} for {$TASK_DESCRIPTION}.\\n\\nBatch estimate: {$BATCH_ESTIMATE}h\\n\\n## Issues in this batch\\n{FOR each issue in $BATCH_ISSUES:\\n### {issue.type}: {issue.title}\\n- File: {issue.file}:{issue.line}\\n- Description: {issue.description}\\n- Severity: {issue.severity}\\n- Suggestion: {issue.suggestion}\\n- Related memory: {issue.memory_refs}\\n}\\n\\n## Full Context References\\n- Parent task: #{$VECTOR_TASK_ID}\\n- Memory IDs: {$TEST_MEMORY_CONTEXT.memory_ids}\\n- Related tasks: {$RELATED_TEST_TASKS.ids}\\n- Documentation: {$DOCS_INDEX.paths}\\n- Total batches: {$NUM_BATCHES} ({$TOTAL_ESTIMATE}h total)",
+                            title: "Test fixes batch {batch_index}/{' . Store::var('NUM_BATCHES') . '}: ' . Store::var('TASK_DESCRIPTION') . '",
+                            content: "Test validation batch {batch_index} of {' . Store::var('NUM_BATCHES') . '} for ' . Store::var('TASK_DESCRIPTION') . '.\\n\\nBatch estimate: {' . Store::var('BATCH_ESTIMATE') . '}h\\n\\n## Issues in this batch\\n{FOR each issue in ' . Store::var('BATCH_ISSUES') . ':\\n### {issue.type}: {issue.title}\\n- File: {issue.file}:{issue.line}\\n- Description: {issue.description}\\n- Severity: {issue.severity}\\n- Suggestion: {issue.suggestion}\\n- Related memory: {issue.memory_refs}\\n}\\n\\n## Full Context References\\n- Parent task: #{' . Store::var('VECTOR_TASK_ID') . '}\\n- Memory IDs: {' . Store::var('TEST_MEMORY_CONTEXT.memory_ids') . '}\\n- Related tasks: {' . Store::var('RELATED_TEST_TASKS.ids') . '}\\n- Documentation: {' . Store::var('DOCS_INDEX.paths') . '}\\n- Total batches: {' . Store::var('NUM_BATCHES') . '} ({' . Store::var('TOTAL_ESTIMATE') . '}h total)",
                             priority: "{batch_index === 1 ? high : medium}",
-                            estimate: {$BATCH_ESTIMATE},
+                            estimate: ' . Store::var('BATCH_ESTIMATE') . ',
                             tags: ["test-validation", "batch-{batch_index}"],
-                            parent_id: $TASK_PARENT_ID
+                            parent_id: ' . Store::var('TASK_PARENT_ID') . '
                         }'),
                         Store::as('CREATED_TASKS[]', '{task_id}'),
-                        Operator::output(['Created batch {batch_index}/{$NUM_BATCHES}: {$BATCH_ESTIMATE}h']),
+                        Operator::output(['Created batch {batch_index}/{' . Store::var('NUM_BATCHES') . '}: {' . Store::var('BATCH_ESTIMATE') . '}h']),
                     ]),
                 ]),
             ]))
             ->phase(Operator::output([
-                'Tasks created: {$CREATED_TASKS.count} (total estimate: {$TOTAL_ESTIMATE}h)',
+                'Tasks created: {' . Store::var('CREATED_TASKS.count') . '} (total estimate: {' . Store::var('TOTAL_ESTIMATE') . '}h)',
             ]));
 
         // Task Consolidation Rules
@@ -357,42 +357,42 @@ class DoTestValidateInclude extends IncludeArchetype
             ]))
             ->phase(Store::as('COVERAGE_RATE', '{covered_requirements / total_requirements * 100}%'))
             ->phase(Store::as('TEST_HEALTH_SCORE', '{100 - (bloat_count + isolation_count + failing_count) / total_tests * 100}%'))
-            ->phase(Store::as('VALIDATION_STATUS', Operator::if('$MISSING_COVERAGE.count === 0 AND $FAILING_TESTS.count === 0', 'PASSED', 'NEEDS_WORK')))
-            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Test validation of {$TASK_DESCRIPTION}\\n\\nStatus: {$VALIDATION_STATUS}\\nCoverage rate: {$COVERAGE_RATE}\\nTest health: {$TEST_HEALTH_SCORE}\\n\\nMissing coverage: {$MISSING_COVERAGE.count}\\nFailing tests: {$FAILING_TESTS.count}\\nBloated tests: {$BLOATED_TESTS.count}\\nTasks created: {$CREATED_TASKS.count}\\n\\nKey findings: {summary}", category: "code-solution", tags: ["test-validation", "audit"]}'))
-            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                Operator::if('$VALIDATION_STATUS === "PASSED" AND $CREATED_TASKS.count === 0', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "tested", comment: "Test validation PASSED. All requirements covered, all tests passing, no critical issues.", append_comment: true}'),
-                    Operator::output(['✅ Task #{$VECTOR_TASK_ID} marked as TESTED']),
+            ->phase(Store::as('VALIDATION_STATUS', Operator::if('{' . Store::var('MISSING_COVERAGE.count') . '} === 0 AND {' . Store::var('FAILING_TESTS.count') . '} === 0', 'PASSED', 'NEEDS_WORK')))
+            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Test validation of ' . Store::var('TASK_DESCRIPTION') . '\\n\\nStatus: {' . Store::var('VALIDATION_STATUS') . '}\\nCoverage rate: {' . Store::var('COVERAGE_RATE') . '}\\nTest health: {' . Store::var('TEST_HEALTH_SCORE') . '}\\n\\nMissing coverage: {' . Store::var('MISSING_COVERAGE.count') . '}\\nFailing tests: {' . Store::var('FAILING_TESTS.count') . '}\\nBloated tests: {' . Store::var('BLOATED_TESTS.count') . '}\\nTasks created: {' . Store::var('CREATED_TASKS.count') . '}\\n\\nKey findings: {summary}", category: "code-solution", tags: ["test-validation", "audit"]}'))
+            ->phase(Operator::if('{' . Store::var('IS_VECTOR_TASK') . '} === true', [
+                Operator::if('{' . Store::var('VALIDATION_STATUS') . '} === "PASSED" AND {' . Store::var('CREATED_TASKS.count') . '} === 0', [
+                    VectorTaskMcp::call('task_update', '{task_id: ' . Store::var('VECTOR_TASK_ID') . ', status: "tested", comment: "Test validation PASSED. All requirements covered, all tests passing, no critical issues.", append_comment: true}'),
+                    Operator::output(['✅ Task #' . Store::var('VECTOR_TASK_ID') . ' marked as TESTED']),
                 ]),
-                Operator::if('$CREATED_TASKS.count > 0', [
-                    VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "pending", comment: "Test validation found issues. Coverage: {$COVERAGE_RATE}, Health: {$TEST_HEALTH_SCORE}. Created {$CREATED_TASKS.count} fix tasks. Returning to pending - fix tasks must be completed before re-testing.", append_comment: true}'),
-                    Operator::output(['⏳ Task #{$VECTOR_TASK_ID} returned to PENDING ({$CREATED_TASKS.count} fix tasks required before re-testing)']),
+                Operator::if('{' . Store::var('CREATED_TASKS.count') . '} > 0', [
+                    VectorTaskMcp::call('task_update', '{task_id: ' . Store::var('VECTOR_TASK_ID') . ', status: "pending", comment: "Test validation found issues. Coverage: {' . Store::var('COVERAGE_RATE') . '}, Health: {' . Store::var('TEST_HEALTH_SCORE') . '}. Created {' . Store::var('CREATED_TASKS.count') . '} fix tasks. Returning to pending - fix tasks must be completed before re-testing.", append_comment: true}'),
+                    Operator::output(['⏳ Task #' . Store::var('VECTOR_TASK_ID') . ' returned to PENDING ({' . Store::var('CREATED_TASKS.count') . '} fix tasks required before re-testing)']),
                 ]),
             ]))
             ->phase(Operator::output([
                 '',
                 '=== TEST VALIDATION REPORT ===',
-                'Task: {$TASK_DESCRIPTION}',
-                'Status: {$VALIDATION_STATUS}',
+                'Task: {' . Store::var('TASK_DESCRIPTION') . '}',
+                'Status: {' . Store::var('VALIDATION_STATUS') . '}',
                 '',
                 '| Metric | Value |',
                 '|--------|-------|',
-                '| Requirements coverage | {$COVERAGE_RATE} |',
-                '| Test health score | {$TEST_HEALTH_SCORE} |',
-                '| Total tests | {$DISCOVERED_TESTS.count} |',
+                '| Requirements coverage | {' . Store::var('COVERAGE_RATE') . '} |',
+                '| Test health score | {' . Store::var('TEST_HEALTH_SCORE') . '} |',
+                '| Total tests | {' . Store::var('DISCOVERED_TESTS.count') . '} |',
                 '| Passing tests | {passing_count} |',
-                '| Failing/flaky tests | {$FAILING_TESTS.count} |',
+                '| Failing/flaky tests | {' . Store::var('FAILING_TESTS.count') . '} |',
                 '',
                 '| Issue Type | Count |',
                 '|------------|-------|',
-                '| Missing coverage | {$MISSING_COVERAGE.count} |',
-                '| Partial coverage | {$PARTIAL_COVERAGE.count} |',
-                '| Bloated tests | {$BLOATED_TESTS.count} |',
-                '| Missing workflows | {$MISSING_WORKFLOWS.count} |',
-                '| Isolation issues | {$ISOLATION_ISSUES.count} |',
+                '| Missing coverage | {' . Store::var('MISSING_COVERAGE.count') . '} |',
+                '| Partial coverage | {' . Store::var('PARTIAL_COVERAGE.count') . '} |',
+                '| Bloated tests | {' . Store::var('BLOATED_TESTS.count') . '} |',
+                '| Missing workflows | {' . Store::var('MISSING_WORKFLOWS.count') . '} |',
+                '| Isolation issues | {' . Store::var('ISOLATION_ISSUES.count') . '} |',
                 '',
-                'Tasks created: {$CREATED_TASKS.count}',
-                '{IF $CREATED_TASKS.count > 0: "Follow-up tasks: {$CREATED_TASKS}"}',
+                'Tasks created: {' . Store::var('CREATED_TASKS.count') . '}',
+                '{IF ' . Store::var('CREATED_TASKS.count') . ' > 0: "Follow-up tasks: {' . Store::var('CREATED_TASKS') . '}"}',
                 '',
                 'Test validation stored to vector memory.',
             ]));
@@ -417,8 +417,8 @@ class DoTestValidateInclude extends IncludeArchetype
                 'Note: "Cannot verify requirements coverage without documentation"',
             ])
             ->phase()->if('no tests found', [
-                'Report: "No tests found for {$TASK_DESCRIPTION}"',
-                'Create task: "Write initial tests for {$TASK_DESCRIPTION}"',
+                'Report: "No tests found for {' . Store::var('TASK_DESCRIPTION') . '}"',
+                'Create task: "Write initial tests for {' . Store::var('TASK_DESCRIPTION') . '}"',
                 'Continue with documentation requirements analysis',
             ])
             ->phase()->if('test execution fails', [
