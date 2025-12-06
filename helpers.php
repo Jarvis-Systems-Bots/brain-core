@@ -5,6 +5,31 @@ declare(strict_types=1);
 use BrainCore\Support\Brain;
 use Illuminate\Support\Facades\Date;
 use Carbon\CarbonInterface;
+use Illuminate\Contracts\Validation\Factory as ValidationFactory;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
+
+if (! function_exists('validator')) {
+    /**
+     * Create a new Validator instance.
+     *
+     * @param  array|null  $data
+     * @param  array  $rules
+     * @param  array  $messages
+     * @param  array  $attributes
+     * @return ($data is null ? \Illuminate\Contracts\Validation\Factory : \Illuminate\Contracts\Validation\Validator)
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     */
+    function validator(?array $data = null, array $rules = [], array $messages = [], array $attributes = []): ValidatorContract|ValidationFactory
+    {
+        $factory = app(ValidationFactory::class);
+
+        if (func_num_args() === 0) {
+            return $factory;
+        }
+
+        return $factory->make($data ?? [], $rules, $messages, $attributes);
+    }
+}
 
 if (!function_exists('puzzle')) {
     /**

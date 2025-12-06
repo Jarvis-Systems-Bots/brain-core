@@ -64,7 +64,7 @@ class VectorMemoryInclude extends IncludeArchetype
         $this->guideline('content-quality')
             ->text('Store actionable knowledge, not raw data. Future self/agent must understand without context.')
             ->example('BAD: "Fixed the bug in UserController"')->key('bad')
-            ->example('GOOD: "UserController@store: N+1 query on roles. Fix: eager load with ->with(roles). Pattern: always check query count in store methods."')->key('good')
+            ->example('GOOD: `UserController@store: N+1 query on roles. Fix: eager load with ->with(roles). Pattern: always check query count in store methods.`')->key('good')
             ->example('Include: problem, solution, why it works, when to apply, gotchas')->key('structure');
 
         // Efficiency Guards

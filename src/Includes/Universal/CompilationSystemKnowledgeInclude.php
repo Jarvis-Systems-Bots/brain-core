@@ -176,10 +176,10 @@ class CompilationSystemKnowledgeInclude extends IncludeArchetype
             ->text('Tool classes: all extend ToolAbstract with call() and describe() methods.')
             ->example('Base: call(...$parameters) → Tool(param1, param2, ...)')->key('call')
             ->example('Base: describe(command, ...steps) → Tool(command) → [steps] → END-Tool')->key('describe')
-            ->example('TaskTool special: agent(name, ...args) → Task(@agent-name, args)')->key('task-agent')
+            ->example('TaskTool special: agent(name, ...args) → Task(' . $this->puzzle('agent', 'name') . ', args)')->key('task-agent')
             ->example('Usage: BashTool::call(BrainCLI::COMPILE) → "Bash(\'brain compile\')"')->key('bash-example')
             ->example('Usage: ReadTool::call(Runtime::NODE_DIRECTORY("Brain.php")) → "Read(\'{{ NODE_DIRECTORY }}Brain.php\')"')->key('read-example')
-            ->example('Usage: TaskTool::agent("explore", "Find files") → "Task(@agent-explore \'Find files\')"')->key('task-example');
+            ->example('Usage: TaskTool::agent("explore", "Find files") → "Task(' . $this->puzzle('agent', 'explore') . ' \'Find files\')"')->key('task-example');
 
         $this->guideline('api-mcp')
             ->text('MCP classes: call() for tool invocation, id() for reference.')
@@ -189,9 +189,9 @@ class CompilationSystemKnowledgeInclude extends IncludeArchetype
 
         $this->guideline('api-agent')
             ->text('AgentArchetype: agent delegation methods.')
-            ->example('call(...text) → Task(@agent-id, text) - Full task delegation')->key('call')
-            ->example('delegate() → DELEGATE-TO(@agent-id) - Delegate operator')->key('delegate')
-            ->example('id() → @agent-{id} - Agent reference string')->key('id');
+            ->example('call(...text) → Task(' . $this->puzzle('agent', 'id') . ', text) - Full task delegation')->key('call')
+            ->example('delegate() → DELEGATE-TO(' . $this->puzzle('agent', 'id') . ') - Delegate operator')->key('delegate')
+            ->example('id() → ' . $this->puzzle('agent', '{id}') . ' - Agent reference string')->key('id');
 
         $this->guideline('api-command')
             ->text('CommandArchetype: command reference methods.')

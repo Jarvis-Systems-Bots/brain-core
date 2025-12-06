@@ -109,7 +109,7 @@ class ConvertCommand extends Command
                     $builderStart = microtime(true);
                     $xmlOutput = XmlBuilder::from($structure);
                     $timings['builder'] += (microtime(true) - $builderStart) * 1000;
-
+                    $xmlOutput = str_replace("\\", "\\\\", $xmlOutput);
                     $result[$file] = [
                         ...$defaultData,
                         'structure' => $xmlOutput,
