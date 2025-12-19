@@ -229,7 +229,7 @@ if (! function_exists('to_bool')) {
         }
         $value = is_callable($value) ? call_user_func($value) : $value;
         return is_scalar($value)
-            ? (filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $default)
+            ? !! $value
             : $default;
     }
 }

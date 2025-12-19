@@ -94,6 +94,7 @@ class ConvertCommand extends Command
                 'namespaceType' => trim(str_replace(explode('\\', $class)[0], '', $namespace), '\\') ?: null,
                 'classBasename' => $classBasename,
                 'format' => $format,
+                'structure' => null,
             ];
 
             if ($format !== 'meta') {

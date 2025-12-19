@@ -29,6 +29,6 @@ class Store
 
     public static function var(string $name): string
     {
-        return puzzle('store-var', $name);
+        return puzzle('variable', $name);
     }
 }

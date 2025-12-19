@@ -24,7 +24,7 @@ class BrainDocsInclude extends IncludeArchetype
         $this->guideline('brain-docs-command')
             ->text('Real-time documentation indexing and search via YAML front matter parsing.')
             ->example('brain docs - List all documentation files')->key('list-all')
-            ->example('brain docs keyword1,keyword2 - Search by keywords')->key('search')
+            ->example('brain docs "keyword1,keyword2" - Search by keywords')->key('search')
             ->example('Returns: file path, name, description, part, type, date, version')->key('output')
             ->example('Keywords: comma-separated, case-insensitive, search in name/description/content')->key('format')
             ->example('Returns INDEX only (metadata), use Read tool to get file content')->key('index-only');
@@ -48,19 +48,16 @@ version: "1.0.0"
         $this->guideline('workflow-discovery')
             ->goal('Discover existing documentation before creating new')
             ->example()
-            ->phase(BashTool::describe('brain docs {keywords}', Store::as('DOCS_INDEX')))
+            ->phase(BashTool::describe('brain docs "{keywords}"', Store::as('DOCS_INDEX')))
             ->phase(Operator::if(Store::get('DOCS_INDEX') . ' not empty', [
                 ReadTool::call('{paths_from_index}'),
                 'Update existing docs'
-            ]))
-            ->phase(Operator::if(Store::get('DOCS_INDEX') . ' empty', [
-                'No docs found - proceed with /document'
             ]));
 
         $this->guideline('workflow-multi-source')
             ->goal('Combine brain docs + vector memory for complete knowledge')
             ->example()
-            ->phase(BashTool::describe('brain docs {keywords}', Store::as('STRUCTURED')))
+            ->phase(BashTool::describe('brain docs "{keywords}"', Store::as('STRUCTURED')))
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "{keywords}", limit: 5}'))
             ->phase(Store::as('MEMORY', 'Vector search results'))
             ->phase('Merge: structured docs (primary) + vector memory (secondary)')
@@ -70,11 +67,6 @@ version: "1.0.0"
             ->text('NEVER create index.md or README.md for documentation indexing. brain docs handles all indexing automatically.')
             ->why('Manual indexing creates maintenance burden and becomes stale.')
             ->onViolation('Remove manual index files. Use brain docs exclusively.');
-
-        $this->rule('check-before-document')->critical()
-            ->text('MUST run brain docs before /document command to check existing coverage.')
-            ->why('Prevents duplication, enables update vs create decision.')
-            ->onViolation('STOP. Run brain docs {keywords} first, review results, then proceed.');
 
         $this->rule('markdown-only')->critical()
             ->text('ALL documentation MUST be markdown format with *.md extension. No other formats allowed.')
@@ -90,12 +82,5 @@ version: "1.0.0"
             ->text('Include code ONLY when it is cheaper in tokens than text explanation AND no other choice exists.')
             ->why('Code is expensive, hard to read, not primary documentation format. Text first, code last resort.')
             ->onViolation('Replace code examples with concise textual description unless code is genuinely more efficient.');
-
-        $this->guideline('usage-patterns')
-            ->text('When to use brain docs.')
-            ->example('Before /document - check existing coverage')->key('pre-document')
-            ->example('User asks about docs - discover what exists')->key('user-query')
-            ->example('Planning work - assess gaps')->key('planning')
-            ->example('After /document - verify indexing')->key('verification');
     }
 }

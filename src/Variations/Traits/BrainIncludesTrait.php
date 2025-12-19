@@ -32,7 +32,7 @@ trait BrainIncludesTrait
         if ($this->isSelfDev()) {
             $this->include(CompilationSystemKnowledgeInclude::class);   // System knowledge for Brain compilation
         }
-        $this->include(BrainScriptsInclude::class);                     // Brain scripts automation command
+        //$this->include(BrainScriptsInclude::class);                     // Brain scripts automation command
 
         // === BRAIN ORCHESTRATION (Brain-specific) ===
         $this->include(CoreInclude::class);                             // Foundation + meta
