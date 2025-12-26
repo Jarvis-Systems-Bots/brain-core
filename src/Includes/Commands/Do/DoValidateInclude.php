@@ -71,6 +71,12 @@ class DoValidateInclude extends IncludeArchetype
             ->why('If fix tasks were created, work is NOT done - task returns to pending queue. Only when validation passes completely (no critical issues, no missing requirements, no tasks created) can status be "validated".')
             ->onViolation('Check CREATED_TASKS.count: if > 0 → set "pending", if === 0 AND passed → set "validated". NEVER set "validated" when fix tasks exist.');
 
+        // CRITICAL: Fix task parent_id assignment
+        $this->rule('fix-task-parent-is-validated-task')->critical()
+            ->text('Fix tasks MUST have parent_id = VECTOR_TASK_ID (the task being validated NOW). NEVER use VECTOR_TASK.parent_id or PARENT_TASK_CONTEXT. If validating Task B (child of Task A), fix tasks become children of Task B, NOT Task A.')
+            ->why('Hierarchical integrity: validation creates subtasks of the validated task. Chain: Task A → Task B (validation fix) → Task C (validation fix of B). Each level is child of its direct parent, not grandparent.')
+            ->onViolation('VERIFY parent_id = $TASK_PARENT_ID = $VECTOR_TASK_ID before task_create. If wrong, ABORT and recalculate.');
+
         // Phase -1: Vector Task Reference Detection
         $this->guideline('phase-minus1-task-detection')
             ->goal('Detect if $ARGUMENTS is a vector task reference and fetch task details')
@@ -91,20 +97,24 @@ class DoValidateInclude extends IncludeArchetype
                     ]),
                     'ABORT validation',
                 ]),
+                Operator::note('CRITICAL: Set TASK_PARENT_ID to the CURRENTLY validated task ID IMMEDIATELY after loading. This ensures fix tasks become children of the task being validated, NOT grandchildren.'),
+                Store::as('TASK_PARENT_ID', '{' . Store::var('VECTOR_TASK_ID') . '}'),
+                Operator::note('TASK_PARENT_ID = ' . Store::var('VECTOR_TASK_ID') . ' (the task we are validating NOW). Any fix tasks created will be children of THIS task, regardless of whether this task itself has a parent.'),
                 Operator::if('{' . Store::var('VECTOR_TASK.parent_id') . '} !== null', [
+                    Operator::note('Fetching parent task FOR CONTEXT DISPLAY ONLY. This DOES NOT change TASK_PARENT_ID.'),
                     VectorTaskMcp::call('task_get', '{task_id: ' . Store::var('VECTOR_TASK.parent_id') . '}'),
-                    Store::as('PARENT_TASK', '{parent task for context}'),
+                    Store::as('PARENT_TASK_CONTEXT', '{parent task for display context only - NOT for parent_id assignment}'),
                 ]),
                 VectorTaskMcp::call('task_list', '{parent_id: ' . Store::var('VECTOR_TASK_ID') . ', limit: 50}'),
                 Store::as('SUBTASKS', '{list of subtasks}'),
                 Store::as('TASK_DESCRIPTION', '{' . Store::var('VECTOR_TASK.title') . ' + ' . Store::var('VECTOR_TASK.content') . '}'),
-                Store::as('TASK_PARENT_ID', Store::var('VECTOR_TASK_ID')),
                 Operator::output([
                     '=== VECTOR TASK LOADED ===',
                     'Task #' . Store::var('VECTOR_TASK_ID') . ': {' . Store::var('VECTOR_TASK.title') . '}',
                     'Status: {' . Store::var('VECTOR_TASK.status') . '} | Priority: {' . Store::var('VECTOR_TASK.priority') . '}',
-                    'Parent: {' . Store::var('PARENT_TASK.title') . ' or "none"}',
+                    'Parent context: {' . Store::var('PARENT_TASK_CONTEXT.title') . ' or "none"}',
                     'Subtasks: {' . Store::var('SUBTASKS.count') . '}',
+                    'Fix tasks parent_id will be: ' . Store::var('TASK_PARENT_ID') . ' (THIS task)',
                 ]),
             ]))
             ->phase(Operator::if('$ARGUMENTS is plain description', [
@@ -256,6 +266,14 @@ class DoValidateInclude extends IncludeArchetype
             ->phase(Operator::output([
                 '',
                 '=== PHASE 4: TASK CREATION (CONSOLIDATED) ===',
+            ]))
+            ->phase(Operator::note('CRITICAL VERIFICATION: Confirm TASK_PARENT_ID before creating any tasks'))
+            ->phase(Operator::verify([
+                Store::var('TASK_PARENT_ID') . ' === ' . Store::var('VECTOR_TASK_ID'),
+                'TASK_PARENT_ID is the ID of the task we are validating (NOT its parent)',
+            ]))
+            ->phase(Operator::output([
+                'Fix tasks will have parent_id: ' . Store::var('TASK_PARENT_ID') . ' (Task #' . Store::var('VECTOR_TASK_ID') . ')',
             ]))
             ->phase('Check existing tasks to avoid duplicates')
             ->phase(VectorTaskMcp::call('task_list', '{query: "fix issues ' . Store::var('TASK_DESCRIPTION') . '", limit: 20}'))
