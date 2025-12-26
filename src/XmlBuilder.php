@@ -10,6 +10,8 @@ class XmlBuilder
 {
     private static array $buildCache = [];
 
+    private static array $cache = [];
+
     /**
      * @param  array<string, mixed>  $structure
      */
@@ -44,15 +46,21 @@ class XmlBuilder
     /**
      * @param  array<string, mixed>  $node
      */
-    protected function renderNode(array $node, bool $isRoot = false): string
+    protected function renderNode(array $node, bool $isRoot = false, int $i = 0): string
     {
         $element = $node['element'] ?? '';
+        $scc = max($i - 3, 0);
+        $sccNext = $scc+1;
 
         if ($element === '') {
             return '';
         }
 
-        [$attributes, $cleanNode] = $this->extractAttributes($node);
+        [$attributes, $cleanNode, $params] = $this->extractAttributes($node);
+
+//        if ($element === 'guideline') {
+//            dd($cleanNode, $params);
+//        }
 
         $text = $cleanNode['text'] ?? null;
         $children = isset($cleanNode['child']) && is_array($cleanNode['child'])
@@ -65,34 +73,109 @@ class XmlBuilder
         }
 
         if ($this->hasInlineText($text, $children)) {
-            return '<' . $element . $attributes . '>'
-                . $this->escape((string) $text)
-                . '</' . $element . '>';
+            $str = '<' . $element . $attributes . '>';
+            $str .= $this->escape((string) $text);
+            return $str . '</' . $element . '>';
         }
 
         $lines = [];
-        $lines[] = '<' . $element . $attributes . '>';
+        $examples = [];
+        if ($element === 'iron_rules') {
+            $lines[] = "";
+            $lines[] = MD::fromArray([
+                'Iron Rules' => null
+            ], $scc);
+        } elseif ($element === 'guideline') {
+            //$lines[] = '# ' . (isset($params['id']) && $params['id'] ? $params['id'] : 'Guideline');
+            $lines[] = MD::fromArray([
+                (isset($params['id']) && $params['id'] ? $params['id'] : 'Guideline') => null
+            ], $scc);
+        } elseif ($element === 'rule') {
+            $lines[] = MD::fromArray([
+                (isset($params['id']) && $params['id'] ? $params['id'] : 'Rule')
+                . (isset($params['severity']) && $params['severity'] ? ' (' . strtoupper($params['severity']) . ')' : '')
+                => collect($children)->where('element', 'text')->first()['text'] ?? null,
+                collect($children)->where('element', '!=', 'text')->mapWithKeys(function ($child) {
+                    $key = $child['element'] ?? 'item';
+                    $value = $child['text'] ?? null;
+                    return [$key => $value];
+                })->toArray()
+            ], $scc);
+            //dd($children);
+        } elseif (! isset(static::$cache['iron_rules_exists'])) {
+            $lines[] = '<' . $element . $attributes . '>';
+        }
 
         if ($text !== null && $text !== '') {
             $lines[] = $this->escape((string) $text);
         }
 
+        if ($element === 'guidelines') {
+            $lines[] = '';
+        }
+
         $firstChildRendered = false;
+        $iron_rules_exists = false;
 
         foreach ($children as $child) {
             if (! is_array($child)) {
                 continue;
+            }
+            if (isset($child['element']) && $child['element'] === 'iron_rules') {
+                $iron_rules_exists = true;
             }
 
             if ($firstChildRendered && $isRoot && $element === 'system') {
                 $lines[] = '';
             }
 
-            $lines[] = $this->renderNode($child, false);
+            if ($element === 'guideline') {
+                if ($child['element'] === 'text') {
+                    $lines[] = MD::fromArray([
+                        $child['text']
+                    ], $sccNext);
+                } elseif ($child['element'] === 'example') {
+                    if (isset($child['text']) && trim($child['text']) !== '') {
+                        $examples[] = $child['text'];
+                    }
+                    foreach ($child['child'] as $i => $item) {
+                        if (isset($item['text']) && trim($item['text']) !== '') {
+                            $key = $item['name'] ?? $i;
+                            $examples[$key] = $item['text'];
+                        }
+                    }
+                }
+            } elseif ($element !== 'rule') {
+                if ($iron_rules_exists) {
+                    static::$cache['iron_rules_exists'] = true;
+                }
+                $lines[] = $this->renderNode($child, false, $i + 1);
+                if ($iron_rules_exists) {
+                    unset(static::$cache['iron_rules_exists']);
+                }
+            }
             $firstChildRendered = true;
         }
 
-        $lines[] = '</' . $element . '>';
+        if ($element === 'guideline') {
+//            dd($lines);
+        }
+
+        if ($examples) {
+            $lines[] = MD::fromArray([
+                'Examples' => $examples
+            ], $sccNext);
+        }
+
+        if (
+            $element === 'guideline'
+            || $element === 'rule'
+        ) {
+            //$lines[] = '---';
+            $lines[] = '';
+        } elseif (! isset(static::$cache['iron_rules_exists'])) {
+            $lines[] = '</' . $element . '>';
+        }
 
         return implode("\n", $lines);
     }
@@ -105,6 +188,7 @@ class XmlBuilder
     {
         $attributes = [];
         $cleanNode = $node;
+        $params = [];
 
         foreach ($node as $key => $value) {
             if (in_array($key, ['element', 'child', 'text', 'single'], true)) {
@@ -113,6 +197,7 @@ class XmlBuilder
 
             if ($this->isAttributeValue($value)) {
                 $attributes[] = $this->formatAttribute($key, $value);
+                $params[$key] = $value;
                 unset($cleanNode[$key]);
                 continue;
             }
@@ -134,7 +219,7 @@ class XmlBuilder
 
         $attributeString = $attributes ? ' ' . implode(' ', $attributes) : '';
 
-        return [$attributeString, $cleanNode];
+        return [$attributeString, $cleanNode, $params];
     }
 
     protected function isAttributeValue(mixed $value): bool
