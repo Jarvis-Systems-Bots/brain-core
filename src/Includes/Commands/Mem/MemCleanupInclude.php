@@ -37,7 +37,7 @@ class MemCleanupInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS for Operation Type')
+            ->text('STEP 1 - Parse $RAW_INPUT for Operation Type')
             ->example()
             ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', '/mem:cleanup → preview default cleanup (30 days, keep 1000)')

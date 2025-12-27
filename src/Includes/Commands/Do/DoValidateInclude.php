@@ -13,7 +13,7 @@ use BrainCore\Compilation\Tools\BashTool;
 use BrainCore\Compilation\Tools\TaskTool;
 use BrainNode\Mcp\VectorMemoryMcp;
 
-#[Purpose('Text-based work validation with parallel agent orchestration. Accepts text description ($ARGUMENTS: "validate user authentication"). Validates work against documentation requirements, code consistency, and completeness. Creates follow-up tasks for gaps. Idempotent. For vector task validation use /task:validate.')]
+#[Purpose('Text-based work validation with parallel agent orchestration. Accepts text description (example: "validate user authentication"). Validates work against documentation requirements, code consistency, and completeness. Creates follow-up tasks for gaps. Idempotent. For vector task validation use /task:validate.')]
 class DoValidateInclude extends IncludeArchetype
 {
     /**
@@ -88,7 +88,7 @@ class DoValidateInclude extends IncludeArchetype
 
         // Phase 0: Context Setup
         $this->guideline('phase0-context-setup')
-            ->goal('Capture $ARGUMENTS once, extract flags, store task context')
+            ->goal('Capture $RAW_INPUT once, extract flags, store task context')
             ->example()
             ->phase(Operator::output([
                 '=== DO:VALIDATE ACTIVATED ===',

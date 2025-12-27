@@ -14,7 +14,7 @@ use BrainCore\Compilation\Tools\TaskTool;
 use BrainNode\Mcp\VectorMemoryMcp;
 use BrainNode\Mcp\VectorTaskMcp;
 
-#[Purpose('Comprehensive vector task test validation with parallel agent orchestration. Accepts task ID reference ($ARGUMENTS: "15", "#15", "task 15"). Validates test coverage against documentation requirements, test quality (no bloat, real workflows), test consistency, and completeness. Creates follow-up tasks for gaps. Idempotent - can be run multiple times. Best for: validating test quality of completed vector tasks.')]
+#[Purpose('Comprehensive vector task test validation with parallel agent orchestration. Accepts task ID reference (formats: "15", "#15", "task 15"). Validates test coverage against documentation requirements, test quality (no bloat, real workflows), test consistency, and completeness. Creates follow-up tasks for gaps. Idempotent - can be run multiple times. Best for: validating test quality of completed vector tasks.')]
 class TaskTestValidateInclude extends IncludeArchetype
 {
     /**
@@ -26,7 +26,7 @@ class TaskTestValidateInclude extends IncludeArchetype
     {
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
-            ->text('ON RECEIVING $ARGUMENTS: Your FIRST output MUST be "=== TASK:TEST-VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
+            ->text('ON RECEIVING input: Your FIRST output MUST be "=== TASK:TEST-VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
             ->why('Without explicit entry point, Brain skips workflow and executes directly. Entry point forces workflow compliance.')
             ->onViolation('STOP IMMEDIATELY. Delete any tool calls. Output "=== TASK:TEST-VALIDATE ACTIVATED ===" and restart from Phase 0.');
 
@@ -89,7 +89,7 @@ class TaskTestValidateInclude extends IncludeArchetype
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')
-            ->goal('Parse $ARGUMENTS as task ID, load vector task with full context, verify testable status')
+            ->goal('Parse $RAW_INPUT as task ID, load vector task with full context, verify testable status')
             ->example()
             ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('STEP 1: Extract flags from $RAW_INPUT first')

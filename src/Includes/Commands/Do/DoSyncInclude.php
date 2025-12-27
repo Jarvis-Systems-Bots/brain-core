@@ -18,7 +18,7 @@ use BrainCore\Compilation\Tools\WebSearchTool;
 use BrainCore\Compilation\Tools\WriteTool;
 use BrainNode\Mcp\VectorMemoryMcp;
 
-#[Purpose('Direct synchronous task execution by Brain without agent delegation. Uses Read/Edit/Write/Glob/Grep tools directly. Single approval gate. Best for: simple tasks, quick fixes, single-file changes, when agent overhead is unnecessary. Accepts $ARGUMENTS task description. Zero distractions, atomic execution, strict plan adherence.')]
+#[Purpose('Direct synchronous task execution by Brain without agent delegation. Uses Read/Edit/Write/Glob/Grep tools directly. Single approval gate. Best for: simple tasks, quick fixes, single-file changes, when agent overhead is unnecessary. Accepts task description as input. Zero distractions, atomic execution, strict plan adherence.')]
 class DoSyncInclude extends IncludeArchetype
 {
     /**

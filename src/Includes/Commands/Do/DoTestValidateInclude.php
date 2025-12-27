@@ -13,7 +13,7 @@ use BrainCore\Compilation\Tools\BashTool;
 use BrainCore\Compilation\Tools\TaskTool;
 use BrainNode\Mcp\VectorMemoryMcp;
 
-#[Purpose('Text-based test validation with parallel agent orchestration. Accepts text description ($ARGUMENTS: "test-validate user authentication"). Validates test coverage against documentation requirements, test quality (no bloat, real workflows), test consistency, and completeness. Creates memory entries for gaps. Idempotent. For vector task test validation use /task:test-validate.')]
+#[Purpose('Text-based test validation with parallel agent orchestration. Accepts text description (example: "test-validate user authentication"). Validates test coverage against documentation requirements, test quality (no bloat, real workflows), test consistency, and completeness. Creates memory entries for gaps. Idempotent. For vector task test validation use /task:test-validate.')]
 class DoTestValidateInclude extends IncludeArchetype
 {
     /**
@@ -67,7 +67,7 @@ class DoTestValidateInclude extends IncludeArchetype
 
         // Phase 0: Context Setup and Task ID Detection
         $this->guideline('phase0-context-setup')
-            ->goal('Capture $ARGUMENTS once, detect task ID patterns and reject, set up test validation context')
+            ->goal('Capture $RAW_INPUT once, detect task ID patterns and reject, set up test validation context')
             ->example()
             ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))

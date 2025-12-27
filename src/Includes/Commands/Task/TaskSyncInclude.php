@@ -19,7 +19,7 @@ use BrainCore\Compilation\Tools\WriteTool;
 use BrainNode\Mcp\VectorMemoryMcp;
 use BrainNode\Mcp\VectorTaskMcp;
 
-#[Purpose('Direct synchronous vector task execution by Brain without agent delegation. Accepts task ID reference ($ARGUMENTS: "15", "#15", "task 15"), loads task context, and executes directly using Read/Edit/Write/Glob/Grep tools. Single approval gate. Best for: simple tasks, quick fixes, single-file changes within vector task workflow.')]
+#[Purpose('Direct synchronous vector task execution by Brain without agent delegation. Accepts task ID reference (formats: "15", "#15", "task 15"), loads task context, and executes directly using Read/Edit/Write/Glob/Grep tools. Single approval gate. Best for: simple tasks, quick fixes, single-file changes within vector task workflow.')]
 class TaskSyncInclude extends IncludeArchetype
 {
     /**
@@ -67,7 +67,7 @@ class TaskSyncInclude extends IncludeArchetype
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')
-            ->goal('Parse $ARGUMENTS as task ID, load vector task with full context')
+            ->goal('Parse $RAW_INPUT as task ID, load vector task with full context')
             ->example()
             ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))

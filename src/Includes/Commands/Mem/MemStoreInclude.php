@@ -42,7 +42,7 @@ class MemStoreInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS')
+            ->text('STEP 1 - Parse $RAW_INPUT')
             ->example()
             ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', 'Direct content: /mem:store "This is the memory content"')
