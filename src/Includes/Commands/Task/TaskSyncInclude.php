@@ -29,13 +29,6 @@ class TaskSyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
-            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS}'));
-
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
             ->text('ZERO distractions - implement ONLY specified task from vector task content. NO creative additions, NO unapproved features, NO scope creep.')
@@ -71,6 +64,13 @@ class TaskSyncInclude extends IncludeArchetype
             ->text('$TASK_ID MUST be a valid vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:sync for text-based tasks.')
             ->why('This command is exclusively for vector task execution. Text descriptions belong to /do:sync.')
             ->onViolation('STOP. Report: "Invalid task ID. Use /do:sync for text-based tasks or provide valid task ID."');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
+            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS}'));
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')

@@ -23,15 +23,6 @@ class TaskCreateInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('TASK_DESCRIPTION', '{task description extracted from $RAW_INPUT}'));
-
-        // Role definition
-        $this->guideline('role')
-            ->text('Task creation specialist that analyzes user descriptions, researches context, estimates effort, and creates well-structured tasks after user approval.');
-
         // Iron Rules
         $this->rule('analyze-arguments')->critical()
             ->text('MUST analyze an input task thoroughly before creating any task')
@@ -82,6 +73,15 @@ class TaskCreateInclude extends IncludeArchetype
             ->text('ALL research steps (existing tasks, vector memory, codebase, documentation) MUST be delegated to specialized agents. NEVER execute research directly.')
             ->why('Direct execution consumes command context. Agents have dedicated context for deep research and return concise structured reports.')
             ->onViolation('STOP. Delegate to: vector-master (tasks/memory), explore (codebase), documentation-master (docs). Never use direct MCP/Glob/Grep calls for research.');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('TASK_DESCRIPTION', '{task description extracted from $RAW_INPUT}'));
+
+        // Role definition
+        $this->guideline('role')
+            ->text('Task creation specialist that analyzes user descriptions, researches context, estimates effort, and creates well-structured tasks after user approval.');
 
         // Workflow Step 0 - Parse Arguments
         $this->guideline('workflow-step0')

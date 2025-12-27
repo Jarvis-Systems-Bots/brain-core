@@ -20,15 +20,6 @@ class MemStoreInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('MEMORY_CONTENT', '{content to store extracted from $RAW_INPUT}'));
-
-        // Role definition
-        $this->guideline('role')
-            ->text('Memory storage specialist that analyzes content, checks for duplicates, suggests appropriate category and tags, and stores memory after user approval.');
-
         // Iron Rules
         $this->rule('analyze-content')->critical()
             ->text('MUST analyze ' . Store::get('RAW_INPUT') . ' content before storing')
@@ -44,6 +35,15 @@ class MemStoreInclude extends IncludeArchetype
             ->text('MUST get user approval before storing memory')
             ->why('User must validate content, category, and tags before committing')
             ->onViolation('Present memory specification and wait for YES/APPROVE');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('MEMORY_CONTENT', '{content to store extracted from $RAW_INPUT}'));
+
+        // Role definition
+        $this->guideline('role')
+            ->text('Memory storage specialist that analyzes content, checks for duplicates, suggests appropriate category and tags, and stores memory after user approval.');
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')

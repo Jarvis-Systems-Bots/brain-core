@@ -25,11 +25,6 @@ class InitTaskInclude extends IncludeArchetype
 {
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('INIT_PARAMS', '{initialization parameters extracted from $RAW_INPUT}'));
-
         // ============================================
         // IRON RULES - AGGRESSIVE ORCHESTRATION
         // ============================================
@@ -68,6 +63,11 @@ class InitTaskInclude extends IncludeArchetype
             ->text('NEVER analyze ' . Runtime::BRAIN_DIRECTORY . ' - Brain system internals, not project code')
             ->why('Brain config pollutes task list with irrelevant system tasks')
             ->onViolation('Skip ' . Runtime::BRAIN_DIRECTORY . ' in all exploration phases');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('INIT_PARAMS', '{initialization parameters extracted from $RAW_INPUT}'));
 
         // ============================================
         // PHASE 0: PRE-FLIGHT CHECKS

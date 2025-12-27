@@ -28,11 +28,6 @@ class DoSyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('TASK_DESCRIPTION', '{task description extracted from $RAW_INPUT}'));
-
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
             ->text('ZERO distractions - implement ONLY specified task from $TASK_DESCRIPTION. NO creative additions, NO unapproved features, NO scope creep.')
@@ -63,6 +58,11 @@ class DoSyncInclude extends IncludeArchetype
             ->text('Search vector memory BEFORE planning. Store learnings AFTER completion.')
             ->why('Leverages past solutions, builds knowledge base')
             ->onViolation('Include memory search in analysis, store insights after.');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('TASK_DESCRIPTION', '{task description extracted from $RAW_INPUT}'));
 
         // Phase 1: Context Analysis
         $this->guideline('phase1-context-analysis')

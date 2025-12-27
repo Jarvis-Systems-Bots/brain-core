@@ -29,11 +29,6 @@ class InitBrainInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('INIT_PARAMS', '{initialization parameters extracted from $RAW_INPUT}'));
-
         // =====================================================
         // IRON RULES
         // =====================================================
@@ -118,6 +113,11 @@ class InitBrainInclude extends IncludeArchetype
             ])
             ->why('Centralizes configuration, enables tuning without code changes, prevents magic values')
             ->onViolation('Hardcoded values in code OR unused variables in .env');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('INIT_PARAMS', '{initialization parameters extracted from $RAW_INPUT}'));
 
         // =====================================================
         // PHASE 1: TEMPORAL CONTEXT INITIALIZATION

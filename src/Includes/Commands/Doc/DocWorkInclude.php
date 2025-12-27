@@ -19,13 +19,6 @@ class DocWorkInclude extends IncludeArchetype
     protected function handle(): void
     {
         // =========================================================================
-        // COMMAND INPUT (IMMEDIATE CAPTURE)
-        // =========================================================================
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('DOC_TARGET', '{documentation target extracted from $RAW_INPUT}'));
-
-        // =========================================================================
         // IRON RULES
         // =========================================================================
         $this->rule('max-interactivity')->critical()
@@ -52,6 +45,13 @@ class DocWorkInclude extends IncludeArchetype
             ->text('Obtain user approval at: structure proposal, first draft section, before finalization.')
             ->why('Ensures alignment with expectations.')
             ->onViolation('Pause and request validation.');
+
+        // =========================================================================
+        // COMMAND INPUT (IMMEDIATE CAPTURE)
+        // =========================================================================
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('DOC_TARGET', '{documentation target extracted from $RAW_INPUT}'));
 
         // =========================================================================
         // ARGUMENTS FORMAT

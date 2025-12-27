@@ -20,11 +20,6 @@ class MemCleanupInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('CLEANUP_PARAMS', '{cleanup parameters extracted from $RAW_INPUT: days_old, max_to_keep, or memory_id}'));
-
         // Role definition
         $this->guideline('role')
             ->text('Memory cleanup utility that handles bulk deletion by age/count or specific ID deletion. All destructive operations require explicit confirmation.');
@@ -39,6 +34,11 @@ class MemCleanupInclude extends IncludeArchetype
             ->text('MUST show what will be deleted before confirmation')
             ->why('User must understand impact before confirming')
             ->onViolation('Display count, preview content, then ask confirmation');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('CLEANUP_PARAMS', '{cleanup parameters extracted from $RAW_INPUT: days_old, max_to_keep, or memory_id}'));
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')

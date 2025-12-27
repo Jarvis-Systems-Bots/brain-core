@@ -20,6 +20,13 @@ class TaskStatusInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // Summary rule
+        $this->rule('always-summary')
+            ->medium()
+            ->text('Always show summary at the end of output')
+            ->why('Provides quick overview regardless of query type')
+            ->onViolation('Append: "Summary: {total} total, {completed} completed ({pct}%)"');
+
         // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
         $this->guideline('input')
             ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
@@ -152,12 +159,5 @@ class TaskStatusInclude extends IncludeArchetype
             ->example('#{id} {title} [{status}] - {date}')->key('task-item')
             ->example('Found 5 tasks completed yesterday')->key('filter-result')
             ->example('Priority breakdown: Critical(2) High(5) Medium(12) Low(6)')->key('grouping-result');
-
-        // Summary rule
-        $this->rule('always-summary')
-            ->medium()
-            ->text('Always show summary at the end of output')
-            ->why('Provides quick overview regardless of query type')
-            ->onViolation('Append: "Summary: {total} total, {completed} completed ({pct}%)"');
     }
 }

@@ -21,11 +21,6 @@ class TaskDecomposeInclude extends IncludeArchetype
 {
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('TASK_ID', '{numeric task ID extracted from $RAW_INPUT}'));
-
         // ============================================
         // IRON RULES - AGGRESSIVE DECOMPOSITION
         // ============================================
@@ -74,6 +69,11 @@ class TaskDecomposeInclude extends IncludeArchetype
             ->text('NEVER analyze ' . Runtime::BRAIN_DIRECTORY . ' when decomposing code tasks')
             ->why('Brain system internals are not project code')
             ->onViolation('Skip ' . Runtime::BRAIN_DIRECTORY . ' in all exploration');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('TASK_ID', '{numeric task ID extracted from $RAW_INPUT}'));
 
         // ============================================
         // PHASE 0: PARSE AND VALIDATE
