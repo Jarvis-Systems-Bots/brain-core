@@ -6,11 +6,9 @@ namespace BrainCore\Includes\Commands\Task;
 
 use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
-use BrainCore\Compilation\BrainCLI;
 use BrainCore\Compilation\Operator;
 use BrainCore\Compilation\Runtime;
 use BrainCore\Compilation\Store;
-use BrainCore\Compilation\Tools\BashTool;
 use BrainNode\Agents\DocumentationMaster;
 use BrainNode\Agents\ExploreMaster;
 use BrainNode\Agents\VectorMaster;
@@ -53,9 +51,9 @@ class TaskDecomposeInclude extends IncludeArchetype
             ->onViolation('STOP immediately after subtask creation');
 
         $this->rule('mandatory-user-approval')->critical()
-            ->text('MUST get explicit user YES/APPROVE/CONFIRM before creating subtasks')
-            ->why('User must validate decomposition strategy before committing')
-            ->onViolation('Present subtask list and wait for explicit confirmation');
+            ->text('MUST get explicit user YES/APPROVE/CONFIRM before creating subtasks. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve decomposition (skip user confirmation prompt).')
+            ->why('User must validate decomposition strategy before committing. Flag -y enables automated/scripted execution.')
+            ->onViolation('Present subtask list and wait for explicit confirmation (unless -y flag present)');
 
         $this->rule('fetch-parent-first')->critical()
             ->text('MUST fetch parent task via task_get BEFORE any research')

@@ -17,7 +17,6 @@ use BrainCore\Compilation\Tools\ReadTool;
 use BrainCore\Compilation\Tools\WebSearchTool;
 use BrainCore\Compilation\Tools\WriteTool;
 use BrainNode\Mcp\VectorMemoryMcp;
-use BrainNode\Mcp\VectorTaskMcp;
 
 #[Purpose('Direct synchronous task execution by Brain without agent delegation. Uses Read/Edit/Write/Glob/Grep tools directly. Single approval gate. Best for: simple tasks, quick fixes, single-file changes, when agent overhead is unnecessary. Accepts $ARGUMENTS task description. Zero distractions, atomic execution, strict plan adherence.')]
 class DoSyncInclude extends IncludeArchetype
@@ -41,9 +40,9 @@ class DoSyncInclude extends IncludeArchetype
             ->onViolation('Remove Task() calls. Execute directly.');
 
         $this->rule('single-approval-gate')->critical()
-            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption.')
-            ->why('Single checkpoint for simple tasks - approve once, execute fully')
-            ->onViolation('STOP. Wait for user approval before execution.');
+            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve (skip waiting for user confirmation).')
+            ->why('Single checkpoint for simple tasks - approve once, execute fully. The -y flag enables unattended/scripted execution.')
+            ->onViolation('STOP. Wait for user approval before execution (unless -y flag is present).');
 
         $this->rule('atomic-execution')->critical()
             ->text('Execute ONLY approved plan steps. NO improvisation, NO "while we\'re here" additions. Atomic changes only.')
@@ -59,39 +58,6 @@ class DoSyncInclude extends IncludeArchetype
             ->text('Search vector memory BEFORE planning. Store learnings AFTER completion.')
             ->why('Leverages past solutions, builds knowledge base')
             ->onViolation('Include memory search in analysis, store insights after.');
-
-        $this->rule('vector-task-workflow-mandatory')->critical()
-            ->text('When $ARGUMENTS references a vector task (e.g., "task 15", "task:15", "task #15"), MUST: 1) Fetch task via task_get, 2) Fetch parent if exists, 3) Use task_start before execution, 4) Use task_finish on completion.')
-            ->why('Vector tasks have structured workflow with status tracking. Ignoring statuses breaks task management.')
-            ->onViolation('STOP. Fetch vector task first. Follow task lifecycle: start → execute → finish.');
-
-        // Phase 0: Vector Task Reference Detection
-        $this->guideline('phase0-task-detection')
-            ->goal('Detect if $ARGUMENTS is a vector task reference and fetch task details')
-            ->example()
-            ->phase('Parse $ARGUMENTS for task reference patterns: "task N", "task:N", "task #N", "task-N", "#N"')
-            ->phase(Operator::if('$ARGUMENTS matches task reference pattern', [
-                'Extract task_id from pattern',
-                Store::as('IS_VECTOR_TASK', 'true'),
-                Store::as('VECTOR_TASK_ID', '{extracted_id}'),
-                VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'),
-                Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'),
-                Operator::if('$VECTOR_TASK.parent_id !== null', [
-                    VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK.parent_id}'),
-                    Store::as('PARENT_TASK', '{parent task for context}'),
-                ]),
-                Store::as('TASK', '$VECTOR_TASK.title + $VECTOR_TASK.content'),
-                Operator::output([
-                    '=== VECTOR TASK LOADED ===',
-                    'Task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}',
-                    'Status: {$VECTOR_TASK.status} | Priority: {$VECTOR_TASK.priority}',
-                    'Parent: {$PARENT_TASK.title or "none"}',
-                ]),
-            ]))
-            ->phase(Operator::if('$ARGUMENTS is plain description', [
-                Store::as('IS_VECTOR_TASK', 'false'),
-                Store::as('TASK', '$ARGUMENTS'),
-            ]));
 
         // Phase 1: Context Analysis
         $this->guideline('phase1-context-analysis')
@@ -155,20 +121,20 @@ class DoSyncInclude extends IncludeArchetype
                 '⚠️ APPROVAL REQUIRED',
                 '✅ approved/yes | ❌ no/modifications',
             ]))
-            ->phase('WAIT for user approval')
-            ->phase(Operator::verify('User approved'))
-            ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'))
-            ->phase('IMMEDIATELY after approval - set task in_progress (exploration/gathering IS execution)')
-            ->phase(Operator::if('$IS_VECTOR_TASK === true', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Execution started after plan approval", append_comment: true}'),
-                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started']),
+            ->phase(Operator::if('$ARGUMENTS contains "-y" flag', [
+                'AUTO-APPROVED (unattended mode)',
+                Operator::output(['🤖 Auto-approved via -y flag']),
+            ]))
+            ->phase(Operator::if('$ARGUMENTS does NOT contain "-y" flag', [
+                'WAIT for user approval',
+                Operator::verify('User approved'),
+                Operator::if('rejected', 'Modify plan → Re-present → WAIT'),
             ]));
 
         // Phase 3: Direct Execution
         $this->guideline('phase3-direct-execution')
             ->goal('Execute plan directly using Brain tools - no delegation')
             ->example()
-            ->phase('NOTE: Task already in_progress since Phase 2 approval')
             ->phase(Operator::forEach('step in $PLAN', [
                 Operator::output(['▶️ Step {N}: {step.description}']),
                 Operator::if('step.action === "read"', [
@@ -197,14 +163,6 @@ class DoSyncInclude extends IncludeArchetype
             ->example()
             ->phase(Store::as('SUMMARY', '{completed_steps, files_modified, outcome}'))
             ->phase(VectorMemoryMcp::call('store_memory', '{content: "Completed: {$TASK}\n\nApproach: {steps}\n\nFiles: {list}\n\nLearnings: {insights}", category: "code-solution", tags: ["do:sync", "completed"]}'))
-            ->phase(Operator::if('$IS_VECTOR_TASK === true AND status === SUCCESS', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed"}'),
-                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} completed ✓']),
-            ]))
-            ->phase(Operator::if('$IS_VECTOR_TASK === true AND status === PARTIAL', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, comment: "Partial completion: {completed}/{total} steps. Remaining: {list}", append_comment: true}'),
-                Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} progress saved (partial)']),
-            ]))
             ->phase(Operator::output([
                 '',
                 '=== COMPLETE ===',
@@ -217,16 +175,6 @@ class DoSyncInclude extends IncludeArchetype
         $this->guideline('error-handling')
             ->text('Direct error handling without agent fallback')
             ->example()
-            ->phase()->if('vector task not found', [
-                'Report: "Vector task #{id} not found"',
-                'Suggest: Check task ID with ' . VectorTaskMcp::method('task_list'),
-                'Abort command',
-            ])
-            ->phase()->if('vector task already completed', [
-                'Report: "Vector task #{id} already has status: completed"',
-                'Ask user: "Do you want to re-execute this task?"',
-                'WAIT for user decision',
-            ])
             ->phase()->if('file not found', [
                 'Report: "File not found: {path}"',
                 'Offer: Create new file / Specify correct path / Abort',
@@ -265,15 +213,6 @@ class DoSyncInclude extends IncludeArchetype
             ->phase('plan', '2 steps: Read config/cache.php → Edit driver value')
             ->phase('execution', 'Read → Edit → Done')
             ->phase('result', '2/2 ✓');
-
-        $this->guideline('example-vector-task')
-            ->scenario('Execute from vector task reference')
-            ->example()
-            ->phase('input', '"task 5" or "task:5" or "#5"')
-            ->phase('detection', 'Pattern matched → task_get(5) → Load task + parent')
-            ->phase('context', 'Task: "Fix null check in helper" | Parent: "Bug fixes sprint"')
-            ->phase('flow', 'Task Detection → Context → Plan ✓ → task_start → Execute → task_finish → Complete')
-            ->phase('result', 'Vector task #5 completed ✓');
 
         // When to use sync vs async
         $this->guideline('sync-vs-async')

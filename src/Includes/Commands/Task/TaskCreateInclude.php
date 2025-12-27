@@ -44,9 +44,9 @@ class TaskCreateInclude extends IncludeArchetype
             ->onViolation('Add estimate in hours before presenting task');
 
         $this->rule('mandatory-user-approval')->critical()
-            ->text('MUST get explicit user approval BEFORE creating any task')
-            ->why('User must validate task specification before committing to vector storage')
-            ->onViolation('Present task specification and wait for explicit YES/APPROVE/CONFIRM');
+            ->text('MUST get explicit user approval BEFORE creating any task. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve task creation (skip user confirmation prompt).')
+            ->why('User must validate task specification before committing to vector storage. Flag -y enables automated/scripted execution.')
+            ->onViolation('Present task specification and wait for explicit YES/APPROVE/CONFIRM (unless -y flag present)');
 
         $this->rule('max-task-estimate')->high()
             ->text('If estimate >5-8 hours, MUST strongly recommend /task:decompose')
