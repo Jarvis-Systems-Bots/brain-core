@@ -24,13 +24,6 @@ class TaskValidateInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
-        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
-        $this->guideline('input')
-            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
-            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS: "63", "#63", "task 63" → 63}'));
-
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
             ->text('ON RECEIVING input: Your FIRST output MUST be "=== TASK:VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
@@ -109,6 +102,13 @@ class TaskValidateInclude extends IncludeArchetype
             ->text('Fix tasks MUST have parent_id = VECTOR_TASK_ID (the task being validated NOW). NEVER use VECTOR_TASK.parent_id or PARENT_TASK_CONTEXT. If validating Task B (child of Task A), fix tasks become children of Task B, NOT Task A.')
             ->why('Hierarchical integrity: validation creates subtasks of the validated task. Chain: Task A → Task B (validation fix) → Task C (validation fix of B). Each level is child of its direct parent, not grandparent.')
             ->onViolation('VERIFY parent_id = $TASK_PARENT_ID = $VECTOR_TASK_ID before task_create. If wrong, ABORT and recalculate.');
+
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
+            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS: "63", "#63", "task 63" → 63}'));
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')
