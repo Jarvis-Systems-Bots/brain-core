@@ -36,7 +36,7 @@ class DoValidateInclude extends IncludeArchetype
             ->onViolation('Abort any implementation. Create task instead of fixing directly.');
 
         $this->rule('text-description-required')->critical()
-            ->text('$ARGUMENTS MUST be a text description of work to validate. If $ARGUMENTS looks like a vector task ID (15, #15, task 15, task:15), abort and suggest /task:validate.')
+            ->text('$ARGUMENTS MUST be a text description of work to validate. Optional flags (-y, --yes) may be appended. Extract flags first, then verify remaining text is NOT a task ID pattern (15, #15, task 15). Examples: "validate auth -y", "check user module --yes".')
             ->why('This command is exclusively for text-based validation. Vector task validation belongs to /task:validate.')
             ->onViolation('STOP. Report: "For vector task validation, use /task:validate {id}. This command accepts text descriptions only."');
 
@@ -67,13 +67,16 @@ class DoValidateInclude extends IncludeArchetype
 
         // Phase 0: Context Setup
         $this->guideline('phase0-context-setup')
-            ->goal('Parse $ARGUMENTS as text description, store task context')
+            ->goal('Parse $ARGUMENTS as text description, extract flags, store task context')
             ->example()
             ->phase(Operator::output([
                 '=== DO:VALIDATE ACTIVATED ===',
             ]))
-            ->phase('Parse $ARGUMENTS - verify it is TEXT description, not task ID pattern')
-            ->phase(Operator::if('$ARGUMENTS matches task ID pattern (15, #15, task 15, task:15, task-15)', [
+            ->phase('STEP 1: Extract flags from $ARGUMENTS first')
+            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $ARGUMENTS contains "-y" or "--yes", false otherwise}'))
+            ->phase(Store::as('CLEAN_ARGS', '{$ARGUMENTS with flags (-y, --yes) removed, trimmed}'))
+            ->phase('STEP 2: Parse $CLEAN_ARGS - verify it is TEXT description, not task ID pattern')
+            ->phase(Operator::if('$CLEAN_ARGS matches task ID pattern (15, #15, task 15, task:15, task-15)', [
                 Operator::output([
                     '=== WRONG COMMAND ===',
                     'Detected vector task ID pattern in $ARGUMENTS.',
@@ -82,11 +85,12 @@ class DoValidateInclude extends IncludeArchetype
                 ]),
                 'ABORT command',
             ]))
-            ->phase(Store::as('TASK_DESCRIPTION', '$ARGUMENTS'))
+            ->phase(Store::as('TASK_DESCRIPTION', '$CLEAN_ARGS'))
             ->phase(Operator::output([
                 '',
                 '=== PHASE 0: CONTEXT SETUP ===',
                 'Validation target: {$TASK_DESCRIPTION}',
+                '{IF $HAS_AUTO_APPROVE: "Auto-approve: enabled (-y flag)"}',
             ]));
 
         // Phase 1: Agent Discovery and Validation Scope Preview
@@ -114,11 +118,10 @@ class DoValidateInclude extends IncludeArchetype
                 '⚠️  APPROVAL REQUIRED',
                 '✅ approved/yes - start validation | ❌ no/modifications',
             ]))
-            ->phase(Operator::if('$ARGUMENTS contains "-y" flag', [
-                'AUTO-APPROVED (unattended mode)',
-                Operator::output(['🤖 Auto-approved via -y flag']),
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === true', [
+                Operator::output(['✅ Auto-approved via -y flag']),
             ]))
-            ->phase(Operator::if('$ARGUMENTS does NOT contain "-y" flag', [
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === false', [
                 'WAIT for user approval',
                 Operator::verify('User approved'),
                 Operator::if('rejected', 'Accept modifications → Re-present → WAIT'),

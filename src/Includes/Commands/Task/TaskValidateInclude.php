@@ -37,7 +37,7 @@ class TaskValidateInclude extends IncludeArchetype
             ->onViolation('Abort any implementation. Create task instead of fixing directly.');
 
         $this->rule('vector-task-id-required')->critical()
-            ->text('$ARGUMENTS MUST be a vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:validate for text-based validation.')
+            ->text('$ARGUMENTS MUST contain a vector task ID reference. Valid base formats: "15", "#15", "task 15", "task:15", "task-15". Optional flags (-y, --yes) may follow the ID. Examples: "63 -y", "#15 --yes", "task 42 -y". Extract ID first, then check for flags.')
             ->why('This command is exclusively for vector task validation. Text descriptions belong to /do:validate.')
             ->onViolation('STOP. Report: "Invalid task ID. Use /do:validate for text-based validation or provide valid task ID."');
 
