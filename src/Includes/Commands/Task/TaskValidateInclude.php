@@ -61,11 +61,6 @@ class TaskValidateInclude extends IncludeArchetype
             ->why('Allows safe re-runs without side effects.')
             ->onViolation('Check existing tasks before creating. Skip duplicates.');
 
-        $this->rule('documentation-master-mandatory')->critical()
-            ->text('MUST use DocumentationMaster to extract ALL requirements from .docs/ before validation. Documentation is the source of truth.')
-            ->why('Validation without documentation requirements is incomplete audit.')
-            ->onViolation('VIOLATION RECOVERY: IF you skipped Phase 3 documentation extraction, STOP current phase. Return to Phase 3. Complete DocumentationMaster delegation. Only then continue.');
-
         $this->rule('no-direct-fixes')->critical()
             ->text('VALIDATION command NEVER fixes issues directly. ALL issues (critical, major, minor) MUST become tasks. No exceptions.')
             ->why('Traceability and audit trail. Every change must be tracked via task system.')
