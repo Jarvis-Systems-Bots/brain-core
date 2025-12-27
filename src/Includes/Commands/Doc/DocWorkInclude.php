@@ -6,6 +6,7 @@ namespace BrainCore\Includes\Commands\Doc;
 
 use BrainCore\Archetypes\IncludeArchetype;
 use BrainCore\Attributes\Purpose;
+use BrainCore\Compilation\Store;
 
 #[Purpose('The Work command is a guided workflow for writing documentation for a project.')]
 class DocWorkInclude extends IncludeArchetype
@@ -49,7 +50,7 @@ class DocWorkInclude extends IncludeArchetype
         // ARGUMENTS FORMAT
         // =========================================================================
         $this->guideline('arguments-format')
-            ->text('$ARGUMENTS accepts: feature:X, module:X, concept:X, file:X, topic:X, or plain text description.');
+            ->text('Input accepts: feature:X, module:X, concept:X, file:X, topic:X, or plain text description.');
 
         // =========================================================================
         // WORKFLOW PHASES
@@ -57,7 +58,10 @@ class DocWorkInclude extends IncludeArchetype
         $this->guideline('phase-1-understanding')
             ->text('Phase 1: Understand what to document through maximum interactivity.')
             ->example()
-            ->phase('step-1', 'Parse $ARGUMENTS to identify target type and scope')
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('TARGET_TYPE', '{detect type from $RAW_INPUT: feature|module|concept|file|topic}'))
+            ->phase(Store::as('TARGET_VALUE', '{extract value after type prefix from $RAW_INPUT}'))
+            ->phase('step-1', 'Parse $RAW_INPUT to identify $TARGET_TYPE and scope via $TARGET_VALUE')
             ->phase('step-2', 'Ask: What aspects? What depth? Target audience? Use cases?')
             ->phase('step-3', 'Use AskUserQuestion until crystal clear')
             ->phase('validation', 'Requirements clarity >= 95%');

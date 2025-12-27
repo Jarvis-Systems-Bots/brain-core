@@ -25,7 +25,7 @@ class DoTestValidateInclude extends IncludeArchetype
     {
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
-            ->text('ON RECEIVING $ARGUMENTS: Your FIRST output MUST be "=== DO:TEST-VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
+            ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== DO:TEST-VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
             ->why('Without explicit entry point, Brain skips workflow and executes directly. Entry point forces workflow compliance.')
             ->onViolation('STOP IMMEDIATELY. Delete any tool calls. Output "=== DO:TEST-VALIDATE ACTIVATED ===" and restart from Phase 0.');
 
@@ -36,7 +36,7 @@ class DoTestValidateInclude extends IncludeArchetype
             ->onViolation('Abort any test writing. Create memory entry instead.');
 
         $this->rule('text-description-required')->critical()
-            ->text('$ARGUMENTS MUST be a text description of work to test-validate. If $ARGUMENTS looks like a task ID (pure number, "#N", "task N", "task:N", "task-N"), REJECT and suggest /task:test-validate.')
+            ->text('$RAW_INPUT MUST be a text description of work to test-validate. If $RAW_INPUT looks like a task ID (pure number, "#N", "task N", "task:N", "task-N"), REJECT and suggest /task:test-validate.')
             ->why('This command is for text-based test validation. Vector task test validation belongs to /task:test-validate.')
             ->onViolation('STOP. Report: "Use /task:test-validate for task ID N" and abort.');
 
@@ -67,26 +67,30 @@ class DoTestValidateInclude extends IncludeArchetype
 
         // Phase 0: Context Setup and Task ID Detection
         $this->guideline('phase0-context-setup')
-            ->goal('Parse $ARGUMENTS, detect task ID patterns and reject, set up test validation context')
+            ->goal('Capture $ARGUMENTS once, detect task ID patterns and reject, set up test validation context')
             ->example()
-            ->phase('Parse $ARGUMENTS for task ID patterns: "N", "#N", "task N", "task:N", "task-N"')
-            ->phase(Operator::if('$ARGUMENTS matches task ID pattern', [
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))
+            ->phase(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags (-y, --yes) removed, trimmed}'))
+            ->phase('Parse $CLEAN_ARGS for task ID patterns: "N", "#N", "task N", "task:N", "task-N"')
+            ->phase(Operator::if('$CLEAN_ARGS matches task ID pattern', [
                 Operator::output([
                     '=== DO:TEST-VALIDATE BLOCKED ===',
-                    'Detected task ID pattern in arguments: {$ARGUMENTS}',
+                    'Detected task ID pattern in arguments: {$RAW_INPUT}',
                     'This command is for TEXT-BASED test validation only.',
                     '',
                     'Use /task:test-validate {task_id} for vector task test validation.',
                 ]),
                 'ABORT command',
             ]))
-            ->phase(Store::as('TASK_DESCRIPTION', '$ARGUMENTS'))
+            ->phase(Store::as('TASK_DESCRIPTION', '$CLEAN_ARGS'))
             ->phase(Operator::output([
                 '=== DO:TEST-VALIDATE ACTIVATED ===',
                 '',
                 '=== PHASE 0: CONTEXT SETUP ===',
                 'Test validation target: {$TASK_DESCRIPTION}',
                 'Mode: Text-based (no vector task)',
+                '{IF $HAS_AUTO_APPROVE: "Auto-approve: enabled (-y flag)"}',
             ]));
 
         // Phase 1: Agent Discovery and Test Validation Scope Preview
@@ -114,11 +118,11 @@ class DoTestValidateInclude extends IncludeArchetype
                 '⚠️  APPROVAL REQUIRED',
                 '✅ approved/yes - start test validation | ❌ no/modifications',
             ]))
-            ->phase(Operator::if('$ARGUMENTS contains "-y" flag', [
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === true', [
                 'AUTO-APPROVED (unattended mode)',
-                Operator::output(['🤖 Auto-approved via -y flag']),
+                Operator::output(['Auto-approved via -y flag']),
             ]))
-            ->phase(Operator::if('$ARGUMENTS does NOT contain "-y" flag', [
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === false', [
                 'WAIT for user approval',
                 Operator::verify('User approved'),
                 Operator::if('rejected', 'Accept modifications → Re-present → WAIT'),

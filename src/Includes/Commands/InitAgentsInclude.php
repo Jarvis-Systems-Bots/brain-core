@@ -83,14 +83,16 @@ class InitAgentsInclude extends IncludeArchetype
         $this->guideline('phase0-arguments-processing')
             ->goal('Process optional user arguments to narrow search scope and improve targeting')
             ->example()
-            ->phase('Parse $ARGUMENTS for specific domain/technology/agent hints')
-            ->phase(Operator::if('$ARGUMENTS provided', [
-                'Extract: target_domain (e.g., "Laravel", "React", "API"), target_technology, specific_agents',
-                Store::as('SEARCH_FILTER', '{domain: ..., tech: ..., agents: [...], keywords: [...]}'),
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('TARGET_DOMAIN', '{extract domain hint from $RAW_INPUT if provided}'))
+            ->phase('Parse $RAW_INPUT for specific domain/technology/agent hints')
+            ->phase(Operator::if('$RAW_INPUT provided', [
+                'Extract: target_domain from $TARGET_DOMAIN (e.g., "Laravel", "React", "API"), target_technology, specific_agents',
+                Store::as('SEARCH_FILTER', '{domain: $TARGET_DOMAIN, tech: ..., agents: [...], keywords: [...]}'),
                 'Set search_mode = "targeted"',
                 'Log: "Targeted mode: focusing on {domain}/{tech}"'
             ]))
-            ->phase(Operator::if('$ARGUMENTS empty', [
+            ->phase(Operator::if('$RAW_INPUT empty', [
                 'Set search_mode = "discovery"',
                 'Use full project analysis workflow',
                 'Log: "Discovery mode: full project analysis"'
@@ -170,7 +172,7 @@ class InitAgentsInclude extends IncludeArchetype
 
         // Phase 3: Extract Project Stack (DELEGATED - ENHANCED with search filter)
         $this->guideline('phase3-read-project-stack')
-            ->goal('Extract project technology stack with optional filtering based on $ARGUMENTS')
+            ->goal('Extract project technology stack with optional filtering based on $TARGET_DOMAIN')
             ->example(
                 ExploreMaster::call(Operator::task([
                     Operator::if('search_mode === "targeted"', [

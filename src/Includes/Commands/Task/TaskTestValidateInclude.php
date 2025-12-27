@@ -37,7 +37,7 @@ class TaskTestValidateInclude extends IncludeArchetype
             ->onViolation('Abort any test writing. Create task instead.');
 
         $this->rule('vector-task-id-required')->critical()
-            ->text('$ARGUMENTS MUST be a vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:test-validate for text-based test validation.')
+            ->text('$RAW_INPUT MUST be a vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:test-validate for text-based test validation.')
             ->why('This command is exclusively for vector task test validation. Text descriptions belong to /do:test-validate.')
             ->onViolation('STOP. Report: "Invalid task ID. Use /do:test-validate for text-based validation or provide valid task ID."');
 
@@ -62,7 +62,7 @@ class TaskTestValidateInclude extends IncludeArchetype
             ->onViolation('Create task for each uncovered requirement.');
 
         $this->rule('auto-approval-flag')->critical()
-            ->text('If $ARGUMENTS contains "-y" flag, auto-approve test validation scope (skip user confirmation prompt at Phase 1).')
+            ->text('If $RAW_INPUT contains "-y" flag, auto-approve test validation scope (skip user confirmation prompt at Phase 1).')
             ->why('Flag -y enables automated/scripted execution without manual approval.')
             ->onViolation('Check for -y flag before waiting for user approval.');
 
@@ -91,8 +91,12 @@ class TaskTestValidateInclude extends IncludeArchetype
         $this->guideline('phase0-task-loading')
             ->goal('Parse $ARGUMENTS as task ID, load vector task with full context, verify testable status')
             ->example()
-            ->phase('Parse $ARGUMENTS for task ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
-            ->phase(Store::as('VECTOR_TASK_ID', '{extracted_id}'))
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase('STEP 1: Extract flags from $RAW_INPUT first')
+            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))
+            ->phase(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed, trimmed}'))
+            ->phase('STEP 2: Parse $CLEAN_ARGS for task ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
+            ->phase(Store::as('VECTOR_TASK_ID', '{extracted numeric id from $CLEAN_ARGS}'))
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'))
             ->phase(Operator::if('$VECTOR_TASK not found', [
@@ -152,13 +156,20 @@ class TaskTestValidateInclude extends IncludeArchetype
                 '1. VectorMaster - deep memory research for test context',
                 '2. DocumentationMaster - testable requirements extraction',
                 '3. Selected agents - test discovery + parallel validation (6 aspects)',
-                '',
-                '⚠️  APPROVAL REQUIRED',
-                '✅ approved/yes - start test validation | ❌ no/modifications',
             ]))
-            ->phase('WAIT for user approval')
-            ->phase(Operator::verify('User approved'))
-            ->phase(Operator::if('rejected', 'Accept modifications → Re-present → WAIT'))
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === false', [
+                Operator::output([
+                    '',
+                    '⚠️  APPROVAL REQUIRED',
+                    '✅ approved/yes - start test validation | ❌ no/modifications',
+                ]),
+                'WAIT for user approval',
+                Operator::verify('User approved'),
+                Operator::if('rejected', 'Accept modifications → Re-present → WAIT'),
+            ]))
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === true', [
+                Operator::output(['Auto-approval: -y flag detected, skipping confirmation.']),
+            ]))
             ->phase('IMMEDIATELY after approval - set task in_progress (test validation IS execution)')
             ->phase(VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Test validation started after approval", append_comment: true}'))
             ->phase(Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (test validation phase)']));

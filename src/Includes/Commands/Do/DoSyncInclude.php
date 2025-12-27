@@ -30,7 +30,7 @@ class DoSyncInclude extends IncludeArchetype
     {
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
-            ->text('ZERO distractions - implement ONLY specified task from $ARGUMENTS. NO creative additions, NO unapproved features, NO scope creep.')
+            ->text('ZERO distractions - implement ONLY specified task from $TASK_DESCRIPTION. NO creative additions, NO unapproved features, NO scope creep.')
             ->why('Ensures focused execution and prevents feature drift')
             ->onViolation('Abort immediately. Return to approved plan.');
 
@@ -40,9 +40,9 @@ class DoSyncInclude extends IncludeArchetype
             ->onViolation('Remove Task() calls. Execute directly.');
 
         $this->rule('single-approval-gate')->critical()
-            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve (skip waiting for user confirmation).')
+            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve (skip waiting for user confirmation).')
             ->why('Single checkpoint for simple tasks - approve once, execute fully. The -y flag enables unattended/scripted execution.')
-            ->onViolation('STOP. Wait for user approval before execution (unless -y flag is present).');
+            ->onViolation('STOP. Wait for user approval before execution (unless $HAS_Y_FLAG is true).');
 
         $this->rule('atomic-execution')->critical()
             ->text('Execute ONLY approved plan steps. NO improvisation, NO "while we\'re here" additions. Atomic changes only.')
@@ -63,7 +63,10 @@ class DoSyncInclude extends IncludeArchetype
         $this->guideline('phase1-context-analysis')
             ->goal('Analyze task and gather context from conversation + memory')
             ->example()
-            ->phase(Store::as('TASK', 'User task from $ARGUMENTS'))
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->phase(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed, trimmed}'))
+            ->phase(Store::as('TASK', '$TASK_DESCRIPTION'))
             ->phase('Analyze conversation: requirements, constraints, preferences, prior decisions')
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "similar: {$TASK}", limit: 5, category: "code-solution"}'))
             ->phase(Store::as('PRIOR_SOLUTIONS', 'Relevant past approaches'))
@@ -121,11 +124,11 @@ class DoSyncInclude extends IncludeArchetype
                 '⚠️ APPROVAL REQUIRED',
                 '✅ approved/yes | ❌ no/modifications',
             ]))
-            ->phase(Operator::if('$ARGUMENTS contains "-y" flag', [
+            ->phase(Operator::if('$HAS_Y_FLAG === true', [
                 'AUTO-APPROVED (unattended mode)',
                 Operator::output(['🤖 Auto-approved via -y flag']),
             ]))
-            ->phase(Operator::if('$ARGUMENTS does NOT contain "-y" flag', [
+            ->phase(Operator::if('$HAS_Y_FLAG === false', [
                 'WAIT for user approval',
                 Operator::verify('User approved'),
                 Operator::if('rejected', 'Modify plan → Re-present → WAIT'),

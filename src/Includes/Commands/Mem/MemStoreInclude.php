@@ -26,9 +26,9 @@ class MemStoreInclude extends IncludeArchetype
 
         // Iron Rules
         $this->rule('analyze-content')->critical()
-            ->text('MUST analyze $ARGUMENTS content before storing')
+            ->text('MUST analyze ' . Store::get('RAW_INPUT') . ' content before storing')
             ->why('Content analysis ensures proper categorization and prevents garbage storage')
-            ->onViolation('Parse $ARGUMENTS, extract content, determine domain and type');
+            ->onViolation('Parse ' . Store::get('RAW_INPUT') . ', extract content, determine domain and type');
 
         $this->rule('check-duplicates')->high()
             ->text('MUST search for similar memories before storing')
@@ -44,10 +44,14 @@ class MemStoreInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse $ARGUMENTS')
             ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', 'Direct content: /mem:store "This is the memory content"')
             ->phase('format-2', 'With params: /mem:store content="..." category=code-solution tags=php,laravel')
-            ->phase('extract', 'Extract: content (required), category (optional), tags (optional)')
-            ->phase('output', Store::as('INPUT', '{content, category?, tags?}'));
+            ->phase('extract', 'Extract from ' . Store::get('RAW_INPUT') . ': content (required), category (optional), tags (optional)')
+            ->phase('derive-content', Store::as('CONTENT', '{extract content from ' . Store::get('RAW_INPUT') . '}'))
+            ->phase('derive-category', Store::as('CATEGORY', '{extract category from ' . Store::get('RAW_INPUT') . ' if provided}'))
+            ->phase('derive-tags', Store::as('TAGS', '{extract tags from ' . Store::get('RAW_INPUT') . ' if provided}'))
+            ->phase('output', Store::as('INPUT', '{' . Store::get('CONTENT') . ', ' . Store::get('CATEGORY') . '?, ' . Store::get('TAGS') . '?}'));
 
         // Workflow Step 2 - Check Duplicates
         $this->guideline('workflow-step2')
@@ -70,14 +74,14 @@ class MemStoreInclude extends IncludeArchetype
             ->text('STEP 3 - Analyze Content and Suggest Category/Tags')
             ->example()
             ->phase('detect-category', Operator::if(
-                'category not provided in $ARGUMENTS',
+                Store::get('CATEGORY') . ' is empty',
                 Operator::do(
                     'Analyze content domain and type',
                     'Suggest category based on content analysis'
                 )
             ))
             ->phase('detect-tags', Operator::if(
-                'tags not provided in $ARGUMENTS',
+                Store::get('TAGS') . ' is empty',
                 Operator::do(
                     'Extract key topics, technologies, concepts',
                     'Suggest 3-5 relevant tags'

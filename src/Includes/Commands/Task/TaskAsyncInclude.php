@@ -26,7 +26,7 @@ class TaskAsyncInclude extends IncludeArchetype
     {
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
-            ->text('ON RECEIVING $ARGUMENTS: Your FIRST output MUST be "=== TASK:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
+            ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== TASK:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
             ->why('Without explicit entry point, Brain skips workflow and executes directly. Entry point forces workflow compliance.')
             ->onViolation('STOP IMMEDIATELY. Delete any tool calls. Output "=== TASK:ASYNC ACTIVATED ===" and restart from Phase 0.');
 
@@ -37,9 +37,9 @@ class TaskAsyncInclude extends IncludeArchetype
             ->onViolation('Abort immediately. Return to approved plan.');
 
         $this->rule('approval-gates-mandatory')->critical()
-            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve all gates (skip user confirmation prompts).')
+            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve all gates (skip user confirmation prompts).')
             ->why('Maintains user control and prevents unauthorized execution. Flag -y enables automated/scripted execution.')
-            ->onViolation('STOP. Wait for user approval before continuing (unless -y flag present).');
+            ->onViolation('STOP. Wait for user approval before continuing (unless $HAS_Y_FLAG is true).');
 
         $this->rule('atomic-tasks-only')->critical()
             ->text('Each agent task MUST be small and focused: maximum 1-2 files per agent invocation. NO large multi-file changes.')
@@ -67,7 +67,7 @@ class TaskAsyncInclude extends IncludeArchetype
             ->onViolation('Review conversation history before proceeding with task analysis.');
 
         $this->rule('vector-task-id-required')->critical()
-            ->text('$ARGUMENTS MUST be a vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:async for text-based tasks.')
+            ->text('$TASK_ID MUST be a valid vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:async for text-based tasks.')
             ->why('This command is exclusively for vector task execution. Text descriptions belong to /do:async.')
             ->onViolation('STOP. Report: "Invalid task ID. Use /do:async for text-based tasks or provide valid task ID."');
 
@@ -101,7 +101,10 @@ class TaskAsyncInclude extends IncludeArchetype
         $this->guideline('phase0-task-loading')
             ->goal('Parse $ARGUMENTS as task ID, load vector task with full context')
             ->example()
-            ->phase('Parse $ARGUMENTS for task ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->phase(Store::as('TASK_ID', '{extract numeric ID from $RAW_INPUT after removing flags}'))
+            ->phase('Parse $TASK_ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
             ->phase(Store::as('VECTOR_TASK_ID', '{extracted_id}'))
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags, comment}'))
@@ -386,7 +389,7 @@ class TaskAsyncInclude extends IncludeArchetype
         $this->guideline('constraints-validation')
             ->text('Enforcement of critical constraints throughout execution')
             ->example()
-            ->phase('Phase 0: Verify $ARGUMENTS is valid task ID format')
+            ->phase('Phase 0: Verify $TASK_ID is valid task ID format')
             ->phase('Phase 0: Verify vector task exists and is not completed (unless user confirms re-execute)')
             ->phase('Before Phase 2 → Phase 3 transition: Verify user approval received')
             ->phase('Before Phase 4 → Phase 5 transition: Verify user approval received')

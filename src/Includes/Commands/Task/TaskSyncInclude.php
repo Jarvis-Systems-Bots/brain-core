@@ -41,9 +41,9 @@ class TaskSyncInclude extends IncludeArchetype
             ->onViolation('Remove Task() calls. Execute directly.');
 
         $this->rule('single-approval-gate')->critical()
-            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve (skip user confirmation prompt).')
+            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve (skip user confirmation prompt).')
             ->why('Single checkpoint for simple tasks - approve once, execute fully. Flag -y enables automated/scripted execution.')
-            ->onViolation('STOP. Wait for user approval before execution (unless -y flag present).');
+            ->onViolation('STOP. Wait for user approval before execution (unless $HAS_Y_FLAG is true).');
 
         $this->rule('atomic-execution')->critical()
             ->text('Execute ONLY approved plan steps. NO improvisation, NO "while we\'re here" additions. Atomic changes only.')
@@ -61,7 +61,7 @@ class TaskSyncInclude extends IncludeArchetype
             ->onViolation('Include memory search in analysis, store insights after.');
 
         $this->rule('vector-task-id-required')->critical()
-            ->text('$ARGUMENTS MUST be a vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:sync for text-based tasks.')
+            ->text('$TASK_ID MUST be a valid vector task ID reference. Valid formats: "15", "#15", "task 15", "task:15", "task-15". If not a valid task ID, abort and suggest /do:sync for text-based tasks.')
             ->why('This command is exclusively for vector task execution. Text descriptions belong to /do:sync.')
             ->onViolation('STOP. Report: "Invalid task ID. Use /do:sync for text-based tasks or provide valid task ID."');
 
@@ -69,7 +69,10 @@ class TaskSyncInclude extends IncludeArchetype
         $this->guideline('phase0-task-loading')
             ->goal('Parse $ARGUMENTS as task ID, load vector task with full context')
             ->example()
-            ->phase('Parse $ARGUMENTS for task ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->phase(Store::as('TASK_ID', '{extract numeric ID from $RAW_INPUT after removing flags}'))
+            ->phase('Parse $TASK_ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
             ->phase(Store::as('VECTOR_TASK_ID', '{extracted_id}'))
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags, comment}'))

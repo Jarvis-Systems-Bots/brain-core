@@ -37,7 +37,7 @@ class TaskValidateInclude extends IncludeArchetype
             ->onViolation('Abort any implementation. Create task instead of fixing directly.');
 
         $this->rule('vector-task-id-required')->critical()
-            ->text('$ARGUMENTS MUST contain a vector task ID reference. Valid base formats: "15", "#15", "task 15", "task:15", "task-15". Optional flags (-y, --yes) may follow the ID. Examples: "63 -y", "#15 --yes", "task 42 -y". Extract ID first, then check for flags.')
+            ->text('$RAW_INPUT MUST contain a vector task ID reference. Valid base formats: "15", "#15", "task 15", "task:15", "task-15". Optional flags (-y, --yes) may follow the ID. Examples: "63 -y", "#15 --yes", "task 42 -y". Extract ID first, then check for flags.')
             ->why('This command is exclusively for vector task validation. Text descriptions belong to /do:validate.')
             ->onViolation('STOP. Report: "Invalid task ID. Use /do:validate for text-based validation or provide valid task ID."');
 
@@ -47,7 +47,7 @@ class TaskValidateInclude extends IncludeArchetype
             ->onViolation('Report: "Task #{id} has status {status}. Complete via /task:async first."');
 
         $this->rule('auto-approval-flag')->critical()
-            ->text('If $ARGUMENTS contains "-y" flag, auto-approve validation scope (skip user confirmation prompt at Phase 1).')
+            ->text('If $RAW_INPUT contains "-y" flag, auto-approve validation scope (skip user confirmation prompt at Phase 1).')
             ->why('Flag -y enables automated/scripted execution without manual approval.')
             ->onViolation('Check for -y flag before waiting for user approval.');
 
@@ -107,9 +107,10 @@ class TaskValidateInclude extends IncludeArchetype
         $this->guideline('phase0-task-loading')
             ->goal('Parse $ARGUMENTS as task ID, load vector task with full context, verify validatable status')
             ->example()
-            ->phase('STEP 1: Extract flags from $ARGUMENTS first')
-            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $ARGUMENTS contains "-y" or "--yes", false otherwise}'))
-            ->phase(Store::as('CLEAN_ARGS', '{$ARGUMENTS with flags removed, trimmed}'))
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase('STEP 1: Extract flags from $RAW_INPUT first')
+            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))
+            ->phase(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed, trimmed}'))
             ->phase('STEP 2: Parse $CLEAN_ARGS for task ID using regex: extract first number from "63", "#63", "task 63", "task:63", "task-63", or "63 -y" → 63')
             ->phase(Store::as('VECTOR_TASK_ID', '{extracted numeric id from $CLEAN_ARGS}'))
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))

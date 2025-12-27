@@ -22,7 +22,10 @@ class TaskStatusInclude extends IncludeArchetype
     {
         // Input parsing
         $this->guideline('parse-arguments')
-            ->text('Parse $ARGUMENTS to detect query type')
+            ->text('Capture and parse input to detect query type')
+            ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase('detect', Store::as('QUERY_TYPE', '{detect: time|status|group|specific|default from $RAW_INPUT}'))
             ->example('Time filters: yesterday, today, this week, this month, last 7 days, last N days')->key('time')
             ->example('Status filters: completed, pending, in_progress, stopped')->key('status')
             ->example('Grouping: by priority, by tags, by parent')->key('group')
@@ -31,18 +34,17 @@ class TaskStatusInclude extends IncludeArchetype
 
         // Route to appropriate handler
         $this->guideline('route-query')
-            ->text('Route to handler based on $ARGUMENTS content')
+            ->text('Route to handler based on detected query type')
             ->example()
-            ->phase('detect', Store::as('QUERY_TYPE', 'Detect: time|status|group|specific|default'))
             ->phase('route', Operator::if(
-                '$ARGUMENTS is empty',
+                Store::get('RAW_INPUT') . ' is empty',
                 'Execute: default-stats workflow',
-                'Execute: custom-query workflow based on QUERY_TYPE'
+                'Execute: custom-query workflow based on ' . Store::get('QUERY_TYPE')
             ));
 
-        // Default stats workflow (empty $ARGUMENTS)
+        // Default stats workflow (empty input)
         $this->guideline('default-stats')
-            ->text('Default overview when $ARGUMENTS is empty')
+            ->text('Default overview when ' . Store::get('RAW_INPUT') . ' is empty')
             ->example()
             ->phase('fetch', VectorTaskMcp::call('task_stats', '{}'))
             ->phase('store', Store::as('STATS', 'statistics response'))
@@ -55,7 +57,7 @@ class TaskStatusInclude extends IncludeArchetype
 
         // Time-based filter workflow
         $this->guideline('time-filter')
-            ->text('Handle time-based $ARGUMENTS filters')
+            ->text('Handle time-based filters when ' . Store::get('QUERY_TYPE') . ' = time')
             ->example()
             ->phase('parse', Operator::do(
                 'yesterday → tasks from previous day',
@@ -65,7 +67,7 @@ class TaskStatusInclude extends IncludeArchetype
                 'last N days → tasks from past N days'
             ))
             ->phase('fetch-completed', Operator::if(
-                '$ARGUMENTS contains "completed"',
+                Store::get('RAW_INPUT') . ' contains "completed"',
                 VectorTaskMcp::call('task_list', '{status: "completed", limit: 50}'),
                 VectorTaskMcp::call('task_list', '{limit: 50}')
             ))
@@ -77,7 +79,7 @@ class TaskStatusInclude extends IncludeArchetype
 
         // Status filter workflow
         $this->guideline('status-filter')
-            ->text('Handle status-based $ARGUMENTS filters')
+            ->text('Handle status-based filters when ' . Store::get('QUERY_TYPE') . ' = status')
             ->example()
             ->phase('detect', 'Extract status: completed|pending|in_progress|stopped')
             ->phase('fetch', VectorTaskMcp::call('task_list', '{status: "{detected_status}", limit: 30}'))
@@ -89,10 +91,10 @@ class TaskStatusInclude extends IncludeArchetype
 
         // Grouping workflow
         $this->guideline('grouping')
-            ->text('Handle grouping $ARGUMENTS')
+            ->text('Handle grouping when ' . Store::get('QUERY_TYPE') . ' = group')
             ->example()
             ->phase('by-priority', Operator::if(
-                '$ARGUMENTS = "by priority"',
+                Store::get('RAW_INPUT') . ' = "by priority"',
                 Operator::do(
                     VectorTaskMcp::call('task_list', '{limit: 100}'),
                     'Group by priority: critical, high, medium, low',
@@ -104,7 +106,7 @@ class TaskStatusInclude extends IncludeArchetype
                 )
             ))
             ->phase('by-tags', Operator::if(
-                '$ARGUMENTS = "by tags"',
+                Store::get('RAW_INPUT') . ' = "by tags"',
                 Operator::do(
                     VectorTaskMcp::call('task_list', '{limit: 100}'),
                     'Extract and count unique tags',
@@ -113,7 +115,7 @@ class TaskStatusInclude extends IncludeArchetype
                 )
             ))
             ->phase('by-parent', Operator::if(
-                '$ARGUMENTS = "by parent"',
+                Store::get('RAW_INPUT') . ' = "by parent"',
                 Operator::do(
                     VectorTaskMcp::call('task_list', '{limit: 100}'),
                     'Group by parent_id (null = root tasks)',
@@ -124,9 +126,9 @@ class TaskStatusInclude extends IncludeArchetype
 
         // Specific parent query
         $this->guideline('specific-parent')
-            ->text('Handle parent_id=N queries')
+            ->text('Handle parent_id=N queries when ' . Store::get('QUERY_TYPE') . ' = specific')
             ->example()
-            ->phase('parse', 'Extract N from "parent_id=N" in $ARGUMENTS')
+            ->phase('parse', 'Extract N from "parent_id=N" in ' . Store::get('RAW_INPUT'))
             ->phase('fetch-parent', VectorTaskMcp::call('task_get', '{task_id: N}'))
             ->phase('fetch-children', VectorTaskMcp::call('task_list', '{parent_id: N, limit: 50}'))
             ->phase('output', Operator::do(

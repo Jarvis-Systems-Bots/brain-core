@@ -25,20 +25,20 @@ class DoAsyncInclude extends IncludeArchetype
     {
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
-            ->text('ON RECEIVING $ARGUMENTS: Your FIRST output MUST be "=== DO:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
+            ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== DO:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
             ->why('Without explicit entry point, Brain skips workflow and executes directly. Entry point forces workflow compliance.')
             ->onViolation('STOP IMMEDIATELY. Delete any tool calls. Output "=== DO:ASYNC ACTIVATED ===" and restart from Phase 0.');
 
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
-            ->text('ZERO distractions - implement ONLY specified task from $ARGUMENTS. NO creative additions, NO unapproved features, NO scope creep.')
+            ->text('ZERO distractions - implement ONLY specified task from $TASK_DESCRIPTION. NO creative additions, NO unapproved features, NO scope creep.')
             ->why('Ensures focused execution and prevents feature drift')
             ->onViolation('Abort immediately. Return to approved plan.');
 
         $this->rule('approval-gates-mandatory')->critical()
-            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve all gates (skip waiting for user confirmation).')
+            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve all gates (skip waiting for user confirmation).')
             ->why('Maintains user control and prevents unauthorized execution. The -y flag enables unattended/scripted execution.')
-            ->onViolation('STOP. Wait for user approval before continuing (unless -y flag is present).');
+            ->onViolation('STOP. Wait for user approval before continuing (unless $HAS_Y_FLAG is true).');
 
         $this->rule('atomic-tasks-only')->critical()
             ->text('Each agent task MUST be small and focused: maximum 1-2 files per agent invocation. NO large multi-file changes.')
@@ -71,7 +71,7 @@ class DoAsyncInclude extends IncludeArchetype
             ->onViolation('STOP. Return to Phase 0. Follow workflow sequentially. Present approval gates. Delegate via Task().');
 
         $this->rule('never-execute-directly')->critical()
-            ->text('Brain NEVER executes implementation tasks directly. For ANY $ARGUMENTS: MUST delegate to agents via Task(). Brain only: analyzes, plans, presents approvals, delegates, validates results.')
+            ->text('Brain NEVER executes implementation tasks directly. For ANY $TASK_DESCRIPTION: MUST delegate to agents via Task(). Brain only: analyzes, plans, presents approvals, delegates, validates results.')
             ->why('Direct execution violates orchestration model, bypasses agent expertise, wastes Brain tokens on execution instead of coordination.')
             ->onViolation('STOP. Identify required agent from brain list:masters. Delegate via Task(@agent-name, task).');
 
@@ -95,7 +95,9 @@ class DoAsyncInclude extends IncludeArchetype
         $this->guideline('phase0-context-analysis')
             ->goal('Extract task insights from conversation history before planning')
             ->example()
-            ->phase(Store::as('TASK_DESCRIPTION', 'User task from $ARGUMENTS'))
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->phase(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed, trimmed}'))
             ->phase('Analyze conversation context: requirements mentioned, constraints discussed, user preferences, prior decisions, related code/files referenced')
             ->phase(Store::as('CONVERSATION_CONTEXT', '{requirements, constraints, preferences, decisions, references}'))
             ->phase(Operator::if('conversation has relevant context', [
@@ -141,11 +143,11 @@ class DoAsyncInclude extends IncludeArchetype
                 '⚠️  APPROVAL CHECKPOINT #1',
                 '✅ approved/yes | ❌ no/modifications',
             ]))
-            ->phase(Operator::if('$ARGUMENTS contains "-y" flag', [
+            ->phase(Operator::if('$HAS_Y_FLAG === true', [
                 'AUTO-APPROVED (unattended mode)',
                 Operator::output(['🤖 Auto-approved via -y flag']),
             ]))
-            ->phase(Operator::if('$ARGUMENTS does NOT contain "-y" flag', [
+            ->phase(Operator::if('$HAS_Y_FLAG === false', [
                 'WAIT for user approval',
                 Operator::verify('User approved'),
                 Operator::if('rejected', 'Modify plan → Re-present → WAIT'),
@@ -212,11 +214,11 @@ class DoAsyncInclude extends IncludeArchetype
                 '✅ Type "approved" or "yes" to begin.',
                 '❌ Type "no" or provide modifications.',
             ]))
-            ->phase(Operator::if('$ARGUMENTS contains "-y" flag', [
+            ->phase(Operator::if('$HAS_Y_FLAG === true', [
                 'AUTO-APPROVED (unattended mode)',
                 Operator::output(['🤖 Auto-approved via -y flag']),
             ]))
-            ->phase(Operator::if('$ARGUMENTS does NOT contain "-y" flag', [
+            ->phase(Operator::if('$HAS_Y_FLAG === false', [
                 'WAIT for user approval',
                 Operator::verify('User confirmed approval'),
                 Operator::if('user rejected', [
@@ -339,7 +341,7 @@ class DoAsyncInclude extends IncludeArchetype
         $this->guideline('constraints-validation')
             ->text('Enforcement of critical constraints throughout execution')
             ->example()
-            ->phase('Before Requirements Analysis: Verify $ARGUMENTS is not empty')
+            ->phase('Before Requirements Analysis: Verify $TASK_DESCRIPTION is not empty')
             ->phase('Before Phase 2 → Phase 3 transition: Verify user approval received')
             ->phase('Before Phase 4 → Phase 5 transition: Verify user approval received')
             ->phase('During Execution Planning: Verify each step has ≤ 2 files in scope')

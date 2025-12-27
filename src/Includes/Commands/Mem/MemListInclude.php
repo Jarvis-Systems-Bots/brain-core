@@ -26,15 +26,15 @@ class MemListInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS for Limit')
+            ->text('STEP 1 - Parse Arguments for Limit')
             ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format', '/mem:list OR /mem:list limit=20')
-            ->phase('extract', 'Extract: limit (optional, default 10, max 50)')
+            ->phase('extract', Store::as('LIMIT', '{parse limit from $RAW_INPUT, default 10, max 50}'))
             ->phase('validate', Operator::if(
-                'limit > 50',
-                'Set limit = 50 (max allowed)'
-            ))
-            ->phase('output', Store::as('LIMIT', 'parsed limit value'));
+                '$LIMIT > 50',
+                'Set $LIMIT = 50 (max allowed)'
+            ));
 
         // Workflow Step 2 - Fetch Recent Memories
         $this->guideline('workflow-step2')

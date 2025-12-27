@@ -26,14 +26,16 @@ class MemSearchInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS for Query and Filters')
+            ->text('STEP 1 - Parse Arguments for Query and Filters')
             ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', 'Simple query: /mem:search "authentication patterns"')
             ->phase('format-2', 'With filters: /mem:search query="auth" category=code-solution limit=20')
             ->phase('format-3', 'With tags: /mem:search query="api" tags=laravel,php')
-            ->phase('extract', 'Extract: query (required), category?, limit?, offset?, tags?')
+            ->phase('extract', Store::as('QUERY', '{parse query from $RAW_INPUT, required}'))
+            ->phase('filters', Store::as('FILTERS', '{parse category?, limit?, offset?, tags? from $RAW_INPUT}'))
             ->phase('defaults', 'Defaults: limit=10, offset=0')
-            ->phase('output', Store::as('PARAMS', '{query, category?, limit, offset?, tags?}'));
+            ->phase('output', Store::as('PARAMS', '{query: $QUERY, ...$FILTERS}'));
 
         // Workflow Step 2 - Execute Search
         $this->guideline('workflow-step2')

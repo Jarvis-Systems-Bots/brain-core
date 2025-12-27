@@ -25,7 +25,7 @@ class DoValidateInclude extends IncludeArchetype
     {
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
-            ->text('ON RECEIVING $ARGUMENTS: Your FIRST output MUST be "=== DO:VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
+            ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== DO:VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
             ->why('Without explicit entry point, Brain skips workflow and executes directly. Entry point forces workflow compliance.')
             ->onViolation('STOP IMMEDIATELY. Delete any tool calls. Output "=== DO:VALIDATE ACTIVATED ===" and restart from Phase 0.');
 
@@ -36,7 +36,7 @@ class DoValidateInclude extends IncludeArchetype
             ->onViolation('Abort any implementation. Create task instead of fixing directly.');
 
         $this->rule('text-description-required')->critical()
-            ->text('$ARGUMENTS MUST be a text description of work to validate. Optional flags (-y, --yes) may be appended. Extract flags first, then verify remaining text is NOT a task ID pattern (15, #15, task 15). Examples: "validate auth -y", "check user module --yes".')
+            ->text('$RAW_INPUT MUST be a text description of work to validate. Optional flags (-y, --yes) may be appended. Extract flags first, then verify remaining text is NOT a task ID pattern (15, #15, task 15). Examples: "validate auth -y", "check user module --yes".')
             ->why('This command is exclusively for text-based validation. Vector task validation belongs to /task:validate.')
             ->onViolation('STOP. Report: "For vector task validation, use /task:validate {id}. This command accepts text descriptions only."');
 
@@ -88,19 +88,19 @@ class DoValidateInclude extends IncludeArchetype
 
         // Phase 0: Context Setup
         $this->guideline('phase0-context-setup')
-            ->goal('Parse $ARGUMENTS as text description, extract flags, store task context')
+            ->goal('Capture $ARGUMENTS once, extract flags, store task context')
             ->example()
             ->phase(Operator::output([
                 '=== DO:VALIDATE ACTIVATED ===',
             ]))
-            ->phase('STEP 1: Extract flags from $ARGUMENTS first')
-            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $ARGUMENTS contains "-y" or "--yes", false otherwise}'))
-            ->phase(Store::as('CLEAN_ARGS', '{$ARGUMENTS with flags (-y, --yes) removed, trimmed}'))
-            ->phase('STEP 2: Parse $CLEAN_ARGS - verify it is TEXT description, not task ID pattern')
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))
+            ->phase(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags (-y, --yes) removed, trimmed}'))
+            ->phase('Parse $CLEAN_ARGS - verify it is TEXT description, not task ID pattern')
             ->phase(Operator::if('$CLEAN_ARGS matches task ID pattern (15, #15, task 15, task:15, task-15)', [
                 Operator::output([
                     '=== WRONG COMMAND ===',
-                    'Detected vector task ID pattern in $ARGUMENTS.',
+                    'Detected vector task ID pattern in $RAW_INPUT.',
                     'Use /task:validate {id} for vector task validation.',
                     'This command accepts text descriptions only.',
                 ]),

@@ -26,13 +26,14 @@ class MemStatsInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS for Filters')
+            ->text('STEP 1 - Parse Arguments for Filters')
             ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', '/mem:stats → full statistics overview')
             ->phase('format-2', '/mem:stats category=code-solution → category-specific stats')
             ->phase('format-3', '/mem:stats tags=php → tag-specific stats')
             ->phase('format-4', '/mem:stats top=10 → top accessed memories')
-            ->phase('output', Store::as('FILTER', '{type: default|category|tags|top, value?}'));
+            ->phase('output', Store::as('FILTER', '{parse filter type and value from $RAW_INPUT: default|category|tags|top}'));
 
         // Workflow Step 2 - Fetch Statistics
         $this->guideline('workflow-step2')

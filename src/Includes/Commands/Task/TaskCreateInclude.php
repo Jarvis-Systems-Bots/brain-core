@@ -44,9 +44,9 @@ class TaskCreateInclude extends IncludeArchetype
             ->onViolation('Add estimate in hours before presenting task');
 
         $this->rule('mandatory-user-approval')->critical()
-            ->text('MUST get explicit user approval BEFORE creating any task. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve task creation (skip user confirmation prompt).')
+            ->text('MUST get explicit user approval BEFORE creating any task. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve task creation (skip user confirmation prompt).')
             ->why('User must validate task specification before committing to vector storage. Flag -y enables automated/scripted execution.')
-            ->onViolation('Present task specification and wait for explicit YES/APPROVE/CONFIRM (unless -y flag present)');
+            ->onViolation('Present task specification and wait for explicit YES/APPROVE/CONFIRM (unless $HAS_Y_FLAG is true)');
 
         $this->rule('max-task-estimate')->high()
             ->text('If estimate >5-8 hours, MUST strongly recommend /task:decompose')
@@ -82,13 +82,16 @@ class TaskCreateInclude extends IncludeArchetype
         $this->guideline('workflow-step0')
             ->text('STEP 0 - Parse an input task and Understand')
             ->example()
-            ->phase('parse', Operator::task('$ARGUMENTS'))
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->phase(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed}'))
+            ->phase('parse', Operator::task('$TASK_DESCRIPTION'))
             ->phase('action-1', 'Extract: primary objective, scope, requirements from user description')
             ->phase('action-2', 'Identify: implicit constraints, technical domain, affected areas')
             ->phase('action-3', 'Determine: task type (feature, bugfix, refactor, research, docs)')
             ->phase()->name('output')->do(
                 Store::as('TASK_SCOPE', 'parsed objective, domain, requirements, type'),
-                Store::as('TASK_TEXT', 'full original user description from phase parse')
+                Store::as('TASK_TEXT', 'full original user description from $TASK_DESCRIPTION')
             );
 
         // Workflow Step 1 - Search Existing Tasks (MANDATORY - DELEGATED)

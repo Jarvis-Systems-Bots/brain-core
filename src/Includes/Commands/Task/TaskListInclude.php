@@ -26,9 +26,10 @@ class TaskListInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Filters
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS for Filters')
+            ->text('STEP 1 - Parse Input for Filters')
             ->example()
-            ->phase('parse', 'Extract filters from $ARGUMENTS: status=pending, parent_id=5, tags=backend, priority=high, limit=20')
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase('parse', 'Extract filters from $RAW_INPUT: status=pending, parent_id=5, tags=backend, priority=high, limit=20')
             ->phase('defaults', 'Default: no filters (list all), limit=50')
             ->phase('output', Store::as('FILTERS', '{status?, parent_id?, tags?, priority?, limit?, offset?}'));
 

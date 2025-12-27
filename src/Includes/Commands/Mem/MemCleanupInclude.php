@@ -39,12 +39,15 @@ class MemCleanupInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse $ARGUMENTS for Operation Type')
             ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', '/mem:cleanup → preview default cleanup (30 days, keep 1000)')
             ->phase('format-2', '/mem:cleanup days=60 → cleanup older than 60 days')
             ->phase('format-3', '/mem:cleanup max_to_keep=500 → keep only 500 most recent')
             ->phase('format-4', '/mem:cleanup id=15 → delete specific memory')
             ->phase('format-5', '/mem:cleanup ids=15,16,17 → delete multiple specific')
-            ->phase('detect', Store::as('MODE', 'bulk|single|multi'));
+            ->phase('detect', Store::as('MODE', '{detect mode: bulk|single|multi from ' . Store::get('RAW_INPUT') . '}'))
+            ->phase('extract-ids', Store::as('DELETE_IDS', '{extract id/ids from ' . Store::get('RAW_INPUT') . ' if present}'))
+            ->phase('extract-params', Store::as('CLEANUP_PARAMS', '{extract days_old, max_to_keep from ' . Store::get('RAW_INPUT') . '}'));
 
         // Workflow Step 2 - Single ID Delete
         $this->guideline('workflow-step2')
@@ -53,7 +56,7 @@ class MemCleanupInclude extends IncludeArchetype
             ->phase('check', Operator::if(
                 Store::get('MODE') . ' === "single"',
                 Operator::do(
-                    'Extract ID from $ARGUMENTS',
+                    'Use ID from ' . Store::get('DELETE_IDS'),
                     VectorMemoryMcp::call('get_by_memory_id', '{memory_id: {id}}'),
                     Store::as('TARGET', 'memory to delete'),
                     'Display: "--- Memory to Delete ---"',
@@ -73,7 +76,7 @@ class MemCleanupInclude extends IncludeArchetype
             ->phase('check', Operator::if(
                 Store::get('MODE') . ' === "multi"',
                 Operator::do(
-                    'Extract IDs array from $ARGUMENTS',
+                    'Use IDs array from ' . Store::get('DELETE_IDS'),
                     'ForEach ID: fetch memory preview',
                     'Display: "--- Memories to Delete ({count}) ---"',
                     'ForEach: "#{id} [{category}] {preview}"',

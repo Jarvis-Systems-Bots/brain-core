@@ -26,19 +26,20 @@ class MemGetInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $ARGUMENTS for Memory ID')
+            ->text('STEP 1 - Parse Arguments for Memory ID')
             ->example()
+            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', '/mem:get 15 → get memory by ID')
             ->phase('format-2', '/mem:get id=15 → explicit parameter')
             ->phase('validate', Operator::if(
-                '$ARGUMENTS is empty or not a number',
+                '$RAW_INPUT is empty or not a number',
                 Operator::do(
                     'Display: "Error: Memory ID required"',
                     'Display: "Usage: /mem:get {id}"',
                     Operator::skip('No ID provided')
                 )
             ))
-            ->phase('output', Store::as('MEMORY_ID', 'parsed integer ID'));
+            ->phase('output', Store::as('MEMORY_ID', '{extract numeric ID from $RAW_INPUT}'));
 
         // Workflow Step 2 - Fetch Memory
         $this->guideline('workflow-step2')

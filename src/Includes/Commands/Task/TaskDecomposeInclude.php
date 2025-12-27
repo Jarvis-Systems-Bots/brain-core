@@ -51,9 +51,9 @@ class TaskDecomposeInclude extends IncludeArchetype
             ->onViolation('STOP immediately after subtask creation');
 
         $this->rule('mandatory-user-approval')->critical()
-            ->text('MUST get explicit user YES/APPROVE/CONFIRM before creating subtasks. EXCEPTION: If $ARGUMENTS contains "-y" flag, auto-approve decomposition (skip user confirmation prompt).')
+            ->text('MUST get explicit user YES/APPROVE/CONFIRM before creating subtasks. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve decomposition (skip user confirmation prompt).')
             ->why('User must validate decomposition strategy before committing. Flag -y enables automated/scripted execution.')
-            ->onViolation('Present subtask list and wait for explicit confirmation (unless -y flag present)');
+            ->onViolation('Present subtask list and wait for explicit confirmation (unless $HAS_Y_FLAG is true)');
 
         $this->rule('fetch-parent-first')->critical()
             ->text('MUST fetch parent task via task_get BEFORE any research')
@@ -77,11 +77,12 @@ class TaskDecomposeInclude extends IncludeArchetype
         $this->guideline('phase0-parse')
             ->goal('Extract and validate task_id from arguments')
             ->example()
-            ->phase('STEP 1 - Parse:')
+            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->phase(Store::as('TASK_ID', '{extract numeric ID from $RAW_INPUT}'))
+            ->phase('STEP 1 - Validate:')
             ->do([
-                'Extract task_id from $ARGUMENTS',
-                Operator::validate('task_id is numeric', 'Request valid task_id from user'),
-                Store::as('TASK_ID', 'extracted task_id'),
+                Operator::validate('$TASK_ID is numeric', 'Request valid task_id from user'),
             ]);
 
         // ============================================
