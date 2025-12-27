@@ -59,9 +59,9 @@ class TaskAsyncInclude extends IncludeArchetype
             ->onViolation('Revert to last approved checkpoint. Resume approved steps only.');
 
         $this->rule('execution-mode-flexible')->high()
-            ->text('Execute agents sequentially BY DEFAULT. Allow parallel execution when: 1) tasks are independent (no file/context conflicts), 2) user explicitly requests parallel mode, 3) optimization benefits outweigh tracking complexity.')
-            ->why('Balances safety with performance optimization')
-            ->onViolation('Validate task independence before parallel execution. Fallback to sequential if conflicts detected.');
+            ->text('Execute agents sequentially BY DEFAULT. Allow PARALLEL execution when: 1) tasks are simple and independent (no file/context conflicts), 2) each task touches different files, 3) no data flow between tasks. PARALLEL means multiple Task() calls in SINGLE message - NOT run_in_background. Brain waits for ALL parallel agents to complete before proceeding.')
+            ->why('Simple independent tasks benefit from parallel execution. Synchronous parallel (not background) ensures Brain receives all results before next phase.')
+            ->onViolation('Validate task independence before parallel execution. Fallback to sequential if ANY conflict detected.');
 
         $this->rule('vector-memory-mandatory')->high()
             ->text('ALL agents MUST search vector memory BEFORE task execution AND store learnings AFTER completion. Vector memory is the primary communication channel between sequential agents.')
@@ -283,14 +283,17 @@ class TaskAsyncInclude extends IncludeArchetype
                 ]),
             ]))
             ->phase(Operator::if('$EXECUTION_PLAN.execution_mode === "parallel"', [
-                'PARALLEL MODE: Delegate independent steps concurrently via multiple Task() calls',
+                'PARALLEL MODE: Multiple Task() calls in SINGLE message (NOT run_in_background)',
+                'Simple independent tasks → launch agents in parallel for efficiency',
                 Operator::forEach('group in $EXECUTION_PLAN.parallel_groups', [
-                    Operator::output(['Batch {N}: DELEGATING {count} steps in parallel']),
-                    'MANDATORY: Launch ALL via Task() calls - NOT direct tools',
+                    Operator::output(['Batch {N}: DELEGATING {count} steps in PARALLEL (single message)']),
+                    'MANDATORY: Multiple Task() calls in ONE message block',
+                    'FORBIDDEN: run_in_background=true (Brain must wait for all results)',
                     'Each Task() includes: agent_name, task_description, file_scope, memory_search_query',
-                    'WAIT for ALL Task() calls in batch to complete',
-                    Store::as('BATCH_RESULTS[{N}]', 'Batch agent results'),
-                    Operator::output(['Batch {N} delegated and completed by agents']),
+                    'Brain sends SINGLE message with multiple Task() tool calls',
+                    'Brain WAITS for ALL agents to complete synchronously',
+                    Store::as('BATCH_RESULTS[{N}]', 'All agent results received together'),
+                    Operator::output(['Batch {N}: all {count} agents completed']),
                 ]),
             ]))
             ->phase(Operator::if('step fails', ['Store failure to memory', 'Offer: Retry / Skip / Abort']))
@@ -452,13 +455,13 @@ class TaskAsyncInclude extends IncludeArchetype
             ->phase('result', 'task_update(42, completed) → 4/4 complete');
 
         $this->guideline('example-parallel')
-            ->scenario('Parallel execution for independent subtasks')
+            ->scenario('Parallel execution for simple independent subtasks')
             ->example()
-            ->phase('input', '"task:28" where task #28 has 3 independent subtasks')
-            ->phase('analysis', '3 independent files, no conflicts')
+            ->phase('input', '"task:28" where task #28 has 3 simple independent subtasks')
+            ->phase('analysis', '3 independent files, no conflicts, simple tasks')
             ->phase('plan', 'Mode: PARALLEL, Batch 1: [Step1, Step2, Step3]')
-            ->phase('execution', 'Concurrent: 3 agents simultaneously')
-            ->phase('result', 'task_update(28, completed) → 3/3 (faster than sequential)');
+            ->phase('execution', 'Brain sends SINGLE message with 3 Task() calls (NOT run_in_background). Brain waits for all 3 agents.')
+            ->phase('result', 'All 3 results received together → task_update(28, completed) → 3/3 (faster than sequential)');
 
         // Response Format
         $this->guideline('response-format')
