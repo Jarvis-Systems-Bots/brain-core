@@ -99,7 +99,7 @@ class XmlBuilder
                     $value = $child['text'] ?? null;
                     return [$key => $value];
                 })->toArray()
-            ], $scc);
+            ], $sccNext);
             //dd($children);
         } elseif (! isset(static::$cache['iron_rules_exists'])) {
             $lines[] = '<' . $element . $attributes . '>';
