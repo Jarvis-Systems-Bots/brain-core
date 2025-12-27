@@ -86,9 +86,8 @@ class XmlBuilder
                 'Iron Rules' => null
             ], $scc);
         } elseif ($element === 'guideline') {
-            //$lines[] = '# ' . (isset($params['id']) && $params['id'] ? $params['id'] : 'Guideline');
             $lines[] = MD::fromArray([
-                (isset($params['id']) && $params['id'] ? $params['id'] : 'Guideline') => null
+                (isset($params['id']) && $params['id'] ? str_replace(['_','-'], ' ', $params['id']) : 'Guideline') => null
             ], $scc);
         } elseif ($element === 'rule') {
             $lines[] = MD::fromArray([
