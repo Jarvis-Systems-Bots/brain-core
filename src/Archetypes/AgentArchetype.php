@@ -44,10 +44,12 @@ abstract class AgentArchetype extends ArchetypeArchitecture
     protected function init(): void
     {
         $agent = $this->var('AGENT', 'claude');
-        $upperCaseAgent = strtoupper($agent);
+        $upperCaseAgent = strtoupper((string) $agent);
         $varName = $upperCaseAgent . '_MASTER_MODEL';
-        $model = $this->var($varName, 'opus');
-        $this->setMeta('model', $model);
+        $model = $this->var($varName);
+        if ($model) {
+            $this->setMeta('model', $model);
+        }
     }
 
     /**
