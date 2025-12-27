@@ -29,6 +29,11 @@ class InitAgentsInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('INIT_PARAMS', '{initialization parameters extracted from $RAW_INPUT}'));
+
         // Iron Rules
         $this->rule('mandatory-agentmaster-delegation')->critical()
             ->text('Brain MUST delegate ALL agent generation to AgentMaster. FORBIDDEN: Brain creating agents directly.')
@@ -83,7 +88,6 @@ class InitAgentsInclude extends IncludeArchetype
         $this->guideline('phase0-arguments-processing')
             ->goal('Process optional user arguments to narrow search scope and improve targeting')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('TARGET_DOMAIN', '{extract domain hint from $RAW_INPUT if provided}'))
             ->phase('Parse $RAW_INPUT for specific domain/technology/agent hints')
             ->phase(Operator::if('$RAW_INPUT provided', [

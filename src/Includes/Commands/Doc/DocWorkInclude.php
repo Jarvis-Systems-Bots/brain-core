@@ -19,6 +19,13 @@ class DocWorkInclude extends IncludeArchetype
     protected function handle(): void
     {
         // =========================================================================
+        // COMMAND INPUT (IMMEDIATE CAPTURE)
+        // =========================================================================
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('DOC_TARGET', '{documentation target extracted from $RAW_INPUT}'));
+
+        // =========================================================================
         // IRON RULES
         // =========================================================================
         $this->rule('max-interactivity')->critical()
@@ -58,7 +65,6 @@ class DocWorkInclude extends IncludeArchetype
         $this->guideline('phase-1-understanding')
             ->text('Phase 1: Understand what to document through maximum interactivity.')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('TARGET_TYPE', '{detect type from $RAW_INPUT: feature|module|concept|file|topic}'))
             ->phase(Store::as('TARGET_VALUE', '{extract value after type prefix from $RAW_INPUT}'))
             ->phase('step-1', 'Parse $RAW_INPUT to identify $TARGET_TYPE and scope via $TARGET_VALUE')

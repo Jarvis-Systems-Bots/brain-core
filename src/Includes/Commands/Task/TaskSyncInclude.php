@@ -29,6 +29,13 @@ class TaskSyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
+            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS}'));
+
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
             ->text('ZERO distractions - implement ONLY specified task from vector task content. NO creative additions, NO unapproved features, NO scope creep.')
@@ -41,9 +48,9 @@ class TaskSyncInclude extends IncludeArchetype
             ->onViolation('Remove Task() calls. Execute directly.');
 
         $this->rule('single-approval-gate')->critical()
-            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve (skip user confirmation prompt).')
+            ->text('User approval REQUIRED before execution. Present plan, WAIT for confirmation, then execute without interruption. EXCEPTION: If $HAS_AUTO_APPROVE is true, auto-approve (skip user confirmation prompt).')
             ->why('Single checkpoint for simple tasks - approve once, execute fully. Flag -y enables automated/scripted execution.')
-            ->onViolation('STOP. Wait for user approval before execution (unless $HAS_Y_FLAG is true).');
+            ->onViolation('STOP. Wait for user approval before execution (unless $HAS_AUTO_APPROVE is true).');
 
         $this->rule('atomic-execution')->critical()
             ->text('Execute ONLY approved plan steps. NO improvisation, NO "while we\'re here" additions. Atomic changes only.')
@@ -67,13 +74,10 @@ class TaskSyncInclude extends IncludeArchetype
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')
-            ->goal('Parse $RAW_INPUT as task ID, load vector task with full context')
+            ->goal('Load vector task with full context using $VECTOR_TASK_ID from input capture')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->phase(Store::as('TASK_ID', '{extract numeric ID from $RAW_INPUT after removing flags}'))
-            ->phase('Parse $TASK_ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
-            ->phase(Store::as('VECTOR_TASK_ID', '{extracted_id}'))
+            ->phase('Use $VECTOR_TASK_ID from input capture (already parsed from $CLEAN_ARGS)')
+            ->phase('Use $HAS_AUTO_APPROVE for approval gate behavior')
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags, comment}'))
             ->phase(Operator::if('$VECTOR_TASK not found', [

@@ -20,6 +20,11 @@ class MemGetInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('MEMORY_ID', '{numeric ID extracted from $RAW_INPUT}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Memory retrieval utility that fetches and displays full content of a specific memory by ID.');
@@ -28,18 +33,16 @@ class MemGetInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse Arguments for Memory ID')
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', '/mem:get 15 → get memory by ID')
             ->phase('format-2', '/mem:get id=15 → explicit parameter')
             ->phase('validate', Operator::if(
-                '$RAW_INPUT is empty or not a number',
+                Store::get('RAW_INPUT') . ' is empty or not a number',
                 Operator::do(
                     'Display: "Error: Memory ID required"',
                     'Display: "Usage: /mem:get {id}"',
                     Operator::skip('No ID provided')
                 )
-            ))
-            ->phase('output', Store::as('MEMORY_ID', '{extract numeric ID from $RAW_INPUT}'));
+            ));
 
         // Workflow Step 2 - Fetch Memory
         $this->guideline('workflow-step2')

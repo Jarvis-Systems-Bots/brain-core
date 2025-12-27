@@ -23,6 +23,12 @@ class DoAsyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed}'));
+
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
             ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== DO:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
@@ -95,9 +101,6 @@ class DoAsyncInclude extends IncludeArchetype
         $this->guideline('phase0-context-analysis')
             ->goal('Extract task insights from conversation history before planning')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->phase(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed, trimmed}'))
             ->phase('Analyze conversation context: requirements mentioned, constraints discussed, user preferences, prior decisions, related code/files referenced')
             ->phase(Store::as('CONVERSATION_CONTEXT', '{requirements, constraints, preferences, decisions, references}'))
             ->phase(Operator::if('conversation has relevant context', [

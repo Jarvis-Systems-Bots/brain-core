@@ -23,6 +23,11 @@ class TaskCreateInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('TASK_DESCRIPTION', '{task description extracted from $RAW_INPUT}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Task creation specialist that analyzes user descriptions, researches context, estimates effort, and creates well-structured tasks after user approval.');
@@ -82,10 +87,8 @@ class TaskCreateInclude extends IncludeArchetype
         $this->guideline('workflow-step0')
             ->text('STEP 0 - Parse an input task and Understand')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->phase(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed}'))
-            ->phase('parse', Operator::task('$TASK_DESCRIPTION'))
+            ->phase('parse', Operator::task(Store::get('TASK_DESCRIPTION')))
             ->phase('action-1', 'Extract: primary objective, scope, requirements from user description')
             ->phase('action-2', 'Identify: implicit constraints, technical domain, affected areas')
             ->phase('action-3', 'Determine: task type (feature, bugfix, refactor, research, docs)')

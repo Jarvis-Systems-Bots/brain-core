@@ -21,6 +21,11 @@ class TaskDecomposeInclude extends IncludeArchetype
 {
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('TASK_ID', '{numeric task ID extracted from $RAW_INPUT}'));
+
         // ============================================
         // IRON RULES - AGGRESSIVE DECOMPOSITION
         // ============================================
@@ -75,11 +80,9 @@ class TaskDecomposeInclude extends IncludeArchetype
         // ============================================
 
         $this->guideline('phase0-parse')
-            ->goal('Extract and validate task_id from arguments')
+            ->goal('Validate captured input from $RAW_INPUT')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->phase(Store::as('TASK_ID', '{extract numeric ID from $RAW_INPUT}'))
             ->phase('STEP 1 - Validate:')
             ->do([
                 Operator::validate('$TASK_ID is numeric', 'Request valid task_id from user'),

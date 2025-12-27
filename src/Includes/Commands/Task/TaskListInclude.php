@@ -20,6 +20,11 @@ class TaskListInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('LIST_FILTERS', '{filters extracted from $RAW_INPUT: status, parent_id, tags, query}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Task listing utility that queries vector storage and displays formatted task hierarchy with status and priority indicators.');
@@ -28,7 +33,6 @@ class TaskListInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse Input for Filters')
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('parse', 'Extract filters from $RAW_INPUT: status=pending, parent_id=5, tags=backend, priority=high, limit=20')
             ->phase('defaults', 'Default: no filters (list all), limit=50')
             ->phase('output', Store::as('FILTERS', '{status?, parent_id?, tags?, priority?, limit?, offset?}'));

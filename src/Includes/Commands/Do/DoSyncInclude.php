@@ -28,6 +28,11 @@ class DoSyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('TASK_DESCRIPTION', '{task description extracted from $RAW_INPUT}'));
+
         // Iron Rules - Zero Tolerance
         $this->rule('zero-distractions')->critical()
             ->text('ZERO distractions - implement ONLY specified task from $TASK_DESCRIPTION. NO creative additions, NO unapproved features, NO scope creep.')
@@ -63,10 +68,8 @@ class DoSyncInclude extends IncludeArchetype
         $this->guideline('phase1-context-analysis')
             ->goal('Analyze task and gather context from conversation + memory')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->phase(Store::as('TASK_DESCRIPTION', '{$RAW_INPUT with flags removed, trimmed}'))
-            ->phase(Store::as('TASK', '$TASK_DESCRIPTION'))
+            ->phase(Store::as('TASK', '{$TASK_DESCRIPTION with flags removed, trimmed}'))
             ->phase('Analyze conversation: requirements, constraints, preferences, prior decisions')
             ->phase(VectorMemoryMcp::call('search_memories', '{query: "similar: {$TASK}", limit: 5, category: "code-solution"}'))
             ->phase(Store::as('PRIOR_SOLUTIONS', 'Relevant past approaches'))

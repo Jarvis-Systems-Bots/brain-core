@@ -20,11 +20,15 @@ class TaskStatusInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('STATUS_QUERY', '{query extracted from $RAW_INPUT}'));
+
         // Input parsing
         $this->guideline('parse-arguments')
-            ->text('Capture and parse input to detect query type')
+            ->text('Parse captured input to detect query type')
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('detect', Store::as('QUERY_TYPE', '{detect: time|status|group|specific|default from $RAW_INPUT}'))
             ->example('Time filters: yesterday, today, this week, this month, last 7 days, last N days')->key('time')
             ->example('Status filters: completed, pending, in_progress, stopped')->key('status')

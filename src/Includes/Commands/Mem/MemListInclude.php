@@ -20,6 +20,11 @@ class MemListInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('LIST_LIMIT', '{numeric limit extracted from $RAW_INPUT, default 10}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Simple memory listing utility that displays recent memories chronologically with previews and metadata.');
@@ -28,7 +33,6 @@ class MemListInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse Arguments for Limit')
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format', '/mem:list OR /mem:list limit=20')
             ->phase('extract', Store::as('LIMIT', '{parse limit from $RAW_INPUT, default 10, max 50}'))
             ->phase('validate', Operator::if(

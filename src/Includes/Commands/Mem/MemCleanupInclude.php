@@ -20,6 +20,11 @@ class MemCleanupInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('CLEANUP_PARAMS', '{cleanup parameters extracted from $RAW_INPUT: days_old, max_to_keep, or memory_id}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Memory cleanup utility that handles bulk deletion by age/count or specific ID deletion. All destructive operations require explicit confirmation.');
@@ -39,7 +44,6 @@ class MemCleanupInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse $RAW_INPUT for Operation Type')
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', '/mem:cleanup → preview default cleanup (30 days, keep 1000)')
             ->phase('format-2', '/mem:cleanup days=60 → cleanup older than 60 days')
             ->phase('format-3', '/mem:cleanup max_to_keep=500 → keep only 500 most recent')
@@ -47,7 +51,7 @@ class MemCleanupInclude extends IncludeArchetype
             ->phase('format-5', '/mem:cleanup ids=15,16,17 → delete multiple specific')
             ->phase('detect', Store::as('MODE', '{detect mode: bulk|single|multi from ' . Store::get('RAW_INPUT') . '}'))
             ->phase('extract-ids', Store::as('DELETE_IDS', '{extract id/ids from ' . Store::get('RAW_INPUT') . ' if present}'))
-            ->phase('extract-params', Store::as('CLEANUP_PARAMS', '{extract days_old, max_to_keep from ' . Store::get('RAW_INPUT') . '}'));
+            ->phase('extract-params', 'Use ' . Store::get('CLEANUP_PARAMS') . ' for days_old, max_to_keep values');
 
         // Workflow Step 2 - Single ID Delete
         $this->guideline('workflow-step2')

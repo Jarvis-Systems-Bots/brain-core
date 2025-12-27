@@ -24,6 +24,13 @@ class TaskValidateInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
+            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS: "63", "#63", "task 63" → 63}'));
+
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
             ->text('ON RECEIVING input: Your FIRST output MUST be "=== TASK:VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
@@ -105,14 +112,8 @@ class TaskValidateInclude extends IncludeArchetype
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')
-            ->goal('Parse $RAW_INPUT as task ID, load vector task with full context, verify validatable status')
+            ->goal('Load vector task using $VECTOR_TASK_ID (already parsed from input), verify validatable status')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->phase('STEP 1: Extract flags from $RAW_INPUT first')
-            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))
-            ->phase(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed, trimmed}'))
-            ->phase('STEP 2: Parse $CLEAN_ARGS for task ID using regex: extract first number from "63", "#63", "task 63", "task:63", "task-63", or "63 -y" → 63')
-            ->phase(Store::as('VECTOR_TASK_ID', '{extracted numeric id from $CLEAN_ARGS}'))
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'))
             ->phase(Operator::if('$VECTOR_TASK not found', [

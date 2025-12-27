@@ -20,6 +20,11 @@ class MemSearchInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('SEARCH_QUERY', '{search query extracted from $RAW_INPUT}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Semantic memory search utility that queries vector storage with optional filters and displays formatted results with similarity scores.');
@@ -28,7 +33,6 @@ class MemSearchInclude extends IncludeArchetype
         $this->guideline('workflow-step1')
             ->text('STEP 1 - Parse Arguments for Query and Filters')
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', 'Simple query: /mem:search "authentication patterns"')
             ->phase('format-2', 'With filters: /mem:search query="auth" category=code-solution limit=20')
             ->phase('format-3', 'With tags: /mem:search query="api" tags=laravel,php')

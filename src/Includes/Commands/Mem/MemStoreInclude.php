@@ -20,6 +20,11 @@ class MemStoreInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('MEMORY_CONTENT', '{content to store extracted from $RAW_INPUT}'));
+
         // Role definition
         $this->guideline('role')
             ->text('Memory storage specialist that analyzes content, checks for duplicates, suggests appropriate category and tags, and stores memory after user approval.');
@@ -42,9 +47,8 @@ class MemStoreInclude extends IncludeArchetype
 
         // Workflow Step 1 - Parse Arguments
         $this->guideline('workflow-step1')
-            ->text('STEP 1 - Parse $RAW_INPUT')
+            ->text('STEP 1 - Parse ' . Store::get('RAW_INPUT'))
             ->example()
-            ->phase('capture', Store::as('RAW_INPUT', '$ARGUMENTS'))
             ->phase('format-1', 'Direct content: /mem:store "This is the memory content"')
             ->phase('format-2', 'With params: /mem:store content="..." category=code-solution tags=php,laravel')
             ->phase('extract', 'Extract from ' . Store::get('RAW_INPUT') . ': content (required), category (optional), tags (optional)')

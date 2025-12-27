@@ -24,6 +24,13 @@ class TaskAsyncInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags removed}'))
+            ->text(Store::as('VECTOR_TASK_ID', '{numeric ID extracted from $CLEAN_ARGS}'));
+
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
             ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== TASK:ASYNC ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis, problem solving, implementation thinking.')
@@ -37,9 +44,9 @@ class TaskAsyncInclude extends IncludeArchetype
             ->onViolation('Abort immediately. Return to approved plan.');
 
         $this->rule('approval-gates-mandatory')->critical()
-            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation. EXCEPTION: If $HAS_Y_FLAG is true, auto-approve all gates (skip user confirmation prompts).')
+            ->text('User approval REQUIRED at Requirements Analysis gate and Execution Planning gate. NEVER proceed without explicit confirmation. EXCEPTION: If $HAS_AUTO_APPROVE is true, auto-approve all gates (skip user confirmation prompts).')
             ->why('Maintains user control and prevents unauthorized execution. Flag -y enables automated/scripted execution.')
-            ->onViolation('STOP. Wait for user approval before continuing (unless $HAS_Y_FLAG is true).');
+            ->onViolation('STOP. Wait for user approval before continuing (unless $HAS_AUTO_APPROVE is true).');
 
         $this->rule('atomic-tasks-only')->critical()
             ->text('Each agent task MUST be small and focused: maximum 1-2 files per agent invocation. NO large multi-file changes.')
@@ -99,13 +106,10 @@ class TaskAsyncInclude extends IncludeArchetype
 
         // Phase 0: Vector Task Loading
         $this->guideline('phase0-task-loading')
-            ->goal('Parse $RAW_INPUT as task ID, load vector task with full context')
+            ->goal('Load vector task with full context using pre-captured $VECTOR_TASK_ID')
             ->example()
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->phase(Store::as('HAS_Y_FLAG', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
-            ->phase(Store::as('TASK_ID', '{extract numeric ID from $RAW_INPUT after removing flags}'))
-            ->phase('Parse $TASK_ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
-            ->phase(Store::as('VECTOR_TASK_ID', '{extracted_id}'))
+            ->phase('Use pre-captured: $RAW_INPUT, $HAS_AUTO_APPROVE, $CLEAN_ARGS, $VECTOR_TASK_ID')
+            ->phase('Validate $VECTOR_TASK_ID: must be numeric, extracted from "15", "#15", "task 15", "task:15", "task-15"')
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags, comment}'))
             ->phase(Operator::if('$VECTOR_TASK not found', [

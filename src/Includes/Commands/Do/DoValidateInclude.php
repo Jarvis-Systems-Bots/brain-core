@@ -23,6 +23,12 @@ class DoValidateInclude extends IncludeArchetype
      */
     protected function handle(): void
     {
+        // === COMMAND INPUT (IMMEDIATE CAPTURE) ===
+        $this->guideline('input')
+            ->text(Store::as('RAW_INPUT', '$ARGUMENTS'))
+            ->text(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes"}'))
+            ->text(Store::as('VALIDATION_TARGET', '{target to validate extracted from $RAW_INPUT}'));
+
         // ABSOLUTE FIRST - BLOCKING ENTRY RULE
         $this->rule('entry-point-blocking')->critical()
             ->text('ON RECEIVING $RAW_INPUT: Your FIRST output MUST be "=== DO:VALIDATE ACTIVATED ===" followed by Phase 0. ANY other first action is VIOLATION. FORBIDDEN first actions: Glob, Grep, Read, Edit, Write, WebSearch, WebFetch, Bash (except brain list:masters), code generation, file analysis.')
@@ -88,13 +94,11 @@ class DoValidateInclude extends IncludeArchetype
 
         // Phase 0: Context Setup
         $this->guideline('phase0-context-setup')
-            ->goal('Capture $RAW_INPUT once, extract flags, store task context')
+            ->goal('Process $RAW_INPUT (already captured), extract flags, store task context')
             ->example()
             ->phase(Operator::output([
                 '=== DO:VALIDATE ACTIVATED ===',
             ]))
-            ->phase(Store::as('RAW_INPUT', '$ARGUMENTS'))
-            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $RAW_INPUT contains "-y" or "--yes", false otherwise}'))
             ->phase(Store::as('CLEAN_ARGS', '{$RAW_INPUT with flags (-y, --yes) removed, trimmed}'))
             ->phase('Parse $CLEAN_ARGS - verify it is TEXT description, not task ID pattern')
             ->phase(Operator::if('$CLEAN_ARGS matches task ID pattern (15, #15, task 15, task:15, task-15)', [
