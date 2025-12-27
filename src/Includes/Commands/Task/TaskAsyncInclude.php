@@ -111,10 +111,11 @@ class TaskAsyncInclude extends IncludeArchetype
             ->phase('Use pre-captured: $RAW_INPUT, $HAS_AUTO_APPROVE, $CLEAN_ARGS, $VECTOR_TASK_ID')
             ->phase('Validate $VECTOR_TASK_ID: must be numeric, extracted from "15", "#15", "task 15", "task:15", "task-15"')
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
-            ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags, comment}'))
+            ->phase(Store::as('VECTOR_TASK',
+                '{task object with title, content, status, parent_id, priority, tags, comment}'))
             ->phase(Operator::if('$VECTOR_TASK not found', [
                 Operator::report('Vector task #$VECTOR_TASK_ID not found'),
-                'Suggest: Check task ID with ' . VectorTaskMcp::method('task_list'),
+                'Suggest: Check task ID with '.VectorTaskMcp::method('task_list'),
                 'ABORT command',
             ]))
             ->phase(Operator::if('$VECTOR_TASK.status === "completed"', [
@@ -144,7 +145,8 @@ class TaskAsyncInclude extends IncludeArchetype
         $this->guideline('phase1-agent-discovery')
             ->goal('Discover agents leveraging task context + vector memory')
             ->example()
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "similar: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution,architecture"}'))
+            ->phase(VectorMemoryMcp::call('search_memories',
+                '{query: "similar: {$TASK_DESCRIPTION}", limit: 5, category: "code-solution,architecture"}'))
             ->phase(Store::as('PAST_SOLUTIONS', 'Past approaches'))
             ->phase(BashTool::describe(BrainCLI::LIST_MASTERS, 'brain list:masters'))
             ->phase(Store::as('AVAILABLE_AGENTS', 'Agents list'))
@@ -159,11 +161,13 @@ class TaskAsyncInclude extends IncludeArchetype
         $this->guideline('phase2-requirements-analysis-approval')
             ->goal('Create requirements plan leveraging task context + memory + GET USER APPROVAL + START TASK')
             ->example()
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "patterns: {task_domain}", limit: 5, category: "learning,architecture"}'))
+            ->phase(VectorMemoryMcp::call('search_memories',
+                '{query: "patterns: {task_domain}", limit: 5, category: "learning,architecture"}'))
             ->phase(Store::as('IMPLEMENTATION_PATTERNS', 'Past patterns'))
             ->phase('Analyze: $TASK_DESCRIPTION + $VECTOR_TASK.comment + $PAST_SOLUTIONS + $IMPLEMENTATION_PATTERNS')
             ->phase('Determine needs: scan targets, web research (if non-trivial), docs scan (if architecture-related)')
-            ->phase(Store::as('REQUIREMENTS_PLAN', '{scan_targets, web_research, docs_scan, task_comment_insights, memory_learnings}'))
+            ->phase(Store::as('REQUIREMENTS_PLAN',
+                '{scan_targets, web_research, docs_scan, task_comment_insights, memory_learnings}'))
             ->phase(Operator::output([
                 '',
                 '=== PHASE 2: REQUIREMENTS ANALYSIS ===',
@@ -178,7 +182,8 @@ class TaskAsyncInclude extends IncludeArchetype
             ->phase(Operator::verify('User approved'))
             ->phase(Operator::if('rejected', 'Modify plan → Re-present → WAIT'))
             ->phase('IMMEDIATELY after approval - set task in_progress (research IS execution)')
-            ->phase(VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Execution started after requirements approval", append_comment: true}'))
+            ->phase(VectorTaskMcp::call('task_update',
+                '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Execution started after requirements approval", append_comment: true}'))
             ->phase(Operator::output(['Vector task #{$VECTOR_TASK_ID} started (research phase)']));
 
         // Phase 3: Material Gathering with Vector Storage
@@ -190,17 +195,21 @@ class TaskAsyncInclude extends IncludeArchetype
                 Store::as('GATHERED_MATERIALS[{target}]', 'Agent-extracted context'),
             ]))
             ->phase(Operator::if('$DOCS_SCAN_NEEDED === true', [
-                BashTool::describe(BrainCLI::DOCS('{keywords}'), 'Get documentation INDEX only (Path, Name, Description)'),
+                BashTool::describe(BrainCLI::DOCS('{keywords}'),
+                    'Get documentation INDEX only (Path, Name, Description)'),
                 Store::as('DOCS_INDEX', 'Documentation file paths'),
-                TaskTool::agent('explore', 'Read and summarize documentation files: {$DOCS_INDEX paths}. Store to vector memory.'),
+                TaskTool::agent('explore',
+                    'Read and summarize documentation files: {$DOCS_INDEX paths}. Store to vector memory.'),
                 Store::as('DOCS_SCAN_FINDINGS', 'Agent-summarized documentation'),
             ]))
             ->phase(Operator::if('$WEB_RESEARCH_NEEDED === true', [
-                TaskTool::agent('web-research-master', 'Research best practices for {$TASK_DESCRIPTION}. Store findings to vector memory.'),
+                TaskTool::agent('web-research-master',
+                    'Research best practices for {$TASK_DESCRIPTION}. Store findings to vector memory.'),
                 Store::as('WEB_RESEARCH_FINDINGS', 'External knowledge'),
             ]))
             ->phase(Store::as('CONTEXT_PACKAGES', '{agent_name: {context, materials, task_domain}, ...}'))
-            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Context for {$TASK_DESCRIPTION}\\n\\nMaterials: {summary}", category: "tool-usage", tags: ["task-async", "context-gathering"]}'))
+            ->phase(VectorMemoryMcp::call('store_memory',
+                '{content: "Context for {$TASK_DESCRIPTION}\\n\\nMaterials: {summary}", category: "tool-usage", tags: ["task-async", "context-gathering"]}'))
             ->phase(Operator::output([
                 '=== PHASE 3: MATERIALS GATHERED ===',
                 'Materials: {count} | Docs: {status} | Web: {status}',
@@ -211,7 +220,8 @@ class TaskAsyncInclude extends IncludeArchetype
         $this->guideline('phase4-execution-planning-approval')
             ->goal('Create atomic plan leveraging past execution patterns, analyze dependencies, and GET USER APPROVAL')
             ->example()
-            ->phase(VectorMemoryMcp::call('search_memories', '{query: "execution approach for {task_type}", limit: 5, category: "code-solution"}'))
+            ->phase(VectorMemoryMcp::call('search_memories',
+                '{query: "execution approach for {task_type}", limit: 5, category: "code-solution"}'))
             ->phase(Store::as('EXECUTION_PATTERNS', 'Past successful execution approaches'))
             ->phase('Create plan: atomic steps (≤2 files each), logical order, informed by $EXECUTION_PATTERNS')
             ->phase('Analyze step dependencies: file conflicts, context dependencies, data flow')
@@ -249,50 +259,63 @@ class TaskAsyncInclude extends IncludeArchetype
             ]));
 
         // Phase 5: Flexible Execution (references agent-memory-pattern)
+        // CRITICAL ENFORCEMENT: Brain executes ZERO code - ALL work via Task() delegation
+        $this->rule('phase5-delegation-only')->critical()
+            ->text('In Phase 5, Brain is FORBIDDEN from calling: Edit, Write, Glob, Grep, Read, Bash (except brain CLI). EVERY step MUST be Task() call to agent. Brain role: invoke Task(), wait for result, log outcome. ZERO direct implementation.')
+            ->why('Brain is orchestrator, not executor. Direct tool calls bypass agent expertise, waste Brain tokens, violate architecture. Phase 5 is delegation phase, not execution phase.')
+            ->onViolation('STOP IMMEDIATELY. Delete pending Edit/Write/Glob/Grep/Read calls. Identify agent from $EXECUTION_PLAN.steps[N].agent_name. Delegate via Task(subagent_type=agent_name, prompt=step_description).');
+
         $this->guideline('phase5-flexible-execution')
-            ->goal('Execute plan with optimal mode (sequential OR parallel)')
+            ->goal('Execute plan via Task() delegation ONLY - Brain calls NO file tools')
             ->example()
+            ->phase('CRITICAL: Brain calls ONLY Task() tool in this phase. NO Edit/Write/Glob/Grep/Read.')
             ->phase('NOTE: Task already in_progress since Phase 2 approval')
             ->phase('Initialize: current_step = 1')
             ->phase(Operator::if('$EXECUTION_PLAN.execution_mode === "sequential"', [
-                'SEQUENTIAL MODE: Execute steps one-by-one',
+                'SEQUENTIAL MODE: Delegate steps one-by-one via Task()',
                 Operator::forEach('step in $EXECUTION_PLAN.steps', [
-                    Operator::output(['Step {N}/{total}: @agent-{step.agent_name} | {step.file_scope}']),
-                    'Delegate via Task() with agent-memory-pattern (BEFORE→DURING→AFTER)',
-                    TaskTool::describe('Task(@agent-{name}, {task + memory_search_query + context})'),
-                    Store::as('STEP_RESULTS[{N}]', 'Result'),
-                    Operator::output(['Step {N} complete']),
+                    Operator::output(['Step {N}/{total}: DELEGATING to @agent-{step.agent_name} | {step.file_scope}']),
+                    'MANDATORY: Use Task() tool - NOT Edit/Write/Glob/Grep/Read',
+                    TaskTool::agent('{step.agent_name}', 'Execute: {step.task_description}. Files: {step.file_scope}. Memory query: {step.memory_search_query}. Follow agent-memory-pattern: search before, store after.'),
+                    'WAIT for agent completion',
+                    Store::as('STEP_RESULTS[{N}]', 'Agent result'),
+                    Operator::output(['Step {N} delegated and completed by agent']),
                 ]),
             ]))
             ->phase(Operator::if('$EXECUTION_PLAN.execution_mode === "parallel"', [
-                'PARALLEL MODE: Execute independent steps concurrently',
+                'PARALLEL MODE: Delegate independent steps concurrently via multiple Task() calls',
                 Operator::forEach('group in $EXECUTION_PLAN.parallel_groups', [
-                    Operator::output(['Batch {N}: {count} steps']),
-                    'Launch ALL steps CONCURRENTLY via multiple Task() calls',
-                    'Each task follows agent-memory-pattern',
-                    'WAIT for ALL tasks in batch to complete',
-                    Store::as('BATCH_RESULTS[{N}]', 'Batch results'),
-                    Operator::output(['Batch {N} complete']),
+                    Operator::output(['Batch {N}: DELEGATING {count} steps in parallel']),
+                    'MANDATORY: Launch ALL via Task() calls - NOT direct tools',
+                    'Each Task() includes: agent_name, task_description, file_scope, memory_search_query',
+                    'WAIT for ALL Task() calls in batch to complete',
+                    Store::as('BATCH_RESULTS[{N}]', 'Batch agent results'),
+                    Operator::output(['Batch {N} delegated and completed by agents']),
                 ]),
             ]))
-            ->phase(Operator::if('step fails', ['Store failure to memory', 'Offer: Retry / Skip / Abort']));
+            ->phase(Operator::if('step fails', ['Store failure to memory', 'Offer: Retry / Skip / Abort']))
+            ->phase('POST-EXECUTION CHECK: Verify Brain called ONLY Task() tools. Any Edit/Write/Glob/Grep/Read = VIOLATION.');
 
         // Phase 6: Completion with Vector Task Update
         $this->guideline('phase6-completion-report')
             ->goal('Report results, update vector task status, store learnings')
             ->example()
             ->phase(Store::as('COMPLETION_SUMMARY', '{completed_steps, files_modified, outcomes, learnings}'))
-            ->phase(VectorMemoryMcp::call('store_memory', '{content: "Completed task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}\\n\\nApproach: {summary}\\n\\nSteps: {outcomes}\\n\\nLearnings: {insights}\\n\\nFiles: {list}", category: "code-solution", tags: ["task-async", "completed"]}'))
+            ->phase(VectorMemoryMcp::call('store_memory',
+                '{content: "Completed task #{$VECTOR_TASK_ID}: {$VECTOR_TASK.title}\\n\\nApproach: {summary}\\n\\nSteps: {outcomes}\\n\\nLearnings: {insights}\\n\\nFiles: {list}", category: "code-solution", tags: ["task-async", "completed"]}'))
             ->phase(Operator::if('status === SUCCESS', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Execution completed successfully. Files: {list}. Memory: #{memory_id}", append_comment: true}'),
+                VectorTaskMcp::call('task_update',
+                    '{task_id: $VECTOR_TASK_ID, status: "completed", comment: "Execution completed successfully. Files: {list}. Memory: #{memory_id}", append_comment: true}'),
                 Operator::output(['Vector task #{$VECTOR_TASK_ID} completed']),
             ]))
             ->phase(Operator::if('status === PARTIAL', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, comment: "Partial completion: {completed}/{total} steps. Remaining: {list}", append_comment: true}'),
+                VectorTaskMcp::call('task_update',
+                    '{task_id: $VECTOR_TASK_ID, comment: "Partial completion: {completed}/{total} steps. Remaining: {list}", append_comment: true}'),
                 Operator::output(['Vector task #{$VECTOR_TASK_ID} progress saved (partial)']),
             ]))
             ->phase(Operator::if('status === FAILED', [
-                VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "stopped", comment: "Execution failed: {reason}. Completed: {completed}/{total}", append_comment: true}'),
+                VectorTaskMcp::call('task_update',
+                    '{task_id: $VECTOR_TASK_ID, status: "stopped", comment: "Execution failed: {reason}. Completed: {completed}/{total}", append_comment: true}'),
                 Operator::output(['Vector task #{$VECTOR_TASK_ID} stopped (failed)']),
             ]))
             ->phase(Operator::output([
@@ -336,7 +359,7 @@ class TaskAsyncInclude extends IncludeArchetype
             ->example()
             ->phase()->if('vector task not found', [
                 'Report: "Vector task #{id} not found"',
-                'Suggest: Check task ID with ' . VectorTaskMcp::method('task_list'),
+                'Suggest: Check task ID with '.VectorTaskMcp::method('task_list'),
                 'Abort command',
             ])
             ->phase()->if('vector task already completed', [
@@ -415,7 +438,8 @@ class TaskAsyncInclude extends IncludeArchetype
             ->example()
             ->phase('input', '"task 15" where task #15 is "Fix typo in LoginController"')
             ->phase('load', 'task_get(15) → title, content, status, priority')
-            ->phase('flow', 'Task Load → Discovery → Requirements APPROVE → Gather → Plan APPROVE → Execute (1 step) → task_update(completed) → Complete');
+            ->phase('flow',
+                'Task Load → Discovery → Requirements APPROVE → Gather → Plan APPROVE → Execute (1 step) → task_update(completed) → Complete');
 
         $this->guideline('example-complex')
             ->scenario('Complex multi-agent sequential execution')
