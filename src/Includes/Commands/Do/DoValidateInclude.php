@@ -53,7 +53,7 @@ class DoValidateInclude extends IncludeArchetype
         $this->rule('documentation-master-mandatory')->critical()
             ->text('MUST use DocumentationMaster to extract ALL requirements from .docs/ before validation. Documentation is the source of truth.')
             ->why('Validation without documentation requirements is incomplete audit.')
-            ->onViolation('Delegate to @agent-documentation-master first.');
+            ->onViolation('VIOLATION RECOVERY: IF you skipped Phase 2 documentation extraction, STOP current phase. Return to Phase 2. Complete DocumentationMaster delegation. Only then continue.');
 
         $this->rule('no-direct-fixes')->critical()
             ->text('VALIDATION command NEVER fixes issues directly. ALL issues (critical, major, minor) MUST become tasks. No exceptions.')
