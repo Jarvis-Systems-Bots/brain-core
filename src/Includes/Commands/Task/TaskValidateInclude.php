@@ -91,8 +91,11 @@ class TaskValidateInclude extends IncludeArchetype
         $this->guideline('phase0-task-loading')
             ->goal('Parse $ARGUMENTS as task ID, load vector task with full context, verify validatable status')
             ->example()
-            ->phase('Parse $ARGUMENTS for task ID: extract number from "15", "#15", "task 15", "task:15", "task-15"')
-            ->phase(Store::as('VECTOR_TASK_ID', '{extracted_id}'))
+            ->phase('STEP 1: Extract flags from $ARGUMENTS first')
+            ->phase(Store::as('HAS_AUTO_APPROVE', '{true if $ARGUMENTS contains "-y" or "--yes", false otherwise}'))
+            ->phase(Store::as('CLEAN_ARGS', '{$ARGUMENTS with flags removed, trimmed}'))
+            ->phase('STEP 2: Parse $CLEAN_ARGS for task ID using regex: extract first number from "63", "#63", "task 63", "task:63", "task-63", or "63 -y" → 63')
+            ->phase(Store::as('VECTOR_TASK_ID', '{extracted numeric id from $CLEAN_ARGS}'))
             ->phase(VectorTaskMcp::call('task_get', '{task_id: $VECTOR_TASK_ID}'))
             ->phase(Store::as('VECTOR_TASK', '{task object with title, content, status, parent_id, priority, tags}'))
             ->phase(Operator::if('$VECTOR_TASK not found', [
@@ -152,14 +155,21 @@ class TaskValidateInclude extends IncludeArchetype
                 '1. VectorMaster - deep memory research for context',
                 '2. DocumentationMaster - requirements extraction',
                 '3. Selected agents - parallel validation (5 aspects)',
-                '',
-                '⚠️  APPROVAL REQUIRED',
-                '✅ approved/yes - start validation | ❌ no/modifications',
             ]))
-            ->phase('WAIT for user approval')
-            ->phase(Operator::verify('User approved'))
-            ->phase(Operator::if('rejected', 'Accept modifications → Re-present → WAIT'))
-            ->phase('IMMEDIATELY after approval - set task in_progress (validation IS execution)')
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === false', [
+                Operator::output([
+                    '',
+                    '⚠️  APPROVAL REQUIRED',
+                    '✅ approved/yes - start validation | ❌ no/modifications',
+                ]),
+                'WAIT for user approval',
+                Operator::verify('User approved'),
+                Operator::if('rejected', 'Accept modifications → Re-present → WAIT'),
+            ]))
+            ->phase(Operator::if('$HAS_AUTO_APPROVE === true', [
+                Operator::output(['✅ Auto-approved via -y flag']),
+            ]))
+            ->phase('After approval (manual or auto) - set task in_progress (validation IS execution)')
             ->phase(VectorTaskMcp::call('task_update', '{task_id: $VECTOR_TASK_ID, status: "in_progress", comment: "Validation started after approval", append_comment: true}'))
             ->phase(Operator::output(['📋 Vector task #{$VECTOR_TASK_ID} started (validation phase)']));
 
