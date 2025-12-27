@@ -71,6 +71,27 @@ class TaskValidateInclude extends IncludeArchetype
             ->why('Memory prevents duplicate work and provides audit trail.')
             ->onViolation('Store validation summary with findings, fixes, and created tasks.');
 
+        // Phase Execution Sequence - STRICT ORDERING
+        $this->rule('phase-sequence-strict')->critical()
+            ->text('Phases MUST execute in STRICT sequential order: Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7. NO phase may start until previous phase is FULLY COMPLETED. Each phase MUST output its header "=== PHASE N: NAME ===" before any actions.')
+            ->why('Sequential execution ensures data dependencies are satisfied. Each phase depends on variables stored by previous phases.')
+            ->onViolation('STOP. Return to last completed phase. Execute current phase fully before proceeding.');
+
+        $this->rule('no-phase-skip')->critical()
+            ->text('FORBIDDEN: Skipping phases. ALL phases 0-7 MUST execute even if a phase has no issues to report. Empty results are valid; skipped phases are VIOLATION.')
+            ->why('Phase skipping breaks data flow. Later phases expect variables from earlier phases.')
+            ->onViolation('ABORT. Return to first skipped phase. Execute ALL phases in sequence.');
+
+        $this->rule('phase-completion-marker')->high()
+            ->text('Each phase MUST end with its output block before next phase begins. Phase N output MUST appear before "=== PHASE N+1 ===" header.')
+            ->why('Output markers confirm phase completion. Missing output = incomplete phase.')
+            ->onViolation('Complete current phase output before starting next phase.');
+
+        $this->rule('no-parallel-phases')->critical()
+            ->text('FORBIDDEN: Executing multiple phases simultaneously. Only Phase 4 allows parallel AGENTS within the phase. Phase-level parallelism is NEVER allowed.')
+            ->why('Phase parallelism causes race conditions on shared variables.')
+            ->onViolation('Serialize phase execution. Wait for phase completion before starting next.');
+
         $this->rule('output-status-conditional')->critical()
             ->text('Output status depends on validation outcome: 1) PASSED + no tasks created → "validated", 2) Tasks created for fixes → "pending". Status "validated" means work is COMPLETE and verified.')
             ->why('If fix tasks were created, work is NOT done - task returns to pending queue. Only when validation passes completely (no critical issues, no missing requirements, no tasks created) can status be "validated".')
